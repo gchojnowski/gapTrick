@@ -16,12 +16,12 @@ import colabfold as cf
 
 from alphafold.data import mmcif_parsing
 from alphafold.data.templates import (_get_pdb_id_and_chain,
-                                                                            _process_single_hit,
-                                                                            _assess_hhsearch_hit,
-                                                                            _build_query_to_hit_index_mapping,
-                                                                            _extract_template_features,
-                                                                            SingleHitResult,
-                                                                            TEMPLATE_FEATURES)
+                                      _process_single_hit,
+                                      _assess_hhsearch_hit,
+                                      _build_query_to_hit_index_mapping,
+                                      _extract_template_features,
+                                      SingleHitResult,
+                                      TEMPLATE_FEATURES)
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
@@ -227,7 +227,7 @@ def predict_structure(prefix,
 
 
 
-def template_preps(fn='piaq_dimer.pdb'):
+def template_preps(fn='piaq_dimer.pdb', template_features={}):
     db_path='/cryo_em/AlphaFold/scripts/af2_multimers_with_templates/db/'
     #p = PDBParser()
     #struc = p.get_structure("", db_path+"1bjp_2mer.cif")
@@ -320,6 +320,30 @@ def template_preps(fn='piaq_dimer.pdb'):
     else:
         hit = None
     print(hit)
+
+    hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
+    mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
+    features, realign_warning = _extract_template_features(
+          mmcif_object=mmcif,
+          pdb_id=hit_pdb_code,
+          mapping=mapping,
+          template_sequence=template_sequence,
+          query_sequence=query_sequence,
+          template_chain_id=hit_chain_id,
+          kalign_binary_path="kalign")
+
+    features['template_sum_probs'] = [hit.sum_probs]
+
+    single_hit_result = SingleHitResult(features=features, error=None, warning=None)
+    for k in template_features:
+        template_features[k].append(features[k])
+
+    for name in template_features:
+        template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
+
+    for key,value in template_features.items():
+        if np.all(value==0): print("ERROR: Some template features are empty")
+
 
 template_preps()
 exit(1)
