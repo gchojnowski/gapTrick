@@ -22,7 +22,19 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
                                                                             _extract_template_features,
                                                                             SingleHitResult,
                                                                             TEMPLATE_FEATURES)
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio import SeqIO
+from Bio.PDB import  PDBParser, MMCIFParser
+from Bio.PDB.mmcifio import MMCIFIO
+from Bio import PDB
+import io
 
+from pathlib import Path
+
+import shutil
+
+from dataclasses import dataclass, replace
 from jax.lib import xla_bridge
 print(xla_bridge.get_backend().platform)
 
@@ -215,8 +227,102 @@ def predict_structure(prefix,
 
 
 
+def template_preps(fn='piaq_dimer.pdb'):
+    db_path='/cryo_em/AlphaFold/scripts/af2_multimers_with_templates/db/'
+    #p = PDBParser()
+    #struc = p.get_structure("", db_path+"1bjp_2mer.cif")
+    #io = MMCIFIO()
+    with open(db_path+"1bjp_2mer.cif", 'r') as fh:
+        mmcif_string=fh.read()
+    parser = PDB.MMCIFParser(QUIET=True)
+    handle = io.StringIO(mmcif_string)
+    full_structure = parser.get_structure('', handle)
+    print(dir(full_structure))
+    #io.set_structure(struc)
+    #io.save("file.cif")
+    #for ch in struc.get_chains():
+    #    print(dir(ch))
+    #with open(db_path+"1bjp_2mer.cif", "r") as fh:
+    #    parser = PDB.MMCIFParser(QUIET=True)
+    #    handle = io.StringIO(fh.read())
+    #full_structure = parser.get_structure('', handle)
+    #first_model_structure = _get_first_model(full_structure)
+    #exit(1)
+
+    query_sequence="PIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRRPIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRR"
+    query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
+
+    parent_dir = Path("/cryo_em/AlphaFold/scripts/af2_multimers_with_templates/hh/")
+    cif_dir = Path(parent_dir,"mmcif")
+    fasta_dir = Path(parent_dir,"fasta")
+    hhDB_dir = Path(parent_dir,"hhDB")
+    msa_dir = Path(hhDB_dir,"msa")
+    db_prefix="DB"
+
+    for dd in [parent_dir, cif_dir, fasta_dir, hhDB_dir, msa_dir]:
+        if dd.exists():
+            shutil.rmtree(dd)
+        dd.mkdir(parents=True)
+
+    filepath=Path(db_path+"1bjp_1mer.cif")
+    with open(filepath, "r") as fh:
+      filestr = fh.read()
+      mmcif_obj = mmcif_parsing.parse(file_id="1BJP",mmcif_string=filestr, catch_all_errors=True)
+      mmcif = mmcif_obj.mmcif_object
+
+    if not mmcif: print(mmcif_obj)
+    #/cryo_em/AlphaFold/ColabFold/cf_devel/site-packages/alphafold/data/mmcif_parsing.py
+    for chain_id,template_sequence in mmcif.chain_to_seqres.items():
+        print(chain_id, template_sequence)
+        #template_sequence = mmcif.chain_to_seqres[chain_id]
+        seq_name = filepath.stem.upper()+"_"+chain_id
+        seq = SeqRecord(Seq(template_sequence),id=seq_name,name="",description="")
+
+        with  Path(fasta_dir,seq.id+".fasta").open("w") as fh:
+            SeqIO.write([seq], fh, "fasta")
+
+    template_seq=seq
+    template_seq_path = Path(msa_dir,"template.fasta")
+    with template_seq_path.open("w") as fh:
+        SeqIO.write([seq], fh, "fasta")
+
+    os.system("cd %(msa_dir)s; ffindex_build -s ../DB_msa.ff{data,index} ."%locals())
+
+    os.chdir(msa_dir)
+    os.system("ffindex_build -s ../DB_msa.ff{data,index} .")
+    os.chdir(hhDB_dir)
+    os.system("ffindex_apply DB_msa.ff{data,index}  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0")
+    os.system("rm DB_msa.ff{data,index}")
+    os.system("ffindex_apply DB_a3m.ff{data,index} -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0")
+    os.system("cstranslate -f -x 0.3 -c 4 -I a3m -i DB_a3m -o DB_cs219 ")
+    os.system("sort -k3 -n -r DB_cs219.ffindex | cut -f1 > sorting.dat")
+
+    os.system("ffindex_order sorting.dat DB_hhm.ff{data,index} DB_hhm_ordered.ff{data,index}")
+    os.system("mv DB_hhm_ordered.ffindex DB_hhm.ffindex")
+    os.system("mv DB_hhm_ordered.ffdata DB_hhm.ffdata")
+
+    os.system("ffindex_order sorting.dat DB_a3m.ff{data,index} DB_a3m_ordered.ff{data,index}")
+    os.system("mv DB_a3m_ordered.ffindex DB_a3m.ffindex")
+    os.system("mv DB_a3m_ordered.ffdata DB_a3m.ffdata")
 
 
+
+    hhsearch_runner = hhsearch.HHSearch(binary_path="hhsearch", databases=[hhDB_dir.as_posix()+"/"+db_prefix])
+    with io.StringIO() as fh:
+        SeqIO.write([query_seq], fh, "fasta")
+        seq_fasta = fh.getvalue()
+
+    hhsearch_result = hhsearch_runner.query(seq_fasta)
+    hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
+    if len(hhsearch_hits) >0:
+        hit = hhsearch_hits[0]
+        hit = replace(hit,**{"name":template_seq.id})
+    else:
+        hit = None
+    print(hit)
+
+template_preps()
+exit(1)
 if 0:
     model_name="model_1"
     _=data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/cryo_em/AlphaFold/DBs")
