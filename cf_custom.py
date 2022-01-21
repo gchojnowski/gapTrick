@@ -39,6 +39,29 @@ from dataclasses import dataclass, replace
 from jax.lib import xla_bridge
 print(xla_bridge.get_backend().platform)
 
+hhdb_build_template="""
+cd %(msa_dir)s
+ffindex_build -s ../DB_msa.ff{data,index} .
+cd %(hhDB_dir)s
+ffindex_apply DB_msa.ff{data,index}  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0
+rm DB_msa.ff{data,index}
+ffindex_apply DB_a3m.ff{data,index} -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0
+cstranslate -f -x 0.3 -c 4 -I a3m -i DB_a3m -o DB_cs219 
+sort -k3 -n -r DB_cs219.ffindex | cut -f1 > sorting.dat
+
+ffindex_order sorting.dat DB_hhm.ff{data,index} DB_hhm_ordered.ff{data,index}
+mv DB_hhm_ordered.ffindex DB_hhm.ffindex
+mv DB_hhm_ordered.ffdata DB_hhm.ffdata
+
+ffindex_order sorting.dat DB_a3m.ff{data,index} DB_a3m_ordered.ff{data,index}
+mv DB_a3m_ordered.ffindex DB_a3m.ffindex
+mv DB_a3m_ordered.ffdata DB_a3m.ffdata
+cd %(home_path)s
+"""
+
+
+
+
 def mk_mock_template(query_sequence):
   # since alphafold's model requires a template input
   # we create a blank example w/ zero input, confidence -1
@@ -229,7 +252,7 @@ def predict_structure(prefix,
 
 
 def template_preps(query_sequence, db_path, template_fn_list):
-    home=os.getcwd()
+    home_path=os.getcwd()
 
     #p = PDBParser()
     #struc = p.get_structure("", db_path+"1bjp_2mer.cif")
@@ -295,24 +318,8 @@ def template_preps(query_sequence, db_path, template_fn_list):
         with template_seq_path.open("w") as fh:
             SeqIO.write([seq], fh, "fasta")
 
-        os.chdir(msa_dir)
-        os.system("ffindex_build -s ../DB_msa.ff{data,index} .")
-        os.chdir(hhDB_dir)
-        os.system("ffindex_apply DB_msa.ff{data,index}  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0")
-        os.system("rm DB_msa.ff{data,index}")
-        os.system("ffindex_apply DB_a3m.ff{data,index} -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0")
-        os.system("cstranslate -f -x 0.3 -c 4 -I a3m -i DB_a3m -o DB_cs219 ")
-        os.system("sort -k3 -n -r DB_cs219.ffindex | cut -f1 > sorting.dat")
-
-        os.system("ffindex_order sorting.dat DB_hhm.ff{data,index} DB_hhm_ordered.ff{data,index}")
-        os.system("mv DB_hhm_ordered.ffindex DB_hhm.ffindex")
-        os.system("mv DB_hhm_ordered.ffdata DB_hhm.ffdata")
-
-        os.system("ffindex_order sorting.dat DB_a3m.ff{data,index} DB_a3m_ordered.ff{data,index}")
-        os.system("mv DB_a3m_ordered.ffindex DB_a3m.ffindex")
-        os.system("mv DB_a3m_ordered.ffdata DB_a3m.ffdata")
-        os.chdir(home)
-
+        cmd=hhdb_build_template%locals()
+        os.system(cmd)
 
         hhsearch_runner = hhsearch.HHSearch(binary_path="hhsearch", databases=[hhDB_dir.as_posix()+"/"+db_prefix])
         with io.StringIO() as fh:
