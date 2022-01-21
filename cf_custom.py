@@ -2,6 +2,7 @@ import os, sys, re
 
 
 import sys
+import tempfile
 import numpy as np
 import string
 import pickle
@@ -227,17 +228,17 @@ def predict_structure(prefix,
 
 
 
-def template_preps(fn='piaq_dimer.pdb', template_features={}):
-    db_path='/cryo_em/AlphaFold/scripts/af2_multimers_with_templates/db/'
+def template_preps(query_sequence, db_path, template_fn_list):
+    home=os.getcwd()
+
     #p = PDBParser()
     #struc = p.get_structure("", db_path+"1bjp_2mer.cif")
     #io = MMCIFIO()
-    with open(db_path+"1bjp_2mer.cif", 'r') as fh:
-        mmcif_string=fh.read()
-    parser = PDB.MMCIFParser(QUIET=True)
-    handle = io.StringIO(mmcif_string)
-    full_structure = parser.get_structure('', handle)
-    print(dir(full_structure))
+    #with open(template_fn, 'r') as fh:
+    #    mmcif_string=fh.read()
+    #parser = PDB.MMCIFParser(QUIET=True)
+    #handle = io.StringIO(mmcif_string)
+    #full_structure = parser.get_structure('', handle)
     #io.set_structure(struc)
     #io.save("file.cif")
     #for ch in struc.get_chains():
@@ -249,10 +250,10 @@ def template_preps(fn='piaq_dimer.pdb', template_features={}):
     #first_model_structure = _get_first_model(full_structure)
     #exit(1)
 
-    query_sequence="PIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRRPIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRR"
+    #query_sequence="PIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRRPIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRR"
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
 
-    parent_dir = Path("/cryo_em/AlphaFold/scripts/af2_multimers_with_templates/hh/")
+    parent_dir = Path(db_path)
     cif_dir = Path(parent_dir,"mmcif")
     fasta_dir = Path(parent_dir,"fasta")
     hhDB_dir = Path(parent_dir,"hhDB")
@@ -264,7 +265,15 @@ def template_preps(fn='piaq_dimer.pdb', template_features={}):
             shutil.rmtree(dd)
         dd.mkdir(parents=True)
 
-    filepath=Path(db_path+"1bjp_1mer.cif")
+
+
+
+    #template_hit_list=[]
+    #for template_fn in template_fn_list:
+
+    template_fn = template_fn_list[0]
+
+    filepath=Path(template_fn)
     with open(filepath, "r") as fh:
       filestr = fh.read()
       mmcif_obj = mmcif_parsing.parse(file_id="1BJP",mmcif_string=filestr, catch_all_errors=True)
@@ -304,7 +313,7 @@ def template_preps(fn='piaq_dimer.pdb', template_features={}):
     os.system("ffindex_order sorting.dat DB_a3m.ff{data,index} DB_a3m_ordered.ff{data,index}")
     os.system("mv DB_a3m_ordered.ffindex DB_a3m.ffindex")
     os.system("mv DB_a3m_ordered.ffdata DB_a3m.ffdata")
-
+    os.chdir(home)
 
 
     hhsearch_runner = hhsearch.HHSearch(binary_path="hhsearch", databases=[hhDB_dir.as_posix()+"/"+db_prefix])
@@ -319,10 +328,18 @@ def template_preps(fn='piaq_dimer.pdb', template_features={}):
         hit = replace(hit,**{"name":template_seq.id})
     else:
         hit = None
-    print(hit)
+    #print(hit)
+
+    template_features = {}
+    for template_feature_name in TEMPLATE_FEATURES:
+      template_features[template_feature_name] = []
 
     hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
     mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
+    print("hit ", hit.hit_sequence)
+    print("qry ", hit.query)
+
+    template_sequence = hit.hit_sequence.replace('-', '')
     features, realign_warning = _extract_template_features(
           mmcif_object=mmcif,
           pdb_id=hit_pdb_code,
@@ -342,18 +359,19 @@ def template_preps(fn='piaq_dimer.pdb', template_features={}):
         template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
 
     for key,value in template_features.items():
+        print(key)
         if np.all(value==0): print("ERROR: Some template features are empty")
 
+    return template_features
 
-template_preps()
-exit(1)
+
 if 0:
     model_name="model_1"
     _=data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/cryo_em/AlphaFold/DBs")
     print(dir(_))
 
 homooligomer=2
-num_models=1
+num_models=5
 query_cardinality=[2,0]
 query_trim=[10000,10000]
 
@@ -376,6 +394,9 @@ jobname='piaqpiaa_test'
 
 template_features = mk_mock_template(query_seq_combined)
 
+with tempfile.TemporaryDirectory() as tmp_path:
+    print("Created tmp path ", tmp_path)
+    template_features = template_preps(query_sequence=query_seq_combined, db_path=tmp_path, template_fn_list=['db/1bjp_1mer.cif'])
 
 use_model = {}
 model_params = {}
@@ -412,10 +433,11 @@ if sum(query_cardinality) > 1:
     #msas=[]
     pos=0
     msa_combined=[">query\n"+query_seq_combined]
+    msa_combined=[]
     _blank_seq = [ ("-" * len(seq[:query_trim[n]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
-            for _desc, _seq in zip(msas[n].descriptions, msas[n].sequences[:2]):
+            for _desc, _seq in zip(msas[n].descriptions, msas[n].sequences[:]):
                 if not len(set(_seq[:query_trim[n]]))>1: continue
                 msa_combined.append(">%s"%_desc)
                 msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[:query_trim[n]]] + _blank_seq[pos + 1 :]))
@@ -437,12 +459,12 @@ if sum(query_cardinality) > 1:
     #    #deletion_matrices.append([[0]*L+mtx+[0]*R for mtx in deletion_matrix])
 
     #msas=[pipeline.parsers.parse_a3m("\n".join(a3m_lines))]
-    #for _i, _m in enumerate(msas):
-    #    print(_i, '\n', "\n".join(_m.sequences[:10]))
+    for _i, _m in enumerate(msas):
+        print(_i, '\n', "\n".join(_m.sequences[:10]))
     #print(msas[0].sequences[0])
     #exit(1)
     is_complex=True
-
+exit(1)
 # gather features
 feature_dict = {
         **pipeline.make_sequence_features(sequence=query_seq_combined, description="none", num_res=len(query_seq_combined)),
