@@ -268,98 +268,105 @@ def template_preps(query_sequence, db_path, template_fn_list):
 
 
 
-    #template_hit_list=[]
-    #for template_fn in template_fn_list:
+    template_hit_list=[]
+    for template_fn in template_fn_list:
 
-    template_fn = template_fn_list[0]
+        template_fn = template_fn_list[0]
 
-    filepath=Path(template_fn)
-    with open(filepath, "r") as fh:
-      filestr = fh.read()
-      mmcif_obj = mmcif_parsing.parse(file_id="1BJP",mmcif_string=filestr, catch_all_errors=True)
-      mmcif = mmcif_obj.mmcif_object
+        filepath=Path(template_fn)
+        with open(filepath, "r") as fh:
+            filestr = fh.read()
+            mmcif_obj = mmcif_parsing.parse(file_id=filepath.stem,mmcif_string=filestr, catch_all_errors=True)
+            mmcif = mmcif_obj.mmcif_object
 
-    if not mmcif: print(mmcif_obj)
-    #/cryo_em/AlphaFold/ColabFold/cf_devel/site-packages/alphafold/data/mmcif_parsing.py
-    for chain_id,template_sequence in mmcif.chain_to_seqres.items():
-        print(chain_id, template_sequence)
-        #template_sequence = mmcif.chain_to_seqres[chain_id]
-        seq_name = filepath.stem.upper()+"_"+chain_id
-        seq = SeqRecord(Seq(template_sequence),id=seq_name,name="",description="")
+        if not mmcif: print(mmcif_obj)
+        #/cryo_em/AlphaFold/ColabFold/cf_devel/site-packages/alphafold/data/mmcif_parsing.py
+        for chain_id,template_sequence in mmcif.chain_to_seqres.items():
+            print(chain_id, template_sequence)
+            #template_sequence = mmcif.chain_to_seqres[chain_id]
+            seq_name = filepath.stem.upper()+"_"+chain_id
+            seq = SeqRecord(Seq(template_sequence),id=seq_name,name="",description="")
 
-        with  Path(fasta_dir,seq.id+".fasta").open("w") as fh:
+            with  Path(fasta_dir,seq.id+".fasta").open("w") as fh:
+                SeqIO.write([seq], fh, "fasta")
+
+        template_seq=seq
+        template_seq_path = Path(msa_dir,"template.fasta")
+        with template_seq_path.open("w") as fh:
             SeqIO.write([seq], fh, "fasta")
 
-    template_seq=seq
-    template_seq_path = Path(msa_dir,"template.fasta")
-    with template_seq_path.open("w") as fh:
-        SeqIO.write([seq], fh, "fasta")
+        os.chdir(msa_dir)
+        os.system("ffindex_build -s ../DB_msa.ff{data,index} .")
+        os.chdir(hhDB_dir)
+        os.system("ffindex_apply DB_msa.ff{data,index}  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0")
+        os.system("rm DB_msa.ff{data,index}")
+        os.system("ffindex_apply DB_a3m.ff{data,index} -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0")
+        os.system("cstranslate -f -x 0.3 -c 4 -I a3m -i DB_a3m -o DB_cs219 ")
+        os.system("sort -k3 -n -r DB_cs219.ffindex | cut -f1 > sorting.dat")
 
-    os.system("cd %(msa_dir)s; ffindex_build -s ../DB_msa.ff{data,index} ."%locals())
+        os.system("ffindex_order sorting.dat DB_hhm.ff{data,index} DB_hhm_ordered.ff{data,index}")
+        os.system("mv DB_hhm_ordered.ffindex DB_hhm.ffindex")
+        os.system("mv DB_hhm_ordered.ffdata DB_hhm.ffdata")
 
-    os.chdir(msa_dir)
-    os.system("ffindex_build -s ../DB_msa.ff{data,index} .")
-    os.chdir(hhDB_dir)
-    os.system("ffindex_apply DB_msa.ff{data,index}  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0")
-    os.system("rm DB_msa.ff{data,index}")
-    os.system("ffindex_apply DB_a3m.ff{data,index} -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0")
-    os.system("cstranslate -f -x 0.3 -c 4 -I a3m -i DB_a3m -o DB_cs219 ")
-    os.system("sort -k3 -n -r DB_cs219.ffindex | cut -f1 > sorting.dat")
-
-    os.system("ffindex_order sorting.dat DB_hhm.ff{data,index} DB_hhm_ordered.ff{data,index}")
-    os.system("mv DB_hhm_ordered.ffindex DB_hhm.ffindex")
-    os.system("mv DB_hhm_ordered.ffdata DB_hhm.ffdata")
-
-    os.system("ffindex_order sorting.dat DB_a3m.ff{data,index} DB_a3m_ordered.ff{data,index}")
-    os.system("mv DB_a3m_ordered.ffindex DB_a3m.ffindex")
-    os.system("mv DB_a3m_ordered.ffdata DB_a3m.ffdata")
-    os.chdir(home)
+        os.system("ffindex_order sorting.dat DB_a3m.ff{data,index} DB_a3m_ordered.ff{data,index}")
+        os.system("mv DB_a3m_ordered.ffindex DB_a3m.ffindex")
+        os.system("mv DB_a3m_ordered.ffdata DB_a3m.ffdata")
+        os.chdir(home)
 
 
-    hhsearch_runner = hhsearch.HHSearch(binary_path="hhsearch", databases=[hhDB_dir.as_posix()+"/"+db_prefix])
-    with io.StringIO() as fh:
-        SeqIO.write([query_seq], fh, "fasta")
-        seq_fasta = fh.getvalue()
+        hhsearch_runner = hhsearch.HHSearch(binary_path="hhsearch", databases=[hhDB_dir.as_posix()+"/"+db_prefix])
+        with io.StringIO() as fh:
+            SeqIO.write([query_seq], fh, "fasta")
+            seq_fasta = fh.getvalue()
 
-    hhsearch_result = hhsearch_runner.query(seq_fasta)
-    hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
-    if len(hhsearch_hits) >0:
-        hit = hhsearch_hits[0]
-        hit = replace(hit,**{"name":template_seq.id})
-    else:
-        hit = None
-    #print(hit)
+        hhsearch_result = hhsearch_runner.query(seq_fasta)
+        hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
+        if len(hhsearch_hits) >0:
+            hit = hhsearch_hits[0]
+            hit = replace(hit,**{"name":template_seq.id})
+        else:
+            hit = None
+
+        if hit is not None: template_hit_list.append(hit)
+
 
     template_features = {}
     for template_feature_name in TEMPLATE_FEATURES:
       template_features[template_feature_name] = []
 
-    hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
-    mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
-    print("hit ", hit.hit_sequence)
-    print("qry ", hit.query)
+    for hit in template_hit_list:
 
-    template_sequence = hit.hit_sequence.replace('-', '')
-    features, realign_warning = _extract_template_features(
-          mmcif_object=mmcif,
-          pdb_id=hit_pdb_code,
-          mapping=mapping,
-          template_sequence=template_sequence,
-          query_sequence=query_sequence,
-          template_chain_id=hit_chain_id,
-          kalign_binary_path="kalign")
+        hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
+        mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
+        print(">"+hit.name)
+        print("hit ", hit.hit_sequence)
+        print("qry ", hit.query)
 
-    features['template_sum_probs'] = [hit.sum_probs]
+        template_sequence = hit.hit_sequence.replace('-', '')
 
-    single_hit_result = SingleHitResult(features=features, error=None, warning=None)
-    for k in template_features:
-        template_features[k].append(features[k])
+        features, realign_warning = _extract_template_features(
+            mmcif_object=mmcif,
+            pdb_id=hit_pdb_code,
+            mapping=mapping,
+            template_sequence=template_sequence,
+            query_sequence=query_sequence,
+            template_chain_id=hit_chain_id,
+            kalign_binary_path="kalign")
 
-    for name in template_features:
-        template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
+        features['template_sum_probs'] = [hit.sum_probs]
+
+        single_hit_result = SingleHitResult(features=features, error=None, warning=None)
+
+        for k in template_features:
+            if isinstance(template_features[k], (np.ndarray, np.generic) ):
+                template_features[k] = np.append(template_features[k], features[k])
+            else:
+                template_features[k].append(features[k])
+
+        for name in template_features:
+            template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
 
     for key,value in template_features.items():
-        print(key)
         if np.all(value==0): print("ERROR: Some template features are empty")
 
     return template_features
@@ -371,7 +378,7 @@ if 0:
     print(dir(_))
 
 homooligomer=2
-num_models=5
+num_models=1
 query_cardinality=[2,0]
 query_trim=[10000,10000]
 
@@ -392,11 +399,12 @@ query_seq_combined="".join(query_seq_extended)
 jobname='piaqpiaa_test'
 
 
-template_features = mk_mock_template(query_seq_combined)
 
 with tempfile.TemporaryDirectory() as tmp_path:
     print("Created tmp path ", tmp_path)
-    template_features = template_preps(query_sequence=query_seq_combined, db_path=tmp_path, template_fn_list=['db/1bjp_1mer.cif'])
+    template_features = template_preps(query_sequence=query_seq_combined, db_path=tmp_path, template_fn_list=['db/1bjp_1mer.cif']*1)
+
+#template_features = mk_mock_template(query_seq_combined)
 
 use_model = {}
 model_params = {}
@@ -418,26 +426,14 @@ for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_model
 is_complex=False
 
 if sum(query_cardinality) > 1:
-    # make multiple copies of msa for each copy
-    # AAA------
-    # ---AAA---
-    # ------AAA
-    #
-    # note: if you concat the sequences (as below), it does NOT work
-    # AAAAAAAAA
-    #a3m_lines_combined = pad_sequences(a3m_lines            =   [_.sequences for _ in msas],
-    #                                   query_sequences      =   query_sequences,
-    #                                   query_cardinality    =   [1]*homooligomer)
 
-    #msas = [pipeline.parsers.parse_a3m(a3m_lines_combined)]
-    #msas=[]
     pos=0
-    msa_combined=[">query\n"+query_seq_combined]
+    #msa_combined=[">query\n"+query_seq_combined]
     msa_combined=[]
     _blank_seq = [ ("-" * len(seq[:query_trim[n]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
-            for _desc, _seq in zip(msas[n].descriptions, msas[n].sequences[:]):
+            for _desc, _seq in zip(msas[n].descriptions, msas[n].sequences[:1]):
                 if not len(set(_seq[:query_trim[n]]))>1: continue
                 msa_combined.append(">%s"%_desc)
                 msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[:query_trim[n]]] + _blank_seq[pos + 1 :]))
@@ -446,25 +442,11 @@ if sum(query_cardinality) > 1:
 
     msas=[pipeline.parsers.parse_a3m("\n".join(msa_combined))]
 
-    #Ln = tuple(map(len,query_sequences))
-    #a3m_lines=[">101\n"+query_seq_combined]
-    #for o in range(len(query_sequences)):
-    #    L = sum(Ln[:o])
-    #    R = sum(Ln[(o+1):])# * (homooligomer-(o+1))
-    #    for _d, _s in zip(msas[o].descriptions, msas[o].sequences[:2]):
-    #        a3m_lines.append(">"+_d)
-    #        a3m_lines.append("-"*L+_s+"-"*R)
-    #    #msas.append(["-"*L+seq+"-"*R for seq in msa.sequences])
-    #    #msas.append(pipeline.parsers.parse_a3m(a3m_lines))
-    #    #deletion_matrices.append([[0]*L+mtx+[0]*R for mtx in deletion_matrix])
-
-    #msas=[pipeline.parsers.parse_a3m("\n".join(a3m_lines))]
     for _i, _m in enumerate(msas):
         print(_i, '\n', "\n".join(_m.sequences[:10]))
-    #print(msas[0].sequences[0])
-    #exit(1)
+
     is_complex=True
-exit(1)
+
 # gather features
 feature_dict = {
         **pipeline.make_sequence_features(sequence=query_seq_combined, description="none", num_res=len(query_seq_combined)),
