@@ -175,7 +175,7 @@ def predict_structure(prefix,
             processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed)
 
 
-            if not is_complex:
+            if 0:#not is_complex:
                 input_features = batch_input(
                                         processed_feature_dict,
                                         model_runner,
@@ -378,69 +378,14 @@ def template_preps(query_sequence, db_path, template_fn_list):
 
     return template_features
 
-
-if 0:
-    model_name="model_1"
-    _=data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/cryo_em/AlphaFold/DBs")
-    print(dir(_))
-
-homooligomer=2
-num_models=1
-query_cardinality=[2,0]
-query_trim=[10000,10000]
-
-piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_af2mmer/input/msas/bfd_uniclust_hits_dimer.a3m'
-piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_cf_mono/1.a3m'
-piaa_a3m='/home/gchojnowski/af2_jupyter/PIAQAAA_test_cf_mono/1.a3m'
-
-msas=[]
-for a3m_fn in [piaq_a3m, piaa_a3m]:
-    with open(a3m_fn, 'r') as fin:
-        msas.append(pipeline.parsers.parse_a3m(fin.read()))
-
-#msas = [msa]#*homooligomer
-query_sequences=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
-#query_sequence=msa.sequences[0]
-query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
-query_seq_combined="".join(query_seq_extended)
-jobname='piaqpiaa_test'
-
-
-
-with tempfile.TemporaryDirectory() as tmp_path:
-    print("Created tmp path ", tmp_path)
-    template_features = template_preps(query_sequence=query_seq_combined, db_path=tmp_path, template_fn_list=['db/1bjp_1mer.cif']*1)
-
-#template_features = mk_mock_template(query_seq_combined)
-
-use_model = {}
-model_params = {}
-model_runner_1 = None
-model_runner_3 = None
-for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
-    use_model[model_name] = True
-    if model_name not in list(model_params.keys()):
-        model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/cryo_em/AlphaFold/DBs")
-        if model_name == "model_1":
-            model_config = config.model_config(model_name+"_ptm")
-            model_config.data.eval.num_ensemble = 1
-            model_runner_1 = model.RunModel(model_config, model_params[model_name])
-        if model_name == "model_3":
-            model_config = config.model_config(model_name+"_ptm")
-            model_config.data.eval.num_ensemble = 1
-            model_runner_3 = model.RunModel(model_config, model_params[model_name])
-
-is_complex=False
-
-if sum(query_cardinality) > 1:
-
+def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
     pos=0
     #msa_combined=[">query\n"+query_seq_combined]
     msa_combined=[]
     _blank_seq = [ ("-" * len(seq[:query_trim[n]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
-            for _desc, _seq in zip(msas[n].descriptions, msas[n].sequences[:1]):
+            for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:1]):
                 if not len(set(_seq[:query_trim[n]]))>1: continue
                 msa_combined.append(">%s"%_desc)
                 msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[:query_trim[n]]] + _blank_seq[pos + 1 :]))
@@ -452,21 +397,81 @@ if sum(query_cardinality) > 1:
     for _i, _m in enumerate(msas):
         print(_i, '\n', "\n".join(_m.sequences[:10]))
 
+    return msas
+
+
+
+
+
+def main():
+
+    num_models=1
+    query_cardinality=[1,0]
+    query_trim=[10000,10000]
+
+    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_af2mmer/input/msas/bfd_uniclust_hits_dimer.a3m'
+    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_cf_mono/1.a3m'
+    piaa_a3m='/home/gchojnowski/af2_jupyter/PIAQAAA_test_cf_mono/1.a3m'
+
+    msas=[]
+    for a3m_fn in [piaq_a3m, piaa_a3m]:
+        with open(a3m_fn, 'r') as fin:
+            msas.append(pipeline.parsers.parse_a3m(fin.read()))
+
+    query_sequences=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
+    #query_sequence=msa.sequences[0]
+    query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
+    query_seq_combined="".join(query_seq_extended)
+    jobname='piaqpiaa_test'
+
+
+
+    with tempfile.TemporaryDirectory() as tmp_path:
+        print("Created tmp path ", tmp_path)
+        template_features = template_preps(query_sequence=query_seq_combined, db_path=tmp_path, template_fn_list=['db/1bjp_1mer.cif']*1)
+
+    #template_features = mk_mock_template(query_seq_combined)
+
+    use_model = {}
+    model_params = {}
+    model_runner_1 = None
+    model_runner_3 = None
+    for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
+        use_model[model_name] = True
+        if model_name not in list(model_params.keys()):
+            model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/cryo_em/AlphaFold/DBs")
+            if model_name == "model_1":
+                model_config = config.model_config(model_name+"_ptm")
+                model_config.data.eval.num_ensemble = 1
+                model_runner_1 = model.RunModel(model_config, model_params[model_name])
+            if model_name == "model_3":
+                model_config = config.model_config(model_name+"_ptm")
+                model_config.data.eval.num_ensemble = 1
+                model_runner_3 = model.RunModel(model_config, model_params[model_name])
+
     is_complex=True
 
-# gather features
-feature_dict = {
+    msas = combine_msas(query_sequences, msas, query_cardinality, query_trim)
+
+    # gather features
+    feature_dict = {
         **pipeline.make_sequence_features(sequence=query_seq_combined, description="none", num_res=len(query_seq_combined)),
         **pipeline.make_msa_features(msas=msas),
         **template_features
-}
-feature_dict["asym_id"] = np.array( [int(n) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
+    }
+    feature_dict["asym_id"] = \
+            np.array( [int(n) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
 
-outs = predict_structure(jobname, query_seq_combined, feature_dict,
-                       Ls=tuple(map(len, query_seq_extended)),
-                       model_params=model_params, use_model=use_model,
-                       model_runner_1=model_runner_1,
-                       model_runner_3=model_runner_3,
-                       is_complex=is_complex,
-                       do_relax=False)
+    outs = predict_structure(jobname, query_seq_combined, feature_dict,
+                             Ls=tuple(map(len, query_seq_extended)),
+                             model_params=model_params, use_model=use_model,
+                             model_runner_1=model_runner_1,
+                             model_runner_3=model_runner_3,
+                             is_complex=is_complex,
+                             do_relax=False)
 
+
+
+
+if __name__=="__main__":
+    main()
