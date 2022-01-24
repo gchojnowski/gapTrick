@@ -479,7 +479,7 @@ def test():
           query_cardinality =   [1,1],
           query_trim        =   [30,10000],
           num_models        =   1,
-          template_fn_list =   ['db/1bjp_1mer.cif'],
+          template_fn_list  =   ['db/1bjp_1mer.cif'],
           jobname           =   'piaq_test')
 
 
