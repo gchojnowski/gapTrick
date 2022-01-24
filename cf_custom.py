@@ -508,7 +508,7 @@ def esx_tests_dd():
           jobname           =   'eccd100x2e_test')
 
 def main():
-    esx_tests()
+    esx_tests_dd()
 
 if __name__=="__main__":
     main()
