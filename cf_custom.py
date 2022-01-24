@@ -233,7 +233,6 @@ def predict_structure(prefix,
     out = {}
     print("reranking models based on avg. predicted lDDT")
     for n,r in enumerate(lddt_rank):
-        print(plddts[r])
         print(f"model_{n+1} {np.mean(plddts[r])}")
 
         unrelaxed_pdb_path = f'{prefix}_unrelaxed_model_{n+1}.pdb'    
@@ -333,7 +332,7 @@ def template_preps(query_sequence, db_path, template_fn_list):
             hit = replace(hit,**{"name":template_seq.id})
         else:
             hit = None
-        print(hhsearch_result)
+        #print(hhsearch_result)
         if hit is not None: template_hit_list.append(hit)
 
 
@@ -484,17 +483,29 @@ def test():
           jobname           =   'piaq_test')
 
 
-def esx_tests():
+def esx_tests_dde():
     msa_eccd_fn='/home/gchojnowski/esxn_project/I0RSS8_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
-    msas_fn=[msa_eccd_fn]*2
+    msa_ecce_fn='/home/gchojnowski/esxn_project/I0RST0_cfold/input/msas/bfd_uniclust_hits.a3m'
+    msas_fn=[msa_eccd_fn, msa_ecce_fn]
 
     runme(msa_filenames     =   msas_fn,
-          query_cardinality =   [1,1],
-          query_trim        =   [100,100],
+          query_cardinality =   [2,1],
+          query_trim        =   [100,9999],
           num_models        =   5,
           template_fn_list  =   ['db/7b9f_D100X100CEmerged.pdb.cif'],
-          jobname           =   'eccd100_test')
+          jobname           =   'eccd100x2e_test')
 
+def esx_tests_dd():
+    msa_eccd_fn='/home/gchojnowski/esxn_project/I0RSS8_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
+    msa_ecce_fn='/home/gchojnowski/esxn_project/I0RST0_cfold/input/msas/bfd_uniclust_hits.a3m'
+    msas_fn=[msa_eccd_fn]
+
+    runme(msa_filenames     =   msas_fn,
+          query_cardinality =   [2],
+          query_trim        =   [100],
+          num_models        =   5,
+          template_fn_list  =   ['db/7b9f_D100X100CEmerged.pdb.cif'],
+          jobname           =   'eccd100x2e_test')
 
 def main():
     esx_tests()
