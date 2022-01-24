@@ -476,7 +476,7 @@ def runme(msa_filenames,
     # do not clean jobpath - processed template will be stored there before job is started
     jobpath=Path(jobname)
     inputpath=Path(jobname, "input")
-    msaspath=Path(jobname, "input", "msas")
+    msaspath=Path(jobname, "input", "msas", "A")
     for dd in [inputpath, msaspath]:
         if dd.exists():
             shutil.rmtree(dd)
@@ -490,8 +490,7 @@ def runme(msa_filenames,
     a3m_fn='input_combined.a3m'
     with Path(msaspath, a3m_fn).open('w') as of:
         for _i, _m in enumerate(msas):
-            of.write("\n".join(_m.sequences))
-
+            of.write("\n".join([">%s\n%s"%(_d,_s) for (_d,_s) in zip(_m.descriptions,_m.sequences)]))
     # pickels for models (plddt-ranked)
     for idx,dat in output.items():
 
