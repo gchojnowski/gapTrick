@@ -333,7 +333,7 @@ def template_preps(query_sequence, db_path, template_fn_list):
             hit = replace(hit,**{"name":template_seq.id})
         else:
             hit = None
-
+        print(hhsearch_result)
         if hit is not None: template_hit_list.append(hit)
 
 
@@ -385,7 +385,7 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
     _blank_seq = [ ("-" * len(seq[:query_trim[n]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
-            for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:1]):
+            for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
                 if not len(set(_seq[:query_trim[n]]))>1: continue
                 msa_combined.append(">%s"%_desc)
                 msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[:query_trim[n]]] + _blank_seq[pos + 1 :]))
@@ -419,7 +419,8 @@ def runme(msa_filenames,
     query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
     query_seq_combined="".join(query_seq_extended)
 
-
+    print(query_seq_combined)
+    print()
     if template_fn_list:
         with tempfile.TemporaryDirectory() as tmp_path:
             print("Created tmp path ", tmp_path)
@@ -475,7 +476,7 @@ def test():
     msas_fn=[piaq_a3m, piaa_a3m]
 
     #this one will work ONLY with a template (even though score are always quite poor)
-    runme(msa_filenames=msas_fn,
+    runme(msa_filenames     =   msas_fn,
           query_cardinality =   [1,1],
           query_trim        =   [30,10000],
           num_models        =   1,
@@ -483,11 +484,20 @@ def test():
           jobname           =   'piaq_test')
 
 
+def esx_tests():
+    msa_eccd_fn='/home/gchojnowski/esxn_project/I0RSS8_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
+    msas_fn=[msa_eccd_fn]*2
 
+    runme(msa_filenames     =   msas_fn,
+          query_cardinality =   [1,1],
+          query_trim        =   [100,100],
+          num_models        =   5,
+          template_fn_list  =   ['db/7b9f_D100X100CEmerged.pdb.cif'],
+          jobname           =   'eccd100_test')
 
 
 def main():
-    test()
+    esx_tests()
 
 if __name__=="__main__":
     main()
