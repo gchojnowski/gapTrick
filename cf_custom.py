@@ -403,18 +403,16 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 
 
 
-def main():
+def runme(msa_filenames,
+          query_cardinality =   [1,0],
+          query_trim        =   [10000,10000],
+          num_models        =   1,
+          jobname           =   'test'):
 
-    num_models=1
-    query_cardinality=[1,0]
-    query_trim=[10000,10000]
-
-    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_af2mmer/input/msas/bfd_uniclust_hits_dimer.a3m'
-    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_cf_mono/1.a3m'
-    piaa_a3m='/home/gchojnowski/af2_jupyter/PIAQAAA_test_cf_mono/1.a3m'
+ 
 
     msas=[]
-    for a3m_fn in [piaq_a3m, piaa_a3m]:
+    for a3m_fn in msa_filenames:
         with open(a3m_fn, 'r') as fin:
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
@@ -422,7 +420,6 @@ def main():
     #query_sequence=msa.sequences[0]
     query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
     query_seq_combined="".join(query_seq_extended)
-    jobname='piaqpiaa_test'
 
 
 
@@ -470,8 +467,25 @@ def main():
                              is_complex=is_complex,
                              do_relax=False)
 
+def test():
+
+    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_af2mmer/input/msas/bfd_uniclust_hits_dimer.a3m'
+    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_cf_mono/1.a3m'
+    piaa_a3m='/home/gchojnowski/af2_jupyter/PIAQAAA_test_cf_mono/1.a3m'
+    msas_fn=[piaq_a3m, piaa_a3m]
+
+    runme(msa_filenames=msas_fn,
+          query_cardinality =   [1,1],
+          query_trim        =   [30,10000],
+          num_models        =   1,
+          jobname           =   'piaq_test')
 
 
+
+
+
+def main():
+    test()
 
 if __name__=="__main__":
     main()
