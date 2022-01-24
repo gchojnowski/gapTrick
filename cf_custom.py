@@ -406,10 +406,9 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 def runme(msa_filenames,
           query_cardinality =   [1,0],
           query_trim        =   [10000,10000],
+          template_fn_list  =   None,
           num_models        =   1,
           jobname           =   'test'):
-
- 
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -417,17 +416,18 @@ def runme(msa_filenames,
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
     query_sequences=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
-    #query_sequence=msa.sequences[0]
     query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
     query_seq_combined="".join(query_seq_extended)
 
 
-
-    with tempfile.TemporaryDirectory() as tmp_path:
-        print("Created tmp path ", tmp_path)
-        template_features = template_preps(query_sequence=query_seq_combined, db_path=tmp_path, template_fn_list=['db/1bjp_1mer.cif']*1)
-
-    #template_features = mk_mock_template(query_seq_combined)
+    if template_fn_list:
+        with tempfile.TemporaryDirectory() as tmp_path:
+            print("Created tmp path ", tmp_path)
+            template_features = template_preps(query_sequence   =   query_seq_combined,
+                                               db_path          =   tmp_path,
+                                               template_fn_list =   template_fn_list)
+    else:
+        template_features = mk_mock_template(query_seq_combined)
 
     use_model = {}
     model_params = {}
@@ -474,10 +474,12 @@ def test():
     piaa_a3m='/home/gchojnowski/af2_jupyter/PIAQAAA_test_cf_mono/1.a3m'
     msas_fn=[piaq_a3m, piaa_a3m]
 
+    #this one will work ONLY with a template (even though score are always quite poor)
     runme(msa_filenames=msas_fn,
           query_cardinality =   [1,1],
           query_trim        =   [30,10000],
           num_models        =   1,
+          template_fn_list =   ['db/1bjp_1mer.cif'],
           jobname           =   'piaq_test')
 
 
