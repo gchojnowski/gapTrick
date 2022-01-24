@@ -32,7 +32,7 @@ from Bio import PDB
 import io
 
 from pathlib import Path
-
+import pickle
 import shutil
 
 from dataclasses import dataclass, replace
@@ -159,7 +159,7 @@ def predict_structure(prefix,
     #print(idx_res)
     #print(chains)
     # Run the models.
-    plddts,paes = [],[]
+    plddts,paes,ptmscore= [],[],[]
     unrelaxed_pdb_lines = []
     relaxed_pdb_lines = []
 
@@ -226,27 +226,30 @@ def predict_structure(prefix,
             #plddts.append(prediction_result['plddt'])
             paes.append(prediction_result['predicted_aligned_error'])
             plddts.append(prediction_result["plddt"][:seq_len])
-            #ptmscore.append(prediction_result["ptm"])
+            ptmscore.append(prediction_result["ptm"])
 
     # rerank models based on predicted lddt
     lddt_rank = np.mean(plddts,-1).argsort()[::-1]
-    out = {}
+    output = {}
     print("reranking models based on avg. predicted lDDT")
     for n,r in enumerate(lddt_rank):
+
+        output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':unrelaxed_pdb_lines[r]}
+        continue
+
         print(f"model_{n+1} {np.mean(plddts[r])}")
 
         unrelaxed_pdb_path = f'{prefix}_unrelaxed_model_{n+1}.pdb'    
         with open(unrelaxed_pdb_path, 'w') as f: f.write(unrelaxed_pdb_lines[r])
         #set_bfactor(unrelaxed_pdb_path, plddts[r], idx_res, chains)
 
-        if do_relax:
+        if 0:#do_relax:
             relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
             with open(relaxed_pdb_path, 'w') as f: f.write(relaxed_pdb_lines[r])
             #set_bfactor(relaxed_pdb_path, plddts[r], idx_res, chains)
 
-        out[f"model_{n+1}"] = {"plddt":plddts[r], "pae":paes[r]}
 
-    return out
+    return output
 
 
 
@@ -459,13 +462,48 @@ def runme(msa_filenames,
     feature_dict["asym_id"] = \
             np.array( [int(n) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
 
-    outs = predict_structure(jobname, query_seq_combined, feature_dict,
+    output = predict_structure(jobname, query_seq_combined, feature_dict,
                              Ls=tuple(map(len, query_seq_extended)),
                              model_params=model_params, use_model=use_model,
                              model_runner_1=model_runner_1,
                              model_runner_3=model_runner_3,
                              is_complex=is_complex,
                              do_relax=False)
+
+
+
+    #reproduce af2-like output paths
+    # do not clean jobpath - processed template will be stored there before job is started
+    jobpath=Path(jobname)
+    inputpath=Path(jobname, "input")
+    msaspath=Path(jobname, "input", "msas")
+    for dd in [inputpath, msaspath]:
+        if dd.exists():
+            shutil.rmtree(dd)
+        dd.mkdir(parents=True)
+
+    # query sequence
+    with Path(jobpath, 'input.fasta').open('w') as of:
+        of.write(">input\n%s\n"%query_seq_combined)
+
+    # a3m
+    a3m_fn='input_combined.a3m'
+    with Path(msaspath, a3m_fn).open('w') as of:
+        for _i, _m in enumerate(msas):
+            of.write("\n".join(_m.sequences))
+
+    # pickels for models (plddt-ranked)
+    for idx,dat in output.items():
+
+        pdb_fn = 'ranked_%d.pdb'%idx
+        print(pdb_fn, np.mean(dat['plddt']))
+        with Path(inputpath, pdb_fn).open('w') as of: of.write(dat['pdb'])
+
+        outdict={'predicted_aligned_error':dat['pae'], 'ptm':dat['ptm'], 'plddt':dat['plddt']}
+        pkl_fn = 'result_model_%d_ptm.pkl'%(idx+1)
+        with Path(inputpath, pkl_fn).open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
+
+
 
 def test():
 
@@ -503,7 +541,7 @@ def esx_tests_dd():
     runme(msa_filenames     =   msas_fn,
           query_cardinality =   [2],
           query_trim        =   [100],
-          num_models        =   5,
+          num_models        =   3,
           template_fn_list  =   ['db/7b9f_D100X100CEmerged.pdb.cif'],
           jobname           =   'eccd100x2e_test')
 
