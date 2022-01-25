@@ -84,7 +84,7 @@ def parse_args():
     required_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
                   help="lengths of consecutive target seqs", default=None)
 
-    required_opts.add_option("--num_models", action="store", dest="num_models", type="string", metavar="INT", \
+    required_opts.add_option("--num_models", action="store", dest="num_models", type="int", metavar="INT", \
                   help="number of output models", default=5)
 
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
@@ -616,7 +616,7 @@ def main():
           query_cardinality =   cardinality,
           query_trim        =   trim,
           num_models        =   options.num_models,
-          template_fn_list  =   options.template.split(',') if options.template else None,
+          template_fn_list  =   options.templates.split(',') if options.templates else None,
           jobname           =   options.jobname)
 
 
