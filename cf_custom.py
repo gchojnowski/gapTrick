@@ -449,9 +449,34 @@ def runme(msa_filenames,
         with open(a3m_fn, 'r') as fin:
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
+
     query_sequences=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
     query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
     query_seq_combined="".join(query_seq_extended)
+
+
+    msas = combine_msas(query_sequences, msas, query_cardinality, query_trim)
+
+
+
+    #reproduce af2-like output paths
+    # do not clean jobpath - processed template will be stored there before job is started
+    jobpath=Path(jobname)
+    inputpath=Path(jobname, "input")
+    msaspath=Path(jobname, "input", "msas", "A")
+    for dd in [inputpath, msaspath]:
+        if dd.exists():
+            shutil.rmtree(dd)
+        dd.mkdir(parents=True)
+
+    # query sequence
+    with Path(jobpath, 'input.fasta').open('w') as of:
+        of.write(">input\n%s\n"%query_seq_combined)
+    # a3m
+    a3m_fn='input_combined.a3m'
+    with Path(msaspath, a3m_fn).open('w') as of:
+        for _i, _m in enumerate(msas):
+            of.write("\n".join([">%s\n%s"%(_d,_s) for (_d,_s) in zip(_m.descriptions,_m.sequences)]))
 
     print(query_seq_combined)
     print()
@@ -483,7 +508,6 @@ def runme(msa_filenames,
 
     is_complex=True
 
-    msas = combine_msas(query_sequences, msas, query_cardinality, query_trim)
 
     # gather features
     feature_dict = {
@@ -503,26 +527,6 @@ def runme(msa_filenames,
                              do_relax=False)
 
 
-
-    #reproduce af2-like output paths
-    # do not clean jobpath - processed template will be stored there before job is started
-    jobpath=Path(jobname)
-    inputpath=Path(jobname, "input")
-    msaspath=Path(jobname, "input", "msas", "A")
-    for dd in [inputpath, msaspath]:
-        if dd.exists():
-            shutil.rmtree(dd)
-        dd.mkdir(parents=True)
-
-    # query sequence
-    with Path(jobpath, 'input.fasta').open('w') as of:
-        of.write(">input\n%s\n"%query_seq_combined)
-
-    # a3m
-    a3m_fn='input_combined.a3m'
-    with Path(msaspath, a3m_fn).open('w') as of:
-        for _i, _m in enumerate(msas):
-            of.write("\n".join([">%s\n%s"%(_d,_s) for (_d,_s) in zip(_m.descriptions,_m.sequences)]))
     # pickels for models (plddt-ranked)
     for idx,dat in output.items():
 
