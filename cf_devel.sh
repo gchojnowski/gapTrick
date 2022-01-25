@@ -17,4 +17,4 @@ export PYTHONPATH=$DEVEL_DIR/site-packages/alphafold:$PYTHONPATH
 
 #python -m colabfold.batch --data /cryo_em/AlphaFold/DBs $@
 #$DEVEL_DIR/site-packages/bin/colabfold_batch --data /cryo_em/AlphaFold/DBs $@
-TF_FORCE_UNIFIED_MEMORY='1' XLA_PYTHON_CLIENT_MEM_FRACTION='4.0' python3 $root/cf_custom.py $@
+TF_FORCE_UNIFIED_MEMORY='1' XLA_PYTHON_CLIENT_MEM_FRACTION='4.0' python3 -u $root/cf_custom.py $@
