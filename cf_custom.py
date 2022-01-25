@@ -528,7 +528,7 @@ def esx_tests_dde():
           query_trim        =   [100,9999],
           num_models        =   5,
           template_fn_list  =   ['db/6sgx_D100x2CEmerged.pdb.cif','db/7b9f_D100X100CEmerged.pdb.cif'],
-          jobname           =   'eccd100x2e_test_6sgx')
+          jobname           =   'eccd100x2e_test')
 
 def esx_tests_dd():
     msa_eccd_fn='/home/gchojnowski/esxn_project/I0RSS8_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
@@ -537,13 +537,26 @@ def esx_tests_dd():
 
     runme(msa_filenames     =   msas_fn,
           query_cardinality =   [2],
-          query_trim        =   [100],
+          query_trim        =   [10000],
           num_models        =   5,
-          template_fn_list  =   ['db/7npt_merged.pdb.cif','db/6sgx_D100x2CEmerged.pdb.cif'][:1],
-          jobname           =   'eccd100x2e_test')
+          template_fn_list  =   ['db/ddce.cif', 'db/7npt_merged.pdb.cif','db/6sgx_D100x2CEmerged.pdb.cif'][:1],
+          jobname           =   'eccdx2_test')
+
+def esx_tests_ddce_with_template():
+    msa_eccd3_fn='/home/gchojnowski/esxn_project/ESX3/EccD3_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
+    msa_eccc3_fn='/home/gchojnowski/esxn_project/ESX3/EccC3_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
+    msa_ecce3_fn='/home/gchojnowski/esxn_project/ESX3/EccE3_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
+    msas_fn=[msa_eccd3_fn, msa_eccc3_fn, msa_ecce3_fn]
+
+    runme(msa_filenames     =   msas_fn,
+          query_cardinality =   [2, 1, 1],
+          query_trim        =   [9999, 410, 9999],
+          num_models        =   3,
+          template_fn_list  =   ['db/ddce.cif', 'db/7npt_merged.pdb.cif','db/6sgx_D100x2CEmerged.pdb.cif'][:1],
+          jobname           =   'eccd3x2_eccc3_410_ecce3_test')
 
 def main():
-    esx_tests_dd()
+    esx_tests_ddce_with_template()
 
 if __name__=="__main__":
     main()
