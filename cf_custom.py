@@ -294,9 +294,7 @@ def template_preps(query_sequence, db_path, template_fn_list):
 
 
     template_hit_list=[]
-    for template_fn in template_fn_list:
-
-        template_fn = template_fn_list[0]
+    for template_fn in template_fn_list[:]:
 
         filepath=Path(template_fn)
         with open(filepath, "r") as fh:
@@ -329,6 +327,7 @@ def template_preps(query_sequence, db_path, template_fn_list):
             seq_fasta = fh.getvalue()
 
         hhsearch_result = hhsearch_runner.query(seq_fasta)
+        #print(hhsearch_result)
         hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
         if len(hhsearch_hits) >0:
             hit = hhsearch_hits[0]
@@ -336,14 +335,13 @@ def template_preps(query_sequence, db_path, template_fn_list):
         else:
             hit = None
         #print(hhsearch_result)
-        if hit is not None: template_hit_list.append(hit)
-
+        if hit is not None: template_hit_list.append([mmcif, hit])
 
     template_features = {}
     for template_feature_name in TEMPLATE_FEATURES:
       template_features[template_feature_name] = []
 
-    for hit in template_hit_list:
+    for mmcif,hit in template_hit_list:
 
         hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
         mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
@@ -529,8 +527,8 @@ def esx_tests_dde():
           query_cardinality =   [2,1],
           query_trim        =   [100,9999],
           num_models        =   5,
-          template_fn_list  =   ['db/7b9f_D100X100CEmerged.pdb.cif'],
-          jobname           =   'eccd100x2e_test')
+          template_fn_list  =   ['db/6sgx_D100x2CEmerged.pdb.cif','db/7b9f_D100X100CEmerged.pdb.cif'],
+          jobname           =   'eccd100x2e_test_6sgx')
 
 def esx_tests_dd():
     msa_eccd_fn='/home/gchojnowski/esxn_project/I0RSS8_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
@@ -540,8 +538,8 @@ def esx_tests_dd():
     runme(msa_filenames     =   msas_fn,
           query_cardinality =   [2],
           query_trim        =   [100],
-          num_models        =   3,
-          template_fn_list  =   ['db/7b9f_D100X100CEmerged.pdb.cif'],
+          num_models        =   5,
+          template_fn_list  =   ['db/7npt_merged.pdb.cif','db/6sgx_D100x2CEmerged.pdb.cif'][:1],
           jobname           =   'eccd100x2e_test')
 
 def main():
