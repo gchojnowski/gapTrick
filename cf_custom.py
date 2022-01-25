@@ -37,6 +37,9 @@ import shutil
 
 from dataclasses import dataclass, replace
 from jax.lib import xla_bridge
+
+from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+
 print(xla_bridge.get_backend().platform)
 
 hhdb_build_template="""
@@ -59,6 +62,37 @@ mv DB_a3m_ordered.ffdata DB_a3m.ffdata
 cd %(home_path)s
 """
 
+def parse_args():
+    """setup program options parsing"""
+    parser = OptionParser(usage="Usage: af2_cplx_templates.py [options]", version="0.0.1")
+
+
+    required_opts = OptionGroup(parser, "Required parameters (model, sequences and a map)")
+    parser.add_option_group(required_opts)
+
+    required_opts.add_option("--msa", action="store", \
+                            dest="msa", type="string", metavar="FILENAME,FILENAME", \
+                  help="comma-separated a3m MSAs. First sequence is a target", default=None)
+
+    required_opts.add_option("--templates", action="store", \
+                            dest="templates", type="string", metavar="FILENAME,FILENAME", \
+                  help="comma-separated temlates in mmCIF format", default=None)
+
+    required_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
+                  help="cardinalities of consecutive MSA", default=None)
+
+    required_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
+                  help="lengths of consecutive target seqs", default=None)
+
+    required_opts.add_option("--num_models", action="store", dest="num_models", type="string", metavar="INT", \
+                  help="number of output models", default=5)
+
+    required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
+                  help="output directory name", default=None)
+
+
+    (options, _args)  = parser.parse_args()
+    return (parser, options)
 
 
 
@@ -556,7 +590,37 @@ def esx_tests_ddce_with_template():
           jobname           =   'eccd3x2_eccc3_410_ecce3_test')
 
 def main():
-    esx_tests_ddce_with_template()
+    #esx_tests_ddce_with_template()
+
+    (parser, options) = parse_args()
+
+    print( " ==> Command line: af2_cplx_templates.py %s" % (" ".join(sys.argv[1:])) )
+
+    msas = options.msa.split(',')
+
+    if not options.trim:
+        trim = [9999]*len(msas)
+    else:
+        trim = tuple(map(int,options.trim.split(',')))
+
+    if not options.cardinality:
+        cardinality = [1]*len(msas)
+    else:
+        cardinality = tuple(map(int,options.cardinality.split(',')))
+
+    if options.jobname is None:
+        print('Define jobname - output directory')
+        exit(0)
+
+    runme(msa_filenames     =   msas,
+          query_cardinality =   cardinality,
+          query_trim        =   trim,
+          num_models        =   options.num_models,
+          template_fn_list  =   options.template.split(',') if options.template else None,
+          jobname           =   options.jobname)
+
+
+
 
 if __name__=="__main__":
     main()
