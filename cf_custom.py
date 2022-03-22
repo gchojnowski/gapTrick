@@ -368,14 +368,19 @@ def template_preps(query_sequence, db_path, template_fn_list, dryrun=False):
         hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
 
         if len(hhsearch_hits) >0:
-            hit = hhsearch_hits[0]
-            hit = replace(hit,**{"name":template_seq.id})
+            naligned=[]
             for _i,_h in enumerate(hhsearch_hits[:]):
+                naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
                 print()
                 print()
-                print(f">{_h.name}_{_i+1} len={len(_h.hit_sequence):4d}")
+                print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)}")
                 print(f"HIT ", _h.hit_sequence)
                 print(f"QRY ", _h.query)
+
+            print()
+            print(f' --> Selecting alignment #{np.argmax(naligned)+1}')
+            hit = hhsearch_hits[np.argmax(naligned)]
+            hit = replace(hit,**{"name":template_seq.id})
 
         else:
             hit = None
