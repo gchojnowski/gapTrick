@@ -366,6 +366,13 @@ def template_preps(query_sequence, db_path, template_fn_list):
         if len(hhsearch_hits) >0:
             hit = hhsearch_hits[0]
             hit = replace(hit,**{"name":template_seq.id})
+            for _h in hhsearch_hits[:0]:
+                print()
+                print()
+                print(">"+_h.name)
+                print("hit ", _h.hit_sequence)
+                print("qry ", _h.query)
+
         else:
             hit = None
         #print(hhsearch_result)
@@ -416,13 +423,13 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
     pos=0
     #msa_combined=[">query\n"+query_seq_combined]
     msa_combined=[]
-    _blank_seq = [ ("-" * len(seq[:query_trim[n]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+    _blank_seq = [ ("-" * len(seq[query_trim[n][0]:query_trim[n][1]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
             for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
-                if not len(set(_seq[:query_trim[n]]))>1: continue
+                if not len(set(_seq[query_trim[n][0]:query_trim[n][1]]))>1: continue
                 msa_combined.append(">%s"%_desc)
-                msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[:query_trim[n]]] + _blank_seq[pos + 1 :]))
+                msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[query_trim[n][0]:query_trim[n][1]]] + _blank_seq[pos + 1 :]))
             pos += 1
 
 
@@ -439,7 +446,7 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 
 def runme(msa_filenames,
           query_cardinality =   [1,0],
-          query_trim        =   [10000,10000],
+          query_trim        =   [[0,10000],[0,10000]],
           template_fn_list  =   None,
           num_models        =   1,
           jobname           =   'test'):
@@ -450,8 +457,8 @@ def runme(msa_filenames,
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
 
-    query_sequences=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
-    query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
+    query_sequences=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
+    query_seq_extended=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
     query_seq_combined="".join(query_seq_extended)
 
 
@@ -603,10 +610,11 @@ def main():
     msas = options.msa.split(',')
 
     if not options.trim:
-        trim = [9999]*len(msas)
+        trim = [[0,9999]]*len(msas)
     else:
-        trim = tuple(map(int,options.trim.split(',')))
-
+        #trim = tuple(map(int,options.trim.split(',')))
+        trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
+    print("TRIM: ", trim)
     if not options.cardinality:
         cardinality = [1]*len(msas)
     else:
