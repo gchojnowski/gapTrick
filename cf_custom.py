@@ -91,6 +91,10 @@ def parse_args():
                   help="output directory name", default=None)
 
 
+    required_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
+                  help="check template alignments and quit")
+
+
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
@@ -287,7 +291,7 @@ def predict_structure(prefix,
 
 
 
-def template_preps(query_sequence, db_path, template_fn_list):
+def template_preps(query_sequence, db_path, template_fn_list, dryrun=False):
     home_path=os.getcwd()
 
     #p = PDBParser()
@@ -361,22 +365,24 @@ def template_preps(query_sequence, db_path, template_fn_list):
             seq_fasta = fh.getvalue()
 
         hhsearch_result = hhsearch_runner.query(seq_fasta)
-        #print(hhsearch_result)
         hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
+
         if len(hhsearch_hits) >0:
             hit = hhsearch_hits[0]
             hit = replace(hit,**{"name":template_seq.id})
-            for _h in hhsearch_hits[:0]:
+            for _i,_h in enumerate(hhsearch_hits[:]):
                 print()
                 print()
-                print(">"+_h.name)
-                print("hit ", _h.hit_sequence)
-                print("qry ", _h.query)
+                print(f">{_h.name}_{_i+1} len={len(_h.hit_sequence):4d}")
+                print(f"HIT ", _h.hit_sequence)
+                print(f"QRY ", _h.query)
 
         else:
             hit = None
         #print(hhsearch_result)
         if hit is not None: template_hit_list.append([mmcif, hit])
+
+    if dryrun: exit(1)
 
     template_features = {}
     for template_feature_name in TEMPLATE_FEATURES:
@@ -423,7 +429,9 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
     pos=0
     #msa_combined=[">query\n"+query_seq_combined]
     msa_combined=[]
-    _blank_seq = [ ("-" * len(seq[query_trim[n][0]:query_trim[n][1]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+    #_blank_seq = [ ("-" * len(seq[query_trim[n][0]:query_trim[n][1]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+    _blank_seq = [ ("-" * len(seq)) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
             for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
@@ -436,7 +444,7 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
     msas=[pipeline.parsers.parse_a3m("\n".join(msa_combined))]
 
     for _i, _m in enumerate(msas):
-        print(_i, '\n', "\n".join(_m.sequences[:10]))
+        print(_i, '\n', "\n".join(_m.sequences[:1]))
 
     return msas
 
@@ -449,7 +457,8 @@ def runme(msa_filenames,
           query_trim        =   [[0,10000],[0,10000]],
           template_fn_list  =   None,
           num_models        =   1,
-          jobname           =   'test'):
+          jobname           =   'test',
+          dryrun=False):
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -492,7 +501,8 @@ def runme(msa_filenames,
             print("Created tmp path ", tmp_path)
             template_features = template_preps(query_sequence   =   query_seq_combined,
                                                db_path          =   tmp_path,
-                                               template_fn_list =   template_fn_list)
+                                               template_fn_list =   template_fn_list,
+                                               dryrun           =   dryrun)
     else:
         template_features = mk_mock_template(query_seq_combined)
 
@@ -629,7 +639,8 @@ def main():
           query_trim        =   trim,
           num_models        =   options.num_models,
           template_fn_list  =   options.templates.split(',') if options.templates else None,
-          jobname           =   options.jobname)
+          jobname           =   options.jobname,
+          dryrun            =   options.dryrun)
 
 
 
