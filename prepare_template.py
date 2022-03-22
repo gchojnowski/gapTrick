@@ -82,8 +82,15 @@ def clustal_si(seq_string, refseq_string):
 
 
 def main(resi_shift=1000):
+    fn = 'ddcbe_template.fasta'
+    fn = "mycp3_template.fasta"
+    fn = 'bbbmm_template.fasta'
+    fn = 'bb_template_7npr.fasta'
+    fn = 'b2p1_template.fasta'
+    fn = 'b1p1_template.fasta'
+    fn = 'bbb_template_7npr.fasta'
 
-    with open('ddce_template.fasta', 'r') as ifile:
+    with open(fn, 'r') as ifile:
         fasta_obj, _err = any_sequence_format(file_name="wird.fasta", data=ifile.read())
 
     for _seq in fasta_obj:
@@ -91,7 +98,8 @@ def main(resi_shift=1000):
 
     refseq='PQAAVVAIMAADVQIAVVLDAHAPISVMIDPLLKVVNTRLRELGVAPLEAKGRGRWMLCLVDGTPLRPNLSLTEQEVYDGDRLWLKFLEDTEHRSEVIEHISTAVATNLSKRFAPIDPVVAVQVGATMVAVGVLLGSALLGWWRWQHESWLPAPFAAVIAVLVLTVATMILARSKTVPDRRVGDILLLSGLVPLAVAIAATAPGPVGAPHAVLGFGVFGVAAMLVMRFTGRRLGVYTALVTLCAAATAAGLARMVLLTSAVTLLTCVLLACVLMYHGAPALSRWLSGIRLPVFPSATSRWVFEARPLEGPASVRDVLLRAERARSFLTGLLVGLGVLTVVCLAGLCDPHAGRRWLPLLLAAFTFGFLILRGRSYVDRWQAITLAATAVLIIAAVAVRYVLVSGSPAVLSAGVAVLVLLPAAGLTA'
 
-    ph,symm = read_ph('7b9f.pdb')
+    ph,symm = read_ph(['7npr_protomer.cif', '6sgx.cif','7b9f.pdb','../esxn/7npr/mycp.pdb.cif', '../esxn/7npr/m2p3_block.cif', '../esxn/7npr/eccBx2.cif', '../esxn/bbp/b1p1.cif', '../esxn/bbp/b2p1.cif', '../esxn/7npr/bbb3.cif'][-1])
+
     selected_chains={}
     selected_chain_objs=[]
 
@@ -99,8 +107,9 @@ def main(resi_shift=1000):
 
         chains_si=[]
         for ch in ph.models()[0].chains():
+            print(ch.id)
             if ch.id in selected_chains.values(): continue
-
+            print(selected_chains.values())
             chseq = "".join(ch.as_sequence())
 
             align_obj = align(seq_b = chseq,
@@ -131,7 +140,38 @@ def main(resi_shift=1000):
             res.resseq=ich*resi_shift+res.resseq_as_int()
             tmp_ph.only_chain().append_residue_group( res )
 
-    tmp_ph.write_pdb_file('ddce.pdb')
+    tmp_ph.write_pdb_file('bbfl_tmp.pdb')
+
+
+
+def cut_by_chid(resi_shift=1000):
+    selectded_chids='C5,C6,B3,B6,D1,D3'.split(',')
+
+    ph,symm = read_ph('../esxn/7npr/7npr.cif')
+    chaindict={}
+    for ch in ph.chains():
+        chaindict[ch.id]=ch
+
+    # assembly
+
+
+    tmp_ph = iotbx.pdb.hierarchy.root()
+    tmp_ph.append_model(iotbx.pdb.hierarchy.model(id="0"))
+    tmp_ph.models()[0].append_chain(iotbx.pdb.hierarchy.chain(id="A"))
+
+    for ich,chid in enumerate(selectded_chids):
+        if chid[0]=='B': trim=90
+        else: trim=9999
+        for res in chaindict[chid].detached_copy().residue_groups()[:trim]:
+            res.resseq=ich*resi_shift+res.resseq_as_int()
+            tmp_ph.only_chain().append_residue_group( res )
+
+    tmp_ph.write_pdb_file('cbdx_tmp.pdb')
+
+
+
 
 if __name__=="__main__":
+    cut_by_chid()
+    exit(1)
     main()
