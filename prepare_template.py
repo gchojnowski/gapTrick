@@ -164,7 +164,7 @@ def merge_all_chains(resi_shift=1000):
     tmp_ph.write_pdb_file(ifn[:-4]+'_mod.pdb')
 
 
-def cut_by_chid(resi_shift=1000):
+def cut_by_chid(resi_shift=100):
     '''
         python prepare_template.py ../../esx_N/esx5/6mer_DB.pdb D,B,3,1,W,T,Q,O,L,J,G,A
     '''
@@ -191,8 +191,14 @@ def cut_by_chid(resi_shift=1000):
     for ich,chid in enumerate(selected_chids):
         if chid[0]=='B': trim=9999
         else: trim=9999
-        for res in chaindict[chid].detached_copy().residue_groups()[:trim]:
-            res.resseq=ich*resi_shift+res.resseq_as_int()
+        if not len(tmp_ph.only_chain().residue_groups()):
+            last_resid = 1
+        else:
+            last_resid = tmp_ph.only_chain().residue_groups()[-1].resseq_as_int()
+
+        for residx,res in enumerate(chaindict[chid].detached_copy().residue_groups()[:trim]):
+            #res.resseq=ich*resi_shift+res.resseq_as_int()
+            res.resseq = last_resid+resi_shift+residx
             tmp_ph.only_chain().append_residue_group( res )
 
     tmp_ph.write_pdb_file('cbdx_tmp.pdb')
