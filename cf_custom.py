@@ -91,6 +91,10 @@ def parse_args():
                   help="output directory name", default=None)
 
 
+    required_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
+                  help="check template alignments and quit")
+
+
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
@@ -287,7 +291,7 @@ def predict_structure(prefix,
 
 
 
-def template_preps(query_sequence, db_path, template_fn_list):
+def template_preps(query_sequence, db_path, template_fn_list, dryrun=False):
     home_path=os.getcwd()
 
     #p = PDBParser()
@@ -361,15 +365,29 @@ def template_preps(query_sequence, db_path, template_fn_list):
             seq_fasta = fh.getvalue()
 
         hhsearch_result = hhsearch_runner.query(seq_fasta)
-        #print(hhsearch_result)
         hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
+
         if len(hhsearch_hits) >0:
-            hit = hhsearch_hits[0]
+            naligned=[]
+            for _i,_h in enumerate(hhsearch_hits[:]):
+                naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
+                print()
+                print()
+                print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)}")
+                print(f"HIT ", _h.hit_sequence)
+                print(f"QRY ", _h.query)
+
+            print()
+            print(f' --> Selecting alignment #{np.argmax(naligned)+1}')
+            hit = hhsearch_hits[np.argmax(naligned)]
             hit = replace(hit,**{"name":template_seq.id})
+
         else:
             hit = None
         #print(hhsearch_result)
         if hit is not None: template_hit_list.append([mmcif, hit])
+
+    if dryrun: exit(1)
 
     template_features = {}
     for template_feature_name in TEMPLATE_FEATURES:
@@ -416,20 +434,22 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
     pos=0
     #msa_combined=[">query\n"+query_seq_combined]
     msa_combined=[]
-    _blank_seq = [ ("-" * len(seq[:query_trim[n]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+    #_blank_seq = [ ("-" * len(seq[query_trim[n][0]:query_trim[n][1]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+    _blank_seq = [ ("-" * len(seq)) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
             for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
-                if not len(set(_seq[:query_trim[n]]))>1: continue
+                if not len(set(_seq[query_trim[n][0]:query_trim[n][1]]))>1: continue
                 msa_combined.append(">%s"%_desc)
-                msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[:query_trim[n]]] + _blank_seq[pos + 1 :]))
+                msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[query_trim[n][0]:query_trim[n][1]]] + _blank_seq[pos + 1 :]))
             pos += 1
 
 
     msas=[pipeline.parsers.parse_a3m("\n".join(msa_combined))]
 
     for _i, _m in enumerate(msas):
-        print(_i, '\n', "\n".join(_m.sequences[:10]))
+        print(_i, '\n', "\n".join(_m.sequences[:1]))
 
     return msas
 
@@ -439,10 +459,11 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 
 def runme(msa_filenames,
           query_cardinality =   [1,0],
-          query_trim        =   [10000,10000],
+          query_trim        =   [[0,10000],[0,10000]],
           template_fn_list  =   None,
           num_models        =   1,
-          jobname           =   'test'):
+          jobname           =   'test',
+          dryrun=False):
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -450,8 +471,8 @@ def runme(msa_filenames,
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
 
-    query_sequences=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
-    query_seq_extended=[_m.sequences[0][:query_trim[_i]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
+    query_sequences=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
+    query_seq_extended=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
     query_seq_combined="".join(query_seq_extended)
 
 
@@ -485,7 +506,8 @@ def runme(msa_filenames,
             print("Created tmp path ", tmp_path)
             template_features = template_preps(query_sequence   =   query_seq_combined,
                                                db_path          =   tmp_path,
-                                               template_fn_list =   template_fn_list)
+                                               template_fn_list =   template_fn_list,
+                                               dryrun           =   dryrun)
     else:
         template_features = mk_mock_template(query_seq_combined)
 
@@ -603,10 +625,11 @@ def main():
     msas = options.msa.split(',')
 
     if not options.trim:
-        trim = [9999]*len(msas)
+        trim = [[0,9999]]*len(msas)
     else:
-        trim = tuple(map(int,options.trim.split(',')))
-
+        #trim = tuple(map(int,options.trim.split(',')))
+        trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
+    print("TRIM: ", trim)
     if not options.cardinality:
         cardinality = [1]*len(msas)
     else:
@@ -621,7 +644,8 @@ def main():
           query_trim        =   trim,
           num_models        =   options.num_models,
           template_fn_list  =   options.templates.split(',') if options.templates else None,
-          jobname           =   options.jobname)
+          jobname           =   options.jobname,
+          dryrun            =   options.dryrun)
 
 
 
