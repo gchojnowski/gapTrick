@@ -143,11 +143,40 @@ def main(resi_shift=1000):
     tmp_ph.write_pdb_file('bbfl_tmp.pdb')
 
 
+def merge_all_chains(resi_shift=1000):
+    ifn=sys.argv[1]
+    print(f"merging chains from {ifn}")
+    ph,symm = read_ph(ifn)
+    chaindict={}
+    for ch in ph.chains():
+        chaindict[ch.id]=ch
+
+
+    tmp_ph = iotbx.pdb.hierarchy.root()
+    tmp_ph.append_model(iotbx.pdb.hierarchy.model(id="0"))
+    tmp_ph.models()[0].append_chain(iotbx.pdb.hierarchy.chain(id="A"))
+
+    for ich,chid in enumerate(chaindict.keys()):
+        for res in chaindict[chid].detached_copy().residue_groups()[:]:
+            res.resseq=ich*resi_shift+res.resseq_as_int()
+            tmp_ph.only_chain().append_residue_group( res )
+
+    tmp_ph.write_pdb_file(ifn[:-4]+'_mod.pdb')
+
 
 def cut_by_chid(resi_shift=1000):
-    selectded_chids='C5,C6,B3,B6,D1,D3'.split(',')
+    '''
+        python prepare_template.py ../../esx_N/esx5/6mer_DB.pdb D,B,3,1,W,T,Q,O,L,J,G,A
+    '''
 
-    ph,symm = read_ph('../esxn/7npr/7npr.cif')
+    ifn = sys.argv[1]
+    chids = sys.argv[2]
+    #selectded_chids='C5,C6,B3,B6,D1,D3'.split(',')
+    selected_chids=chids.split(',')
+
+
+    #ph,symm = read_ph('../esxn/7npr/7npr.cif')
+    ph,symm = read_ph(ifn)
     chaindict={}
     for ch in ph.chains():
         chaindict[ch.id]=ch
@@ -159,8 +188,8 @@ def cut_by_chid(resi_shift=1000):
     tmp_ph.append_model(iotbx.pdb.hierarchy.model(id="0"))
     tmp_ph.models()[0].append_chain(iotbx.pdb.hierarchy.chain(id="A"))
 
-    for ich,chid in enumerate(selectded_chids):
-        if chid[0]=='B': trim=90
+    for ich,chid in enumerate(selected_chids):
+        if chid[0]=='B': trim=9999
         else: trim=9999
         for res in chaindict[chid].detached_copy().residue_groups()[:trim]:
             res.resseq=ich*resi_shift+res.resseq_as_int()
@@ -172,6 +201,7 @@ def cut_by_chid(resi_shift=1000):
 
 
 if __name__=="__main__":
+    #merge_all_chains()
     cut_by_chid()
     exit(1)
     main()
