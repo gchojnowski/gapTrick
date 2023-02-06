@@ -515,16 +515,23 @@ def runme(msa_filenames,
     model_params = {}
     model_runner_1 = None
     model_runner_3 = None
+    num_recycle=3
     for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
         use_model[model_name] = True
         if model_name not in list(model_params.keys()):
-            model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/cryo_em/AlphaFold/DBs")
+            model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/scratch/AlphaFold_DBs/")
             if model_name == "model_1":
                 model_config = config.model_config(model_name+"_ptm")
+                model_config.data.common.num_recycle = num_recycle
+                model_config.model.num_recycle = num_recycle
+                #model_config.model.num_recycle = 6
                 model_config.data.eval.num_ensemble = 1
                 model_runner_1 = model.RunModel(model_config, model_params[model_name])
             if model_name == "model_3":
                 model_config = config.model_config(model_name+"_ptm")
+                model_config.data.common.num_recycle = num_recycle
+                model_config.model.num_recycle = num_recycle
+                #model_config.model.num_recycle = 6
                 model_config.data.eval.num_ensemble = 1
                 model_runner_3 = model.RunModel(model_config, model_params[model_name])
 
@@ -556,7 +563,7 @@ def runme(msa_filenames,
         print(pdb_fn, np.mean(dat['plddt']))
         with Path(inputpath, pdb_fn).open('w') as of: of.write(dat['pdb'])
 
-        outdict={'predicted_aligned_error':dat['pae'], 'ptm':dat['ptm'], 'plddt':dat['plddt']}
+        outdict={'predicted_aligned_error':dat['pae'], 'ptm':dat['ptm'], 'plddt':dat['plddt'], 'distogram':dat['distogram']}
         pkl_fn = 'result_model_%d_ptm.pkl'%(idx+1)
         with Path(inputpath, pkl_fn).open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
