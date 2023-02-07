@@ -382,7 +382,7 @@ def template_preps(query_sequence, db_path, template_fn_list, dryrun=False):
                 print(f"QRY ", _h.query)
 
             print()
-            print(f' --> Selecting alignment #{np.argmax(naligned)+1}')
+            print(f' --> Selected alignment #{np.argmax(naligned)+1}')
             hit = hhsearch_hits[np.argmax(naligned)]
             hit = replace(hit,**{"name":template_seq.id})
 
