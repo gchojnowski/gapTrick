@@ -200,6 +200,7 @@ def predict_structure(prefix,
     plddts,paes,ptmscore= [],[],[]
     unrelaxed_pdb_lines = []
     relaxed_pdb_lines = []
+    distograms=[]
 
     for model_name, params in model_params.items():
         if model_name in use_model:
@@ -226,7 +227,7 @@ def predict_structure(prefix,
 
             #prediction_result = model_runner.predict(processed_feature_dict)
             prediction_result, recycles = model_runner.predict(input_features)
-
+            #print("prediction_result.keys()=", prediction_result.keys())
             print(len(prediction_result["plddt"]), seq_len)
             mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
             mean_ptm = prediction_result["ptm"]
@@ -265,14 +266,17 @@ def predict_structure(prefix,
             paes.append(prediction_result['predicted_aligned_error'])
             plddts.append(prediction_result["plddt"][:seq_len])
             ptmscore.append(prediction_result["ptm"])
+            distograms.append(prediction_result["distogram"])
 
-    # rerank models based on predicted lddt
-    lddt_rank = np.mean(plddts,-1).argsort()[::-1]
+    # rerank models based on pTM (not predicted lddt!)
+    #lddt_rank = np.mean(plddts,-1).argsort()[::-1]
+    ptm_rank = np.argsort(ptmscore)[::-1]
     output = {}
-    print("reranking models based on avg. predicted lDDT")
-    for n,r in enumerate(lddt_rank):
+    print(f"reranking models based on pTM score: {ptm_rank}")
+    #print(f"reranking models based on avg. predicted lDDT: {lddt_rank}")
+    for n,r in enumerate(ptm_rank):
 
-        output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':unrelaxed_pdb_lines[r]}
+        output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':unrelaxed_pdb_lines[r], 'distogram':distograms[r]}
         continue
 
         print(f"model_{n+1} {np.mean(plddts[r])}")
@@ -544,8 +548,11 @@ def runme(msa_filenames,
         **pipeline.make_msa_features(msas=msas),
         **template_features
     }
+
     feature_dict["asym_id"] = \
-            np.array( [int(n) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
+            np.array( [int(n+1) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
+
+    feature_dict['assembly_num_chains']=len(query_seq_extended)
 
     output = predict_structure(jobname, query_seq_combined, feature_dict,
                              Ls=tuple(map(len, query_seq_extended)),
@@ -556,6 +563,7 @@ def runme(msa_filenames,
                              do_relax=False)
 
 
+    with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
     # pickels for models (plddt-ranked)
     for idx,dat in output.items():
 
@@ -566,7 +574,6 @@ def runme(msa_filenames,
         outdict={'predicted_aligned_error':dat['pae'], 'ptm':dat['ptm'], 'plddt':dat['plddt'], 'distogram':dat['distogram']}
         pkl_fn = 'result_model_%d_ptm.pkl'%(idx+1)
         with Path(inputpath, pkl_fn).open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
-
 
 
 def test():
