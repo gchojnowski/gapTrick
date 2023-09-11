@@ -253,11 +253,9 @@ def cut_by_chid(resi_shift=200):
 
     tmp_ph.write_pdb_file('_tmp.pdb')
     tmp_ph.write_mmcif_file('_tmp.cif', data_block_name='fake')
-    #print(help(tmp_ph.as_cif_block))
 
     with open('_tmp.cif', 'r') as ifile:
-        _cif = iotbx.cif.reader(input_string=ifile.read()).model()#.build_crystal_structures()#["fake"]
-    #print(dir(_cif['fake']))
+        _cif = iotbx.cif.reader(input_string=ifile.read()).model()
 
     ph_sel = tmp_ph.select(tmp_ph.atom_selection_cache().iselection(f"protein"))
     new_ph = iotbx.pdb.hierarchy.root()
