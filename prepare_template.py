@@ -222,15 +222,12 @@ def cut_by_chid(resi_shift=200):
     selected_chids=chids.split(',')
 
 
-    #ph,symm = read_ph('../esxn/7npr/7npr.cif')
     ph,symm = read_ph(ifn)
     chaindict={}
     for ch in ph.chains():
         chaindict[ch.id]=ch
 
     # assembly
-
-
     tmp_ph = iotbx.pdb.hierarchy.root()
     tmp_ph.append_model(iotbx.pdb.hierarchy.model(id="0"))
     tmp_ph.models()[0].append_chain(iotbx.pdb.hierarchy.chain(id="A"))
@@ -244,18 +241,10 @@ def cut_by_chid(resi_shift=200):
             last_resid = tmp_ph.only_chain().residue_groups()[-1].resseq_as_int()
 
         for residx,res in enumerate(chaindict[chid].detached_copy().residue_groups()[:trim]):
-            #res.resseq=ich*resi_shift+res.resseq_as_int()
+
             res.resseq = last_resid+resi_shift+residx
             tmp_ph.only_chain().append_residue_group( res )
 
-
-
-
-    tmp_ph.write_pdb_file('_tmp.pdb')
-    tmp_ph.write_mmcif_file('_tmp.cif', data_block_name='fake')
-
-    with open('_tmp.cif', 'r') as ifile:
-        _cif = iotbx.cif.reader(input_string=ifile.read()).model()
 
     ph_sel = tmp_ph.select(tmp_ph.atom_selection_cache().iselection(f"protein"))
     new_ph = iotbx.pdb.hierarchy.root()
