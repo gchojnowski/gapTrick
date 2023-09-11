@@ -218,7 +218,8 @@ def cut_by_chid(resi_shift=200):
 
     ifn = sys.argv[1]
     chids = sys.argv[2]
-    outid = sys.argv[3]
+    outfn = sys.argv[3]
+    outid = os.path.basename(outfn).split('.')[0]
 
     #selectded_chids='C5,C6,B3,B6,D1,D3'.split(',')
     selected_chids=chids.split(',')
@@ -271,7 +272,7 @@ def cut_by_chid(resi_shift=200):
     cif_object[outid] = new_ph.as_cif_block()
     cif_object[outid].pop('_chem_comp.id')
     cif_object[outid].pop('_struct_asym.id')
-    with open(f"{outid}.cif", 'w') as ofile:
+    with open(outfn, 'w') as ofile:
         print(FAKE_MMCIF_HEADER%locals(), file=ofile)
         print("\n".join(poly_seq_block), file=ofile)
         print(cif_object[outid], file=ofile)
