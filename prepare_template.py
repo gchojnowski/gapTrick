@@ -25,9 +25,9 @@ from pathlib import Path
 from iotbx.pdb import amino_acid_codes as aac
 
 FAKE_MMCIF_HEADER=\
-"""data_fake
+"""data_%(outid)s
 #
-_entry.id   fake
+_entry.id   %(outid)s
 _struct_asym.id          A
 _struct_asym.entity_id   0
 #
@@ -218,6 +218,8 @@ def cut_by_chid(resi_shift=200):
 
     ifn = sys.argv[1]
     chids = sys.argv[2]
+    outid = sys.argv[3]
+
     #selectded_chids='C5,C6,B3,B6,D1,D3'.split(',')
     selected_chids=chids.split(',')
 
@@ -266,13 +268,28 @@ def cut_by_chid(resi_shift=200):
         poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
 
     cif_object = iotbx.cif.model.cif()
-    cif_object['fake'] = new_ph.as_cif_block()
-    cif_object['fake'].pop('_chem_comp.id')
-    cif_object['fake'].pop('_struct_asym.id')
-    with open('fake.cif', 'w') as ofile:
-        print(FAKE_MMCIF_HEADER, file=ofile)
+    cif_object[outid] = new_ph.as_cif_block()
+    cif_object[outid].pop('_chem_comp.id')
+    cif_object[outid].pop('_struct_asym.id')
+    with open(f"{outid}.cif", 'w') as ofile:
+        print(FAKE_MMCIF_HEADER%locals(), file=ofile)
         print("\n".join(poly_seq_block), file=ofile)
-        print(cif_object['fake'], file=ofile)
+        print(cif_object[outid], file=ofile)
+
+
+#def cut_by_chid_with_biopython():
+#    from Bio.PDB.PDBParser import PDBParser
+#    from Bio.PDB.Polypeptide import three_to_one, one_to_three
+#    from alphafold.common.protein import to_mmcif
+#
+#    ifn = sys.argv[1]
+#    chids = sys.argv[2]
+#    selected_chids=chids.split(',')
+#
+#    parser = PDBParser(QUIET=True)
+#    structure = parser.get_structure("model", ifn)
+
+
 
 if __name__=="__main__":
     #merge_all_chains()
