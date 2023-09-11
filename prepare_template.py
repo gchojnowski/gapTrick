@@ -17,6 +17,53 @@ from iotbx import ccp4_map
 
 from mmtbx.alignment import align
 from iotbx.bioinformatics import any_sequence_format
+import iotbx.cif
+import mmtbx.model
+import mmtbx
+from pathlib import Path
+
+from iotbx.pdb import amino_acid_codes as aac
+
+FAKE_MMCIF_HEADER=\
+"""data_fake
+#
+_entry.id   fake
+_struct_asym.id          A
+_struct_asym.entity_id   0
+#
+_entity_poly.entity_id        0
+_entity_poly.type             polypeptide(L)
+_entity_poly.pdbx_strand_id   A
+#
+_entity.id     0
+_entity.type   polymer
+#
+loop_
+_chem_comp.id
+_chem_comp.type
+_chem_comp.name
+ALA 'L-peptide linking' ALANINE
+ARG 'L-peptide linking' ARGININE
+ASN 'L-peptide linking' ASPARAGINE
+ASP 'L-peptide linking' 'ASPARTIC ACID'
+CYS 'L-peptide linking' CYSTEINE
+GLN 'L-peptide linking' GLUTAMINE
+GLU 'L-peptide linking' 'GLUTAMIC ACID'
+HIS 'L-peptide linking' HISTIDINE
+ILE 'L-peptide linking' ISOLEUCINE
+LEU 'L-peptide linking' LEUCINE
+LYS 'L-peptide linking' LYSINE
+MET 'L-peptide linking' METHIONINE
+PHE 'L-peptide linking' PHENYLALANINE
+PRO 'L-peptide linking' PROLINE
+SER 'L-peptide linking' SERINE
+THR 'L-peptide linking' THREONINE
+TRP 'L-peptide linking' TRYPTOPHAN
+TYR 'L-peptide linking' TYROSINE
+VAL 'L-peptide linking' VALINE
+GLY 'L-peptide linking' GLYCINE
+#"""
+
 
 CLUTALW_SH="""
 cd %(tmpdirname)s
@@ -164,7 +211,7 @@ def merge_all_chains(resi_shift=1000):
     tmp_ph.write_pdb_file(ifn[:-4]+'_mod.pdb')
 
 
-def cut_by_chid(resi_shift=100):
+def cut_by_chid(resi_shift=200):
     '''
         python prepare_template.py ../../esx_N/esx5/6mer_DB.pdb D,B,3,1,W,T,Q,O,L,J,G,A
     '''
@@ -189,7 +236,7 @@ def cut_by_chid(resi_shift=100):
     tmp_ph.models()[0].append_chain(iotbx.pdb.hierarchy.chain(id="A"))
 
     for ich,chid in enumerate(selected_chids):
-        if chid[0]=='B': trim=9999
+        if chid[0]=='XXXX': trim=9999
         else: trim=9999
         if not len(tmp_ph.only_chain().residue_groups()):
             last_resid = 1
@@ -201,10 +248,44 @@ def cut_by_chid(resi_shift=100):
             res.resseq = last_resid+resi_shift+residx
             tmp_ph.only_chain().append_residue_group( res )
 
-    tmp_ph.write_pdb_file('cbdx_tmp.pdb')
 
 
 
+    tmp_ph.write_pdb_file('_tmp.pdb')
+    tmp_ph.write_mmcif_file('_tmp.cif', data_block_name='fake')
+    #print(help(tmp_ph.as_cif_block))
+
+    with open('_tmp.cif', 'r') as ifile:
+        _cif = iotbx.cif.reader(input_string=ifile.read()).model()#.build_crystal_structures()#["fake"]
+    #print(dir(_cif['fake']))
+
+    ph_sel = tmp_ph.select(tmp_ph.atom_selection_cache().iselection(f"protein"))
+    new_ph = iotbx.pdb.hierarchy.root()
+    new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
+    new_ph.models()[0].append_chain(ph_sel.only_chain().detached_copy())
+    ogt = aac.one_letter_given_three_letter
+    tgo = aac.three_letter_given_one_letter
+
+    poly_seq_block = []
+    seq=new_ph.only_chain().as_sequence()
+    poly_seq_block.append("#")
+    poly_seq_block.append("loop_")
+    poly_seq_block.append("_entity_poly_seq.entity_id")
+    poly_seq_block.append("_entity_poly_seq.num")
+    poly_seq_block.append("_entity_poly_seq.mon_id")
+    poly_seq_block.append("_entity_poly_seq.hetero")
+    for i, aa in enumerate(seq):
+        three_letter_aa = tgo[aa]
+        poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
+
+    cif_object = iotbx.cif.model.cif()
+    cif_object['fake'] = new_ph.as_cif_block()
+    cif_object['fake'].pop('_chem_comp.id')
+    cif_object['fake'].pop('_struct_asym.id')
+    with open('fake.cif', 'w') as ofile:
+        print(FAKE_MMCIF_HEADER, file=ofile)
+        print("\n".join(poly_seq_block), file=ofile)
+        print(cif_object['fake'], file=ofile)
 
 if __name__=="__main__":
     #merge_all_chains()
