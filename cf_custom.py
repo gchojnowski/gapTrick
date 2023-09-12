@@ -618,7 +618,7 @@ def runme(msa_filenames,
     for idx,dat in output.items():
 
         pdb_fn = 'ranked_%d.pdb'%idx
-        print(pdb_fn, np.mean(dat['plddt']))
+        print(f"{pdb_fn} <pLDDT>={np.mean(dat['plddt']):6.4f} pTM={dat['ptm']:6.4f}")
         with Path(inputpath, pdb_fn).open('w') as of: of.write(dat['pdb'])
 
         outdict={'predicted_aligned_error':dat['pae'], 'ptm':dat['ptm'], 'plddt':dat['plddt'], 'distogram':dat['distogram']}
