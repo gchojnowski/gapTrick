@@ -40,6 +40,11 @@ from jax.lib import xla_bridge
 
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
+
+import iotbx
+import iotbx.cif
+from iotbx.pdb import amino_acid_codes as aac
+
 print(xla_bridge.get_backend().platform)
 
 FAKE_MMCIF_HEADER=\
@@ -358,7 +363,10 @@ def template_preps(template_fn_list, chain_ds, outpath=None, resi_shift=200):
 
     for outid,ifn in enumerate(template_fn_list):
 
-        ph,symm = read_ph(ifn)
+        with open(ifn, 'r') as ifile:
+            ph, symm = parse_pdbstring(ifile.read())
+            ph.remove_alt_confs(True)
+
         chaindict={}
         for ch in ph.chains():
             chaindict[ch.id]=ch
