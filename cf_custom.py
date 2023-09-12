@@ -89,7 +89,10 @@ def parse_args():
                   help="lengths of consecutive target seqs", default=None)
 
     required_opts.add_option("--num_models", action="store", dest="num_models", type="int", metavar="INT", \
-                  help="number of output models", default=5)
+                  help="number of output models (<=5)", default=5)
+
+    required_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
+                  help="number of recycles", default=3)
 
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
@@ -455,6 +458,7 @@ def runme(msa_filenames,
           num_models        =   1,
           jobname           =   'test',
           data_dir          =   '/scratch/AlphaFold_DBs/2.3.2',
+          num_recycle       =   3,
           dryrun            =   False):
 
     msas=[]
@@ -507,7 +511,6 @@ def runme(msa_filenames,
     model_params = {}
     model_runner_1 = None
     model_runner_3 = None
-    num_recycle=3
     for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
         use_model[model_name] = True
         if model_name not in list(model_params.keys()):
@@ -648,6 +651,7 @@ def main():
           template_fn_list  =   options.templates.split(',') if options.templates else None,
           jobname           =   options.jobname,
           data_dir          =   options.data_dir,
+          num_recycle       =   options.num_recycle,
           dryrun            =   options.dryrun)
 
 
