@@ -434,7 +434,7 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
         return converted_template_fns
 
-def template_features(query_sequence, db_path, template_fn_list, dryrun=False):
+def generate_template_features(query_sequence, db_path, template_fn_list, dryrun=False):
     home_path=os.getcwd()
 
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
@@ -632,10 +632,10 @@ def runme(msa_filenames,
 
         with tempfile.TemporaryDirectory() as tmp_path:
             print("Created tmp path ", tmp_path)
-            template_features = template_features(query_sequence   =   query_seq_combined,
-                                                  db_path          =   tmp_path,
-                                                  template_fn_list =   template_fn_list,
-                                                  dryrun          =   dryrun)
+            template_features = generate_template_features(query_sequence   =   query_seq_combined,
+                                                           db_path          =   tmp_path,
+                                                           template_fn_list =   template_fn_list,
+                                                           dryrun          =   dryrun)
     else:
         template_features = mk_mock_template(query_seq_combined)
 
