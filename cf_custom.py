@@ -43,6 +43,7 @@ from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
 import iotbx
 import iotbx.cif
+import iotbx.pdb
 from iotbx.pdb import amino_acid_codes as aac
 
 print(xla_bridge.get_backend().platform)
@@ -153,6 +154,22 @@ def parse_args():
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
+def parse_pdbstring(pdb_string):
+
+    # there may be issues with repeated BREAK lines, that we do not use here anyway
+    pdb_string_lines = []
+    for _line in pdb_string.splitlines():
+        if re.match(r'^BREAK$', _line):
+            continue
+        pdb_string_lines.append(_line)
+
+
+    # arghhhh, why do you guys keep changing the interface?
+    inp = iotbx.pdb.input(source_info=None, lines=pdb_string_lines)
+    try:
+        return inp.construct_hierarchy(sort_atoms=False), inp.crystal_symmetry()
+    except:
+        return inp.construct_hierarchy(), inp.crystal_symmetry()
 
 
 def mk_mock_template(query_sequence):
