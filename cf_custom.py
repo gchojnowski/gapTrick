@@ -356,7 +356,7 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
         if not outpath: continue
 
-        converted_template_fns.append(os.path.join(outpath, f"{outidx}.cif"))
+        converted_template_fns.append(os.path.join(outpath, f"{outid}.cif"))
         with open(converted_template_fns[-1], 'w') as ofile:
             print(FAKE_MMCIF_HEADER%locals(), file=ofile)
             print("\n".join(poly_seq_block), file=ofile)
