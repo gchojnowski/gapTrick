@@ -373,8 +373,8 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
     selected_chids=chain_ids.split(',')
 
-    for outid,ifn in enumerate(template_fn_list):
-
+    for idx,ifn in enumerate(template_fn_list):
+        outid=str(idx)
         with open(ifn, 'r') as ifile:
             ph, symm = parse_pdbstring(ifile.read())
             ph.remove_alt_confs(True)
