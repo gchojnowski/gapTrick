@@ -305,7 +305,11 @@ def predict_structure(prefix,
 
 
 
-def template_preps(query_sequence, db_path, template_fn_list, dryrun=False):
+def template_preps(template_fn_list):
+    return template_fn_list
+
+
+def template_features(query_sequence, db_path, template_fn_list, dryrun=False):
     home_path=os.getcwd()
 
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
@@ -498,12 +502,13 @@ def runme(msa_filenames,
     print(query_seq_combined)
     print()
     if template_fn_list:
+        template_fn_list = template_preps(template_fn_list)
         with tempfile.TemporaryDirectory() as tmp_path:
             print("Created tmp path ", tmp_path)
-            template_features = template_preps(query_sequence   =   query_seq_combined,
-                                               db_path          =   tmp_path,
-                                               template_fn_list =   template_fn_list,
-                                               dryrun           =   dryrun)
+            template_features = template_features(query_sequence   =   query_seq_combined,
+                                                  db_path          =   tmp_path,
+                                                  template_fn_list =   template_fn_list,
+                                                  dryrun          =   dryrun)
     else:
         template_features = mk_mock_template(query_seq_combined)
 
