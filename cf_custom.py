@@ -367,16 +367,11 @@ def predict_structure(prefix,
 
 
 
-def template_preps(template_fn_list, chain_ds, outpath=None, resi_shift=200):
+def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
     converted_template_fns=[]
 
-    ifn = sys.argv[1]
-    chids = sys.argv[2]
-    outfn = sys.argv[3]
-    outid = os.path.basename(outfn).split('.')[0]
-
-    selected_chids=chids.split(',')
+    selected_chids=chain_ids.split(',')
 
     for outid,ifn in enumerate(template_fn_list):
 
