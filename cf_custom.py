@@ -172,74 +172,6 @@ def parse_pdbstring(pdb_string):
         return inp.construct_hierarchy(), inp.crystal_symmetry()
 
 
-def mk_mock_template(query_sequence):
-  # since alphafold's model requires a template input
-  # we create a blank example w/ zero input, confidence -1
-  ln = len(query_sequence)
-  output_templates_sequence = "-"*ln
-  output_confidence_scores = np.full(ln,-1)
-  templates_all_atom_positions = np.zeros((ln, templates.residue_constants.atom_type_num, 3))
-  templates_all_atom_masks = np.zeros((ln, templates.residue_constants.atom_type_num))
-  templates_aatype = templates.residue_constants.sequence_to_onehot(output_templates_sequence,
-                                                                    templates.residue_constants.HHBLITS_AA_TO_ID)
-  template_features = {'template_all_atom_positions': templates_all_atom_positions[None],
-                       'template_all_atom_masks': templates_all_atom_masks[None],
-                       'template_sequence': [f'none'.encode()],
-                       'template_aatype': np.array(templates_aatype)[None],
-                       'template_confidence_scores': output_confidence_scores[None],
-                       'template_domain_names': [f'none'.encode()],
-                       'template_release_date': [f'none'.encode()]}
-  return template_features
-
-def mk_template(a3m_lines, template_paths):
-  template_featurizer = templates.TemplateHitFeaturizer(
-      mmcif_dir=template_paths,
-      max_template_date="2100-01-01",
-      max_hits=20,
-      kalign_binary_path="kalign",
-      release_dates_path=None,
-      obsolete_pdbs_path=None)
-
-  hhsearch_pdb70_runner = hhsearch.HHSearch(binary_path="hhsearch", databases=[f"{template_paths}/pdb70"])
-
-  hhsearch_result = hhsearch_pdb70_runner.query(a3m_lines)
-  hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
-  templates_result = template_featurizer.get_templates(query_sequence=query_sequence,
-                                                       query_pdb_code=None,
-                                                       query_release_date=None,
-                                                       hits=hhsearch_hits)
-  return templates_result.features
-
-def pad_sequences(a3m_lines, query_sequences, query_cardinality):
-    _blank_seq = [("-" * len(seq)) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n])]
-    a3m_lines_combined = []
-    pos = 0
-    for n, seq in enumerate(query_sequences):
-        for j in range(0, query_cardinality[n]):
-            lines = a3m_lines[n].split("\n")
-            for a3m_line in lines:
-                if len(a3m_line) == 0: continue
-                if a3m_line.startswith(">"):
-                    a3m_lines_combined.append(a3m_line)
-                else:
-                    a3m_lines_combined.append("".join(_blank_seq[:pos] + [a3m_line] + _blank_seq[pos + 1 :]))
-            pos += 1
-    return "\n".join(a3m_lines_combined)
-
-
-def set_bfactor(pdb_filename, bfac, idx_res, chains):
-  I = open(pdb_filename,"r").readlines()
-  O = open(pdb_filename,"w")
-  residx=0
-  for line in I:
-    if line[0:6] == "ATOM  ":
-      seq_id = int(line[22:26].strip()) - 1
-      seq_id = np.where(idx_res == seq_id)[0][0]
-      O.write(f"{line[:21]}{chains[residx]}{line[22:60]}{bfac[residx]:6.2f}{line[66:]}")
-      residx+=1
-  O.close()
-
-
 def predict_structure(prefix,
                       query_sequence,
                       feature_dict,
@@ -355,12 +287,10 @@ def predict_structure(prefix,
 
         unrelaxed_pdb_path = f'{prefix}_unrelaxed_model_{n+1}.pdb'    
         with open(unrelaxed_pdb_path, 'w') as f: f.write(unrelaxed_pdb_lines[r])
-        #set_bfactor(unrelaxed_pdb_path, plddts[r], idx_res, chains)
 
         if 0:#do_relax:
             relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
             with open(relaxed_pdb_path, 'w') as f: f.write(relaxed_pdb_lines[r])
-            #set_bfactor(relaxed_pdb_path, plddts[r], idx_res, chains)
 
 
     return output
@@ -627,17 +557,14 @@ def runme(msa_filenames,
 
     print(query_seq_combined)
     print()
-    if template_fn_list and chain_ids:
-        template_fn_list = template_preps(template_fn_list, chain_ids, outpath=inputpath)
+    template_fn_list = template_preps(template_fn_list, chain_ids, outpath=inputpath)
 
-        with tempfile.TemporaryDirectory() as tmp_path:
-            print("Created tmp path ", tmp_path)
-            template_features = generate_template_features(query_sequence   =   query_seq_combined,
-                                                           db_path          =   tmp_path,
-                                                           template_fn_list =   template_fn_list,
-                                                           dryrun          =   dryrun)
-    else:
-        template_features = mk_mock_template(query_seq_combined)
+    with tempfile.TemporaryDirectory() as tmp_path:
+        print("Created tmp path ", tmp_path)
+        template_features = generate_template_features(query_sequence   =   query_seq_combined,
+                                                       db_path          =   tmp_path,
+                                                       template_fn_list =   template_fn_list,
+                                                       dryrun          =   dryrun)
 
     use_model = {}
     model_params = {}
@@ -698,59 +625,6 @@ def runme(msa_filenames,
         pkl_fn = 'result_model_%d_ptm.pkl'%(idx+1)
         with Path(inputpath, pkl_fn).open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
-
-def test():
-
-    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_af2mmer/input/msas/bfd_uniclust_hits_dimer.a3m'
-    piaq_a3m='/home/gchojnowski/af2_jupyter/PIAQ_test_cf_mono/1.a3m'
-    piaa_a3m='/home/gchojnowski/af2_jupyter/PIAQAAA_test_cf_mono/1.a3m'
-    msas_fn=[piaq_a3m, piaa_a3m]
-
-    #this one will work ONLY with a template (even though score are always quite poor)
-    runme(msa_filenames     =   msas_fn,
-          query_cardinality =   [1,1],
-          query_trim        =   [30,10000],
-          num_models        =   1,
-          template_fn_list  =   ['db/1bjp_1mer.cif'],
-          jobname           =   'piaq_test')
-
-
-def esx_tests_dde():
-    msa_eccd_fn='/home/gchojnowski/esxn_project/I0RSS8_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
-    msa_ecce_fn='/home/gchojnowski/esxn_project/I0RST0_cfold/input/msas/bfd_uniclust_hits.a3m'
-    msas_fn=[msa_eccd_fn, msa_ecce_fn]
-
-    runme(msa_filenames     =   msas_fn,
-          query_cardinality =   [2,1],
-          query_trim        =   [100,9999],
-          num_models        =   5,
-          template_fn_list  =   ['db/6sgx_D100x2CEmerged.pdb.cif','db/7b9f_D100X100CEmerged.pdb.cif'],
-          jobname           =   'eccd100x2e_test')
-
-def esx_tests_dd():
-    msa_eccd_fn='/home/gchojnowski/esxn_project/I0RSS8_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
-    msa_ecce_fn='/home/gchojnowski/esxn_project/I0RST0_cfold/input/msas/bfd_uniclust_hits.a3m'
-    msas_fn=[msa_eccd_fn]
-
-    runme(msa_filenames     =   msas_fn,
-          query_cardinality =   [2],
-          query_trim        =   [10000],
-          num_models        =   5,
-          template_fn_list  =   ['db/ddce.cif', 'db/7npt_merged.pdb.cif','db/6sgx_D100x2CEmerged.pdb.cif'][:1],
-          jobname           =   'eccdx2_test')
-
-def esx_tests_ddce_with_template():
-    msa_eccd3_fn='/home/gchojnowski/esxn_project/ESX3/EccD3_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
-    msa_eccc3_fn='/home/gchojnowski/esxn_project/ESX3/EccC3_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
-    msa_ecce3_fn='/home/gchojnowski/esxn_project/ESX3/EccE3_af2_defaults/input/msas/bfd_uniclust_hits.a3m'
-    msas_fn=[msa_eccd3_fn, msa_eccc3_fn, msa_ecce3_fn]
-
-    runme(msa_filenames     =   msas_fn,
-          query_cardinality =   [2, 1, 1],
-          query_trim        =   [9999, 410, 9999],
-          num_models        =   3,
-          template_fn_list  =   ['db/ddce.cif', 'db/7npt_merged.pdb.cif','db/6sgx_D100x2CEmerged.pdb.cif'][:1],
-          jobname           =   'eccd3x2_eccc3_410_ecce3_test')
 
 def main():
     #esx_tests_ddce_with_template()
