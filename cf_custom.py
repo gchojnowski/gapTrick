@@ -76,7 +76,11 @@ def parse_args():
 
     required_opts.add_option("--templates", action="store", \
                             dest="templates", type="string", metavar="FILENAME,FILENAME", \
-                  help="comma-separated temlates in mmCIF format", default=None)
+                  help="comma-separated temlates in mmCIF/PDB format", default=None)
+
+    required_opts.add_option("--chainids", action="store", \
+                            dest="templates", type="string", metavar="CHAR,CHAR", \
+                  help="comma-separated template chains corresponding to consequtive MSAs", default=None)
 
     required_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
                   help="cardinalities of consecutive MSA", default=None)
@@ -90,6 +94,9 @@ def parse_args():
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
 
+    required_opts.add_option("--data_dir", action="store", \
+                            dest="data_dir", type="string", metavar="DIRNAME", \
+                  help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
 
     required_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
                   help="check template alignments and quit")
@@ -226,7 +233,7 @@ def predict_structure(prefix,
 
 
             #prediction_result = model_runner.predict(processed_feature_dict)
-            prediction_result, recycles = model_runner.predict(input_features)
+            prediction_result = model_runner.predict(input_features, random_seed=random_seed)
             #print("prediction_result.keys()=", prediction_result.keys())
             print(len(prediction_result["plddt"]), seq_len)
             mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
@@ -241,7 +248,7 @@ def predict_structure(prefix,
                 input_features["asym_id"] = feature_dict["asym_id"]
                 input_features["aatype"] = input_features["aatype"][0]
                 input_features["residue_index"] = input_features["residue_index"][0]
-                curr_residue_index = 1
+                curr_residue_index = 0
                 res_index_array = input_features["residue_index"].copy()
                 res_index_array[0] = 0
                 for i in range(1, input_features["aatype"].shape[0]):
@@ -298,26 +305,6 @@ def predict_structure(prefix,
 def template_preps(query_sequence, db_path, template_fn_list, dryrun=False):
     home_path=os.getcwd()
 
-    #p = PDBParser()
-    #struc = p.get_structure("", db_path+"1bjp_2mer.cif")
-    #io = MMCIFIO()
-    #with open(template_fn, 'r') as fh:
-    #    mmcif_string=fh.read()
-    #parser = PDB.MMCIFParser(QUIET=True)
-    #handle = io.StringIO(mmcif_string)
-    #full_structure = parser.get_structure('', handle)
-    #io.set_structure(struc)
-    #io.save("file.cif")
-    #for ch in struc.get_chains():
-    #    print(dir(ch))
-    #with open(db_path+"1bjp_2mer.cif", "r") as fh:
-    #    parser = PDB.MMCIFParser(QUIET=True)
-    #    handle = io.StringIO(fh.read())
-    #full_structure = parser.get_structure('', handle)
-    #first_model_structure = _get_first_model(full_structure)
-    #exit(1)
-
-    #query_sequence="PIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRRPIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASKVRR"
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
 
     parent_dir = Path(db_path)
@@ -467,7 +454,8 @@ def runme(msa_filenames,
           template_fn_list  =   None,
           num_models        =   1,
           jobname           =   'test',
-          dryrun=False):
+          data_dir          =   '/scratch/AlphaFold_DBs/2.3.2',
+          dryrun            =   False):
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -523,7 +511,7 @@ def runme(msa_filenames,
     for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
         use_model[model_name] = True
         if model_name not in list(model_params.keys()):
-            model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir="/scratch/AlphaFold_DBs/")
+            model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
             if model_name == "model_1":
                 model_config = config.model_config(model_name+"_ptm")
                 model_config.data.common.num_recycle = num_recycle
@@ -659,6 +647,7 @@ def main():
           num_models        =   options.num_models,
           template_fn_list  =   options.templates.split(',') if options.templates else None,
           jobname           =   options.jobname,
+          data_dir          =   options.data_dir,
           dryrun            =   options.dryrun)
 
 
