@@ -42,6 +42,46 @@ from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
 print(xla_bridge.get_backend().platform)
 
+FAKE_MMCIF_HEADER=\
+"""data_%(outid)s
+#
+_entry.id   %(outid)s
+_struct_asym.id          A
+_struct_asym.entity_id   0
+#
+_entity_poly.entity_id        0
+_entity_poly.type             polypeptide(L)
+_entity_poly.pdbx_strand_id   A
+#
+_entity.id     0
+_entity.type   polymer
+#
+loop_
+_chem_comp.id
+_chem_comp.type
+_chem_comp.name
+ALA 'L-peptide linking' ALANINE
+ARG 'L-peptide linking' ARGININE
+ASN 'L-peptide linking' ASPARAGINE
+ASP 'L-peptide linking' 'ASPARTIC ACID'
+CYS 'L-peptide linking' CYSTEINE
+GLN 'L-peptide linking' GLUTAMINE
+GLU 'L-peptide linking' 'GLUTAMIC ACID'
+HIS 'L-peptide linking' HISTIDINE
+ILE 'L-peptide linking' ISOLEUCINE
+LEU 'L-peptide linking' LEUCINE
+LYS 'L-peptide linking' LYSINE
+MET 'L-peptide linking' METHIONINE
+PHE 'L-peptide linking' PHENYLALANINE
+PRO 'L-peptide linking' PROLINE
+SER 'L-peptide linking' SERINE
+THR 'L-peptide linking' THREONINE
+TRP 'L-peptide linking' TRYPTOPHAN
+TYR 'L-peptide linking' TYROSINE
+VAL 'L-peptide linking' VALINE
+GLY 'L-peptide linking' GLYCINE
+#"""
+
 hhdb_build_template="""
 cd %(msa_dir)s
 ffindex_build -s ../DB_msa.ff{data,index} .
@@ -78,8 +118,8 @@ def parse_args():
                             dest="templates", type="string", metavar="FILENAME,FILENAME", \
                   help="comma-separated temlates in mmCIF/PDB format", default=None)
 
-    required_opts.add_option("--chainids", action="store", \
-                            dest="templates", type="string", metavar="CHAR,CHAR", \
+    required_opts.add_option("--chain_ids", action="store", \
+                            dest="chain_ids", type="string", metavar="CHAR,CHAR", \
                   help="comma-separated template chains corresponding to consequtive MSAs", default=None)
 
     required_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
@@ -305,9 +345,74 @@ def predict_structure(prefix,
 
 
 
-def template_preps(template_fn_list):
-    return template_fn_list
+def template_preps(template_fn_list, chain_ds, outpath=None, resi_shift=200):
 
+    converted_template_fns=[]
+
+    ifn = sys.argv[1]
+    chids = sys.argv[2]
+    outfn = sys.argv[3]
+    outid = os.path.basename(outfn).split('.')[0]
+
+    selected_chids=chids.split(',')
+
+    for outid,ifn in enumerate(template_fn_list):
+
+        ph,symm = read_ph(ifn)
+        chaindict={}
+        for ch in ph.chains():
+            chaindict[ch.id]=ch
+
+        # assembly
+        tmp_ph = iotbx.pdb.hierarchy.root()
+        tmp_ph.append_model(iotbx.pdb.hierarchy.model(id="0"))
+        tmp_ph.models()[0].append_chain(iotbx.pdb.hierarchy.chain(id="A"))
+
+        for ich,chid in enumerate(selected_chids):
+            if not len(tmp_ph.only_chain().residue_groups()):
+                last_resid = 1
+            else:
+                last_resid = tmp_ph.only_chain().residue_groups()[-1].resseq_as_int()
+
+            for residx,res in enumerate(chaindict[chid].detached_copy().residue_groups()):
+                res.resseq = last_resid+resi_shift+residx
+                tmp_ph.only_chain().append_residue_group( res )
+
+
+        ph_sel = tmp_ph.select(tmp_ph.atom_selection_cache().iselection(f"protein"))
+        new_ph = iotbx.pdb.hierarchy.root()
+        # AF2 expects model.id=1
+        new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
+        new_ph.models()[0].append_chain(ph_sel.only_chain().detached_copy())
+        ogt = aac.one_letter_given_three_letter
+        tgo = aac.three_letter_given_one_letter
+
+        poly_seq_block = []
+        seq=new_ph.only_chain().as_sequence()
+        poly_seq_block.append("#")
+        poly_seq_block.append("loop_")
+        poly_seq_block.append("_entity_poly_seq.entity_id")
+        poly_seq_block.append("_entity_poly_seq.num")
+        poly_seq_block.append("_entity_poly_seq.mon_id")
+        poly_seq_block.append("_entity_poly_seq.hetero")
+        for i, aa in enumerate(seq):
+            three_letter_aa = tgo[aa]
+            poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
+
+        cif_object = iotbx.cif.model.cif()
+        cif_object[outid] = new_ph.as_cif_block()
+        cif_object[outid].pop('_chem_comp.id')
+        cif_object[outid].pop('_struct_asym.id')
+
+        if not outpath: continue
+
+        converted_template_fns.append(os.path.join(outpath, f"{idx:04d}.cif"))
+        with open(converted_template_fns[-1], 'w') as ofile:
+            print(FAKE_MMCIF_HEADER%locals(), file=ofile)
+            print("\n".join(poly_seq_block), file=ofile)
+            print(cif_object[outid], file=ofile)
+
+        return converted_template_fns
 
 def template_features(query_sequence, db_path, template_fn_list, dryrun=False):
     home_path=os.getcwd()
@@ -463,6 +568,7 @@ def runme(msa_filenames,
           jobname           =   'test',
           data_dir          =   '/scratch/AlphaFold_DBs/2.3.2',
           num_recycle       =   3,
+          chain_ids         =   None,
           dryrun            =   False):
 
     msas=[]
@@ -501,8 +607,9 @@ def runme(msa_filenames,
 
     print(query_seq_combined)
     print()
-    if template_fn_list:
-        template_fn_list = template_preps(template_fn_list)
+    if template_fn_list and chain_ids:
+        template_fn_list = template_preps(template_fn_list, chain_ids, outpath=inputpath)
+
         with tempfile.TemporaryDirectory() as tmp_path:
             print("Created tmp path ", tmp_path)
             template_features = template_features(query_sequence   =   query_seq_combined,
@@ -657,6 +764,7 @@ def main():
           jobname           =   options.jobname,
           data_dir          =   options.data_dir,
           num_recycle       =   options.num_recycle,
+          chain_ids         =   options.chain_ids,
           dryrun            =   options.dryrun)
 
 
