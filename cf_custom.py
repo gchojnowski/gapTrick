@@ -304,7 +304,7 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
     selected_chids=chain_ids.split(',')
 
     for idx,ifn in enumerate(template_fn_list):
-        outid=str(idx)
+        outid=f"{idx:04d}"
         with open(ifn, 'r') as ifile:
             ph, symm = parse_pdbstring(ifile.read())
             ph.remove_alt_confs(True)
@@ -356,7 +356,7 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
         if not outpath: continue
 
-        converted_template_fns.append(os.path.join(outpath, f"{idx:04d}.cif"))
+        converted_template_fns.append(os.path.join(outpath, f"{outidx}.cif"))
         with open(converted_template_fns[-1], 'w') as ofile:
             print(FAKE_MMCIF_HEADER%locals(), file=ofile)
             print("\n".join(poly_seq_block), file=ofile)
