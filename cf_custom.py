@@ -245,7 +245,7 @@ def predict_structure(prefix,
                 input_features["asym_id"] = feature_dict["asym_id"]
                 input_features["aatype"] = input_features["aatype"][0]
                 input_features["residue_index"] = input_features["residue_index"][0]
-                curr_residue_index = 0
+                curr_residue_index = 1
                 res_index_array = input_features["residue_index"].copy()
                 res_index_array[0] = 0
                 for i in range(1, input_features["aatype"].shape[0]):
