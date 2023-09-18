@@ -303,12 +303,12 @@ def chain2CIF(chain, outid):
     new_ph = iotbx.pdb.hierarchy.root()
     # AF2 expects model.id=1
     new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
-    new_ph.models()[0].append_chain(ph_sel.only_chain.detached_copy())
+    new_ph.models()[0].append_chain(chain.detached_copy())
     ogt = aac.one_letter_given_three_letter
     tgo = aac.three_letter_given_one_letter
 
     poly_seq_block = []
-    seq=new_ph.only_chain().as_sequence()
+    seq=chain.as_sequence()
     poly_seq_block.append("#")
     poly_seq_block.append("loop_")
     poly_seq_block.append("_entity_poly_seq.entity_id")
@@ -324,11 +324,12 @@ def chain2CIF(chain, outid):
     cif_object[outid].pop('_chem_comp.id')
     cif_object[outid].pop('_struct_asym.id')
 
-    output = [FAKE_MMCIF_HEADER%locals()]
-    output.append("\n".join(poly_seq_block))
-    output.append(cif_object[outid])
-
-    return "\n".join(output)
+    with io.StringIO() as outstr:
+        print(FAKE_MMCIF_HEADER%locals(), file=outstr)
+        print("\n".join(poly_seq_block), file=outstr)
+        print(cif_object[outid], file=outstr)
+        outstr.seek(0)
+        return outstr.read()
 
 
 
@@ -534,7 +535,8 @@ def runme(msa_filenames,
           data_dir          =   '/scratch/AlphaFold_DBs/2.3.2',
           num_recycle       =   3,
           chain_ids         =   None,
-          dryrun            =   False):
+          dryrun            =   False,
+          nomerge           =   False):
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -586,7 +588,7 @@ def runme(msa_filenames,
     model_runner_1 = None
     model_runner_3 = None
     for model_idx in range(1,6)[:num_models]:
-        model_name=f"model_{idx}"
+        model_name=f"model_{model_idx}"
         use_model[model_name] = True
         if model_name not in list(model_params.keys()):
             model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
