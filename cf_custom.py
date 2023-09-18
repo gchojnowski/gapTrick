@@ -333,6 +333,35 @@ def chain2CIF(chain, outid):
 
 
 
+def template_preps_nomerge(template_fn_list, chain_ids, outpath=None):
+    '''
+        this one will put requeste chains from each template in a separate AF2-compatible mmCIF
+    '''
+    converted_template_fns=[]
+
+    selected_chids=chain_ids.split(',')
+    idx=0
+    for ifn in template_fn_list:
+
+        with open(ifn, 'r') as ifile:
+            ph, symm = parse_pdbstring(ifile.read())
+            ph.remove_alt_confs(True)
+
+        for chid in selected_chids:
+
+            ph_sel = ph.select(ph.atom_selection_cache().iselection(f"chain {chid} and protein"))
+
+            if not outpath: continue
+
+            outid=f"{idx:04d}"
+            converted_template_fns.append(os.path.join(outpath, f"{outid}.cif"))
+            with open(converted_template_fns[-1], 'w') as ofile:
+                print(chain2CIF(ph_sel.only_chain(), outid), file=ofile)
+            idx+=1
+
+
+    return converted_template_fns
+
 
 def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
@@ -378,7 +407,7 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
     return converted_template_fns
 
-def generate_template_features(query_sequence, db_path, template_fn_list, dryrun=False):
+def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False):
     home_path=os.getcwd()
 
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
@@ -400,7 +429,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, dryrun
 
     template_hit_list=[]
     for template_fn in template_fn_list[:]:
-
+        print(f"Template file: {template_fn}")
         filepath=Path(template_fn)
         with open(filepath, "r") as fh:
             filestr = fh.read()
@@ -411,7 +440,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, dryrun
         #/cryo_em/AlphaFold/ColabFold/cf_devel/site-packages/alphafold/data/mmcif_parsing.py
         for chain_id,template_sequence in mmcif.chain_to_seqres.items():
             print(chain_id, template_sequence)
-            #template_sequence = mmcif.chain_to_seqres[chain_id]
+
             seq_name = filepath.stem.upper()+"_"+chain_id
             seq = SeqRecord(Seq(template_sequence),id=seq_name,name="",description="")
 
@@ -436,7 +465,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, dryrun
 
         if len(hhsearch_hits) >0:
             naligned=[]
-            for _i,_h in enumerate(hhsearch_hits[:]):
+            for _i,_h in enumerate(hhsearch_hits):
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
                 print()
                 print()
@@ -445,15 +474,21 @@ def generate_template_features(query_sequence, db_path, template_fn_list, dryrun
                 print(f"QRY ", _h.query)
 
             print()
-            print(f' --> Selected alignment #{np.argmax(naligned)+1}')
-            hit = hhsearch_hits[np.argmax(naligned)]
-            hit = replace(hit,**{"name":template_seq.id})
+            # in no-merge mode accept multiple alignments, in case target is a homomultimer
+            if nomerge:
+                for _i,_h in enumerate(hhsearch_hits):
+                    if naligned[_i]/len(template_sequence)<0.5: continue
+                    print(f' --> Selected alignment #{_i+1}')
+                    template_hit_list.append([mmcif,_h])
+            else:
+                print(f' --> Selected alignment #{np.argmax(naligned)+1}')
+                hit = hhsearch_hits[np.argmax(naligned)]
+                hit = replace(hit,**{"name":template_seq.id})
 
-        else:
-            hit = None
-        #print(hhsearch_result)
-        if hit is not None: template_hit_list.append([mmcif, hit])
+                template_hit_list.append([mmcif, hit])
+        print()
 
+    print()
     if dryrun: exit(1)
 
     template_features = {}
@@ -572,14 +607,18 @@ def runme(msa_filenames,
 
     print(query_seq_combined)
     print()
-    template_fn_list = template_preps(template_fn_list, chain_ids, outpath=inputpath)
+    if nomerge:
+        template_fn_list = template_preps_nomerge(template_fn_list, chain_ids, outpath=inputpath)
+    else:
+        template_fn_list = template_preps(template_fn_list, chain_ids, outpath=inputpath)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         print("Created tmp path ", tmp_path)
         template_features = generate_template_features(query_sequence   =   query_seq_combined,
                                                        db_path          =   tmp_path,
                                                        template_fn_list =   template_fn_list,
-                                                       dryrun          =   dryrun)
+                                                       nomerge          =   nomerge,
+                                                       dryrun           =   dryrun)
 
     use_model = {}
     model_params = {}
