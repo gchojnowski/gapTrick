@@ -339,8 +339,8 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
     converted_template_fns=[]
 
     selected_chids=chain_ids.split(',')
-
-    for idx,ifn in enumerate(template_fn_list):
+    idx=0
+    for ifn in template_fn_list:
         outid=f"{idx:04d}"
         with open(ifn, 'r') as ifile:
             ph, symm = parse_pdbstring(ifile.read())
@@ -368,15 +368,13 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
         ph_sel = tmp_ph.select(tmp_ph.atom_selection_cache().iselection(f"protein"))
 
-
         if not outpath: continue
 
         converted_template_fns.append(os.path.join(outpath, f"{outid}.cif"))
         with open(converted_template_fns[-1], 'w') as ofile:
-            #print(FAKE_MMCIF_HEADER%locals(), file=ofile)
-            #print("\n".join(poly_seq_block), file=ofile)
-            #print(cif_object[outid], file=ofile)
             print(chain2CIF(ph_sel.only_chain(), outid), file=ofile)
+        idx+=1
+
 
     return converted_template_fns
 
