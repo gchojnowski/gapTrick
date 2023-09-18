@@ -278,19 +278,6 @@ def cut_by_chid(resi_shift=200):
         print(cif_object[outid], file=ofile)
 
 
-#def cut_by_chid_with_biopython():
-#    from Bio.PDB.PDBParser import PDBParser
-#    from Bio.PDB.Polypeptide import three_to_one, one_to_three
-#    from alphafold.common.protein import to_mmcif
-#
-#    ifn = sys.argv[1]
-#    chids = sys.argv[2]
-#    selected_chids=chids.split(',')
-#
-#    parser = PDBParser(QUIET=True)
-#    structure = parser.get_structure("model", ifn)
-
-
 
 if __name__=="__main__":
     #merge_all_chains()
