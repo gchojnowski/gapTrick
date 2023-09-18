@@ -143,6 +143,9 @@ def parse_args():
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
 
+    required_opts.add_option("--nomerge", action="store_true", dest="nomerge", default=False, \
+                  help="Use input templates as monomers. Benchmarks only!")
+
     required_opts.add_option("--data_dir", action="store", \
                             dest="data_dir", type="string", metavar="DIRNAME", \
                   help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
@@ -570,22 +573,21 @@ def runme(msa_filenames,
     model_params = {}
     model_runner_1 = None
     model_runner_3 = None
-    for model_name in ["model_1","model_2","model_3","model_4","model_5"][:num_models]:
+    for model_idx in range(1,6)[:num_models]:
+        model_name=f"model_{idx}"
         use_model[model_name] = True
         if model_name not in list(model_params.keys()):
             model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
-            if model_name == "model_1":
+            if model_idx == 1:
                 model_config = config.model_config(model_name+"_ptm")
                 model_config.data.common.num_recycle = num_recycle
                 model_config.model.num_recycle = num_recycle
-                #model_config.model.num_recycle = 6
                 model_config.data.eval.num_ensemble = 1
                 model_runner_1 = model.RunModel(model_config, model_params[model_name])
-            if model_name == "model_3":
+            if model_idx == 3:
                 model_config = config.model_config(model_name+"_ptm")
                 model_config.data.common.num_recycle = num_recycle
                 model_config.model.num_recycle = num_recycle
-                #model_config.model.num_recycle = 6
                 model_config.data.eval.num_ensemble = 1
                 model_runner_3 = model.RunModel(model_config, model_params[model_name])
 
@@ -659,7 +661,8 @@ def main():
           data_dir          =   options.data_dir,
           num_recycle       =   options.num_recycle,
           chain_ids         =   options.chain_ids,
-          dryrun            =   options.dryrun)
+          dryrun            =   options.dryrun,
+          nomerge           =   options.nomerge)
 
 
 
