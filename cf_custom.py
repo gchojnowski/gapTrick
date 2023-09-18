@@ -298,6 +298,39 @@ def predict_structure(prefix,
 
     return output
 
+def chain2CIF(chain, outid):
+
+    new_ph = iotbx.pdb.hierarchy.root()
+    # AF2 expects model.id=1
+    new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
+    new_ph.models()[0].append_chain(ph_sel.only_chain.detached_copy())
+    ogt = aac.one_letter_given_three_letter
+    tgo = aac.three_letter_given_one_letter
+
+    poly_seq_block = []
+    seq=new_ph.only_chain().as_sequence()
+    poly_seq_block.append("#")
+    poly_seq_block.append("loop_")
+    poly_seq_block.append("_entity_poly_seq.entity_id")
+    poly_seq_block.append("_entity_poly_seq.num")
+    poly_seq_block.append("_entity_poly_seq.mon_id")
+    poly_seq_block.append("_entity_poly_seq.hetero")
+    for i, aa in enumerate(seq):
+        three_letter_aa = tgo[aa]
+        poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
+
+    cif_object = iotbx.cif.model.cif()
+    cif_object[outid] = new_ph.as_cif_block()
+    cif_object[outid].pop('_chem_comp.id')
+    cif_object[outid].pop('_struct_asym.id')
+
+    output = [FAKE_MMCIF_HEADER%locals()]
+    output.append("\n".join(poly_seq_block))
+    output.append(cif_object[outid])
+
+    return "\n".join(output)
+
+
 
 
 def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
@@ -333,39 +366,18 @@ def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
 
 
         ph_sel = tmp_ph.select(tmp_ph.atom_selection_cache().iselection(f"protein"))
-        new_ph = iotbx.pdb.hierarchy.root()
-        # AF2 expects model.id=1
-        new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
-        new_ph.models()[0].append_chain(ph_sel.only_chain().detached_copy())
-        ogt = aac.one_letter_given_three_letter
-        tgo = aac.three_letter_given_one_letter
 
-        poly_seq_block = []
-        seq=new_ph.only_chain().as_sequence()
-        poly_seq_block.append("#")
-        poly_seq_block.append("loop_")
-        poly_seq_block.append("_entity_poly_seq.entity_id")
-        poly_seq_block.append("_entity_poly_seq.num")
-        poly_seq_block.append("_entity_poly_seq.mon_id")
-        poly_seq_block.append("_entity_poly_seq.hetero")
-        for i, aa in enumerate(seq):
-            three_letter_aa = tgo[aa]
-            poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
-
-        cif_object = iotbx.cif.model.cif()
-        cif_object[outid] = new_ph.as_cif_block()
-        cif_object[outid].pop('_chem_comp.id')
-        cif_object[outid].pop('_struct_asym.id')
 
         if not outpath: continue
 
         converted_template_fns.append(os.path.join(outpath, f"{outid}.cif"))
         with open(converted_template_fns[-1], 'w') as ofile:
-            print(FAKE_MMCIF_HEADER%locals(), file=ofile)
-            print("\n".join(poly_seq_block), file=ofile)
-            print(cif_object[outid], file=ofile)
+            #print(FAKE_MMCIF_HEADER%locals(), file=ofile)
+            #print("\n".join(poly_seq_block), file=ofile)
+            #print(cif_object[outid], file=ofile)
+            print(chain2CIF(ph_sel.only_chain(), outid), file=ofile)
 
-        return converted_template_fns
+    return converted_template_fns
 
 def generate_template_features(query_sequence, db_path, template_fn_list, dryrun=False):
     home_path=os.getcwd()
