@@ -6,6 +6,9 @@ import tempfile
 import numpy as np
 import string
 import pickle
+import time
+
+
 from alphafold.common import protein
 from alphafold.data import pipeline
 from alphafold.data import templates
@@ -302,6 +305,9 @@ def predict_structure(prefix,
 
             pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[r])
 
+            print("Starting Amber relaxation for model {n+1}")
+            start_time = time.time()
+
             amber_relaxer = relax.AmberRelaxation(
                                     max_iterations=3,
                                     tolerance=2.39,
@@ -314,6 +320,9 @@ def predict_structure(prefix,
 
             relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
             with open(relaxed_pdb_path, 'w') as f: f.write(relaxed_pdb_lines)
+            print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
+
+
         else:
             _pdb_lines = unrelaxed_pdb_lines[r]
 
