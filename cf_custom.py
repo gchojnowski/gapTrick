@@ -298,7 +298,7 @@ def predict_structure(prefix,
 
         print(f"model_{n+1} {np.mean(plddts[r])}")
 
-        with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as f: f.write(unrelaxed_pdb_lines[r])
+        with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[r])
 
         # relax TOP model only
         if do_relax and n<1:
@@ -318,7 +318,7 @@ def predict_structure(prefix,
 
             _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
-            with Path(inputpath, f'relaxed_model_{n+1}.pdb').open('w') as of: f.write(_pdb_lines)
+            with Path(inputpath, f'relaxed_model_{n+1}.pdb').open('w') as of: of.write(_pdb_lines)
             print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
 
 
