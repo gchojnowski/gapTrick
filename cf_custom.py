@@ -199,6 +199,7 @@ def predict_structure(prefix,
 
     """Predicts structure using AlphaFold for the given sequence."""
 
+    inputpath=Path(prefix, "input")
     seq_len = len(query_sequence)
 
     # Minkyung's code
@@ -297,8 +298,7 @@ def predict_structure(prefix,
 
         print(f"model_{n+1} {np.mean(plddts[r])}")
 
-        unrelaxed_pdb_path = f'{prefix}_unrelaxed_model_{n+1}.pdb'    
-        with open(unrelaxed_pdb_path, 'w') as f: f.write(unrelaxed_pdb_lines[r])
+        with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as f: f.write(unrelaxed_pdb_lines[r])
 
         # relax TOP model only
         if do_relax and n<1:
@@ -318,8 +318,7 @@ def predict_structure(prefix,
 
             _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
-            relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
-            with open(relaxed_pdb_path, 'w') as f: f.write(_pdb_lines)
+            with Path(inputpath, f'relaxed_model_{n+1}.pdb').open('w') as of: f.write(_pdb_lines)
             print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
 
 
