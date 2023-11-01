@@ -305,7 +305,7 @@ def predict_structure(prefix,
 
             pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[r])
 
-            print("Starting Amber relaxation for model {n+1}")
+            print(f"Starting Amber relaxation for model_{n+1}")
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
@@ -316,10 +316,10 @@ def predict_structure(prefix,
                                     max_outer_iterations=3,
                                     use_gpu=True)
 
-            relaxed_pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
+            _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
             relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
-            with open(relaxed_pdb_path, 'w') as f: f.write(relaxed_pdb_lines)
+            with open(relaxed_pdb_path, 'w') as f: f.write(_pdb_lines)
             print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
 
 
