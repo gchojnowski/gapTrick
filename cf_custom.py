@@ -15,6 +15,10 @@ from alphafold.model import model
 from alphafold.data.tools import hhsearch
 import colabfold as cf
 
+
+from alphafold.common import residue_constants
+from alphafold.relax import relax
+
 from alphafold.data import mmcif_parsing
 from alphafold.data.templates import (_get_pdb_id_and_chain,
                                       _process_single_hit,
@@ -153,6 +157,9 @@ def parse_args():
     required_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
                   help="check template alignments and quit")
 
+    required_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
+                  help="relax top model")
+
 
     (options, _args)  = parser.parse_args()
     return (parser, options)
@@ -283,18 +290,34 @@ def predict_structure(prefix,
     #print(f"reranking models based on avg. predicted lDDT: {lddt_rank}")
     for n,r in enumerate(ptm_rank):
 
-        output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':unrelaxed_pdb_lines[r], 'distogram':distograms[r]}
-        continue
+
 
         print(f"model_{n+1} {np.mean(plddts[r])}")
 
         unrelaxed_pdb_path = f'{prefix}_unrelaxed_model_{n+1}.pdb'    
         with open(unrelaxed_pdb_path, 'w') as f: f.write(unrelaxed_pdb_lines[r])
 
-        if 0:#do_relax:
-            relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
-            with open(relaxed_pdb_path, 'w') as f: f.write(relaxed_pdb_lines[r])
+        # relax TOP model only
+        if do_relax and n<1:
 
+            pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[r])
+
+            amber_relaxer = relax.AmberRelaxation(
+                                    max_iterations=3,
+                                    tolerance=2.39,
+                                    stiffness=10.0,
+                                    exclude_residues=[],
+                                    max_outer_iterations=3,
+                                    use_gpu=True)
+
+            relaxed_pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
+
+            relaxed_pdb_path = f'{prefix}_relaxed_model_{n+1}.pdb'
+            with open(relaxed_pdb_path, 'w') as f: f.write(relaxed_pdb_lines)
+        else:
+            _pdb_lines = unrelaxed_pdb_lines[r]
+
+        output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':_pdb_lines, 'distogram':distograms[r]}
 
     return output
 
@@ -569,6 +592,7 @@ def runme(msa_filenames,
           num_recycle       =   3,
           chain_ids         =   None,
           dryrun            =   False,
+          do_relax          =   False,
           nomerge           =   False):
 
     msas=[]
@@ -663,7 +687,7 @@ def runme(msa_filenames,
                              model_runner_1=model_runner_1,
                              model_runner_3=model_runner_3,
                              is_complex=is_complex,
-                             do_relax=False)
+                             do_relax=do_relax)
 
 
     with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
@@ -713,6 +737,7 @@ def main():
           num_recycle       =   options.num_recycle,
           chain_ids         =   options.chain_ids,
           dryrun            =   options.dryrun,
+          do_relax          =   options.relax,
           nomerge           =   options.nomerge)
 
 
