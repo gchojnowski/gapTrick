@@ -581,8 +581,8 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 
     msas=[pipeline.parsers.parse_a3m("\n".join(msa_combined))]
 
-    for _i, _m in enumerate(msas):
-        print(_i, '\n', "\n".join(_m.sequences[:1]))
+    #for _i, _m in enumerate(msas):
+    #    print(_i, '\n', "\n".join(_m.sequences[:1]))
 
     return msas
 
@@ -637,7 +637,7 @@ def runme(msa_filenames,
         for _i, _m in enumerate(msas):
             of.write("\n".join([">%s\n%s"%(_d,_s) for (_d,_s) in zip(_m.descriptions,_m.sequences)]))
 
-    print(query_seq_combined)
+    print(f" --> Combined target sequence:\n {query_seq_combined}")
     print()
     if nomerge:
         template_fn_list = template_preps_nomerge(template_fn_list, chain_ids, outpath=inputpath)
