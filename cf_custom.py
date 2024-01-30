@@ -258,7 +258,7 @@ def predict_structure(prefix,
             model_type = "AlphaFold2-ptm"
             if is_complex and model_type == "AlphaFold2-ptm":
                 resid2chain = {}
-                input_features["asym_id"] = feature_dict["asym_id"]
+                input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
                 input_features["aatype"] = input_features["aatype"][0]
                 input_features["residue_index"] = input_features["residue_index"][0]
                 curr_residue_index = 1
@@ -737,8 +737,7 @@ def runme(msa_filenames,
     }
 
     feature_dict["asym_id"] = \
-            np.array( [int(n) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
-
+            np.array( [int(n+1) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
     feature_dict['assembly_num_chains']=len(query_seq_extended)
 
     output = predict_structure(jobname, query_seq_combined, feature_dict,
