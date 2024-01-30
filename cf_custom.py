@@ -52,6 +52,8 @@ import iotbx
 import iotbx.cif
 import iotbx.pdb
 from iotbx.pdb import amino_acid_codes as aac
+from mmtbx.alignment import align
+
 
 print(xla_bridge.get_backend().platform)
 
@@ -362,21 +364,61 @@ def chain2CIF(chain, outid):
         outstr.seek(0)
         return outstr.read()
 
+def match_template_chains_to_target(ph, target_sequences):
+    print(f" --> Greedy matching of template chains to target sequences")
+
+    chain_dict = {}
+    for chain in ph.chains():
+        is_protein=False
+        for conf in chain.conformers():
+            if conf.is_protein(min_content=0.5):
+                is_protein=True
+                break
+        if not is_protein: continue
 
 
-def template_preps_nomerge(template_fn_list, chain_ids, outpath=None):
+        chain_dict[chain.id]="".join(chain.as_sequence())
+
+
+    greedy_selection = []
+    for _idx, _target_seq in enumerate(target_sequences):
+        _tmp_si=[]
+        for cid in chain_dict:
+            align_obj = align(seq_a = chain_dict[cid],
+                              seq_b = _target_seq, similarity_function="identity")
+
+            alignment = align_obj.extract_alignment()
+            si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
+            _tmp_si.append(si)
+
+        greedy_selection.append( list(chain_dict.keys())[np.argmax(_tmp_si)])
+        print(f"     #{_idx}: {greedy_selection[-1]} with SI={max(_tmp_si)}")
+
+    if not len(greedy_selection) == len(target_sequences):
+        print("WARNING: template-target sequecne match is incomplete!")
+
+    print()
+
+    return(greedy_selection)
+
+
+def template_preps_nomerge(template_fn_list, chain_ids, target_sequences, outpath=None):
     '''
         this one will put requeste chains from each template in a separate AF2-compatible mmCIF
     '''
     converted_template_fns=[]
 
-    selected_chids=chain_ids.split(',')
     idx=0
     for ifn in template_fn_list:
 
         with open(ifn, 'r') as ifile:
             ph, symm = parse_pdbstring(ifile.read())
             ph.remove_alt_confs(True)
+
+        if chain_ids is None:
+            selected_chids = match_template_chains_to_target(ph, target_sequences)
+        else:
+            selected_chids=chain_ids.split(',')
 
         for chid in selected_chids:
 
@@ -394,17 +436,21 @@ def template_preps_nomerge(template_fn_list, chain_ids, outpath=None):
     return converted_template_fns
 
 
-def template_preps(template_fn_list, chain_ids, outpath=None, resi_shift=200):
+def template_preps(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200):
 
     converted_template_fns=[]
 
-    selected_chids=chain_ids.split(',')
     idx=0
     for ifn in template_fn_list:
         outid=f"{idx:04d}"
         with open(ifn, 'r') as ifile:
             ph, symm = parse_pdbstring(ifile.read())
             ph.remove_alt_confs(True)
+
+        if chain_ids is None:
+            selected_chids = match_template_chains_to_target(ph, target_sequences)
+        else:
+            selected_chids = chain_ids.split(',')
 
         chaindict={}
         for ch in ph.chains():
@@ -640,9 +686,15 @@ def runme(msa_filenames,
     print(f" --> Combined target sequence:\n {query_seq_combined}")
     print()
     if nomerge:
-        template_fn_list = template_preps_nomerge(template_fn_list, chain_ids, outpath=inputpath)
+        template_fn_list = template_preps_nomerge(template_fn_list,
+                                                  chain_ids,
+                                                  target_sequences  =   query_seq_extended,
+                                                  outpath           =   inputpath)
     else:
-        template_fn_list = template_preps(template_fn_list, chain_ids, outpath=inputpath)
+        template_fn_list = template_preps(template_fn_list,
+                                          chain_ids,
+                                          target_sequences  =   query_seq_extended,
+                                          outpath           =   inputpath)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         print("Created tmp path ", tmp_path)
