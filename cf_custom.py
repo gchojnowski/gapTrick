@@ -382,17 +382,20 @@ def match_template_chains_to_target(ph, target_sequences):
 
     greedy_selection = []
     for _idx, _target_seq in enumerate(target_sequences):
-        _tmp_si=[]
+        _tmp_si={}
         for cid in chain_dict:
+            if cid in greedy_selection: continue
+
             align_obj = align(seq_a = chain_dict[cid],
                               seq_b = _target_seq, similarity_function="identity")
 
             alignment = align_obj.extract_alignment()
             si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
-            _tmp_si.append(si)
+            _tmp_si[cid]=si
 
-        greedy_selection.append( list(chain_dict.keys())[np.argmax(_tmp_si)])
-        print(f"     #{_idx}: {greedy_selection[-1]} with SI={max(_tmp_si)}")
+        greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
+        print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
+                       "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
 
     if not len(greedy_selection) == len(target_sequences):
         print("WARNING: template-target sequecne match is incomplete!")
