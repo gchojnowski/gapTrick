@@ -407,7 +407,7 @@ def match_template_chains_to_target(ph, target_sequences):
 
 def template_preps_nomerge(template_fn_list, chain_ids, target_sequences, outpath=None):
     '''
-        this one will put requeste chains from each template in a separate AF2-compatible mmCIF
+        this one will put each requested chain from each template in a separate AF2-compatible mmCIF
     '''
     converted_template_fns=[]
 
@@ -440,6 +440,9 @@ def template_preps_nomerge(template_fn_list, chain_ids, target_sequences, outpat
 
 
 def template_preps(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200):
+    '''
+        this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
+    '''
 
     converted_template_fns=[]
 
