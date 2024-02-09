@@ -16,10 +16,10 @@ from alphafold.model import data
 from alphafold.model import config
 from alphafold.model import model
 from alphafold.data.tools import hhsearch
-import colabfold as cf
+#import colabfold as cf
 
 
-from alphafold.common import residue_constants
+#from alphafold.common import residue_constants
 from alphafold.relax import relax
 
 from alphafold.data import mmcif_parsing
@@ -33,9 +33,9 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
-from Bio.PDB import  PDBParser, MMCIFParser
-from Bio.PDB.mmcifio import MMCIFIO
-from Bio import PDB
+#from Bio.PDB import  PDBParser, MMCIFParser
+#from Bio.PDB.mmcifio import MMCIFIO
+#from Bio import PDB
 import io
 
 from pathlib import Path
@@ -43,7 +43,7 @@ import pickle
 import shutil
 
 from dataclasses import dataclass, replace
-from jax.lib import xla_bridge
+#from jax.lib import xla_bridge
 
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 
@@ -55,7 +55,7 @@ from iotbx.pdb import amino_acid_codes as aac
 from mmtbx.alignment import align
 
 
-print(xla_bridge.get_backend().platform)
+#print(xla_bridge.get_backend().platform)
 
 FAKE_MMCIF_HEADER=\
 """data_%(outid)s
