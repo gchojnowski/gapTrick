@@ -197,26 +197,21 @@ def predict_structure(prefix,
                       model_runner_3,
                       do_relax=False,
                       random_seed=0, 
+                      gap_size=200,
                       is_complex=False):
-
-    """Predicts structure using AlphaFold for the given sequence."""
 
     inputpath=Path(prefix, "input")
     seq_len = len(query_sequence)
 
-    # Minkyung's code
-    # add big enough number to residue index to indicate chain breaks
     idx_res = feature_dict['residue_index']
     L_prev = 0
     # Ls: number of residues in each chain
     for L_i in Ls[:-1]:
-        idx_res[L_prev+L_i:] += 200
+        idx_res[L_prev+L_i:] += gap_size
         L_prev += L_i
     chains = list("".join([string.ascii_uppercase[n]*L for n,L in enumerate(Ls)]))
     feature_dict['residue_index'] = idx_res
-    #print(idx_res)
-    #print(chains)
-    # Run the models.
+
     plddts,paes,ptmscore= [],[],[]
     unrelaxed_pdb_lines = []
     relaxed_pdb_lines = []
@@ -225,29 +220,16 @@ def predict_structure(prefix,
     for model_name, params in model_params.items():
         if model_name in use_model:
             print(f"running {model_name}")
-            # swap params to avoid recompiling
-            # note: models 1,2 have diff number of params compared to models 3,4,5
             if any(str(m) in model_name for m in [1,2]): model_runner = model_runner_1
             if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runner_3
             model_runner.params = params
 
             processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed)
 
-
-            if 0:#not is_complex:
-                input_features = batch_input(
-                                        processed_feature_dict,
-                                        model_runner,
-                                        model_name,
-                                        crop_len,
-                                        use_templates)
-            else:
-                input_features = processed_feature_dict
+            input_features = processed_feature_dict
 
 
-            #prediction_result = model_runner.predict(processed_feature_dict)
             prediction_result = model_runner.predict(input_features, random_seed=random_seed)
-            #print("prediction_result.keys()=", prediction_result.keys())
             print(len(prediction_result["plddt"]), seq_len)
             mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
             mean_ptm = prediction_result["ptm"]
@@ -279,26 +261,18 @@ def predict_structure(prefix,
                                                 b_factors=b_factors,
                                                 remove_leading_feature_dimension=not is_complex)
 
-            #unrelaxed_protein = protein.from_prediction(processed_feature_dict,prediction_result)
             unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
 
-            #plddts.append(prediction_result['plddt'])
             paes.append(prediction_result['predicted_aligned_error'])
             plddts.append(prediction_result["plddt"][:seq_len])
             ptmscore.append(prediction_result["ptm"])
             distograms.append(prediction_result["distogram"])
 
     # rerank models based on pTM (not predicted lddt!)
-    #lddt_rank = np.mean(plddts,-1).argsort()[::-1]
     ptm_rank = np.argsort(ptmscore)[::-1]
     output = {}
     print(f"reranking models based on pTM score: {ptm_rank}")
-    #print(f"reranking models based on avg. predicted lDDT: {lddt_rank}")
     for n,r in enumerate(ptm_rank):
-
-
-
-        #print(f"model_{n+1} {np.mean(plddts[r])}")
 
         with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[r])
 
@@ -520,7 +494,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             mmcif = mmcif_obj.mmcif_object
 
         if not mmcif: print(mmcif_obj)
-        #/cryo_em/AlphaFold/ColabFold/cf_devel/site-packages/alphafold/data/mmcif_parsing.py
+
         for chain_id,template_sequence in mmcif.chain_to_seqres.items():
             print(chain_id, template_sequence)
 
@@ -557,6 +531,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 print(f"QRY ", _h.query)
 
             print()
+
             # in no-merge mode accept multiple alignments, in case target is a homomultimer
             if nomerge:
                 for _i,_h in enumerate(hhsearch_hits):
@@ -617,9 +592,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
 def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
     pos=0
-    #msa_combined=[">query\n"+query_seq_combined]
     msa_combined=[]
-    #_blank_seq = [ ("-" * len(seq[query_trim[n][0]:query_trim[n][1]])) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
+
     _blank_seq = [ ("-" * len(seq)) for n, seq in enumerate(query_sequences) for _ in range(query_cardinality[n]) ]
 
     for n, seq in enumerate(query_sequences):
@@ -632,9 +606,6 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 
 
     msas=[pipeline.parsers.parse_a3m("\n".join(msa_combined))]
-
-    #for _i, _m in enumerate(msas):
-    #    print(_i, '\n', "\n".join(_m.sequences[:1]))
 
     return msas
 
@@ -661,7 +632,7 @@ def runme(msa_filenames,
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
 
-    query_sequences=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas)]# for _ in range(query_cardinality[_i])]
+    query_sequences=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas)]
     query_seq_extended=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
     query_seq_combined="".join(query_seq_extended)
 
@@ -683,6 +654,7 @@ def runme(msa_filenames,
     # query sequence
     with Path(jobpath, 'input.fasta').open('w') as of:
         of.write(">input\n%s\n"%query_seq_combined)
+
     # a3m
     a3m_fn='input_combined.a3m'
     with Path(msaspath, a3m_fn).open('w') as of:
@@ -769,7 +741,6 @@ def runme(msa_filenames,
 
 
 def main():
-    #esx_tests_ddce_with_template()
 
     (parser, options) = parse_args()
 
@@ -780,8 +751,8 @@ def main():
     if not options.trim:
         trim = [[0,9999]]*len(msas)
     else:
-        #trim = tuple(map(int,options.trim.split(',')))
         trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
+
     print("TRIM: ", trim)
     if not options.cardinality:
         cardinality = [1]*len(msas)
