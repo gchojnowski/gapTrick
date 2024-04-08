@@ -155,6 +155,9 @@ def parse_args():
     required_opts.add_option("--nomerge", action="store_true", dest="nomerge", default=False, \
                   help="Use input templates as monomers. Benchmarks only!")
 
+    required_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
+                  help="Mask template sequence (replace residue ids with gaps and add missing CB)")
+
     required_opts.add_option("--data_dir", action="store", \
                             dest="data_dir", type="string", metavar="DIRNAME", \
                   help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
