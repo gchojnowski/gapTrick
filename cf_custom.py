@@ -19,7 +19,7 @@ from alphafold.data.tools import hhsearch
 #import colabfold as cf
 
 
-#from alphafold.common import residue_constants
+from alphafold.common import residue_constants
 from alphafold.relax import relax
 
 from alphafold.data import mmcif_parsing
@@ -34,7 +34,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 #from Bio.PDB import  PDBParser, MMCIFParser
-#from Bio.PDB.mmcifio import MMCIFIO
+from Bio.PDB.mmcifio import MMCIFIO
 #from Bio import PDB
 import io
 
@@ -370,12 +370,13 @@ def match_template_chains_to_target(ph, target_sequences):
             si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
             _tmp_si[cid]=si
 
-        greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
-        print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
-                       "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
+        if _tmp_si:
+            greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
+            print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
+                           "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
 
     if not len(greedy_selection) == len(target_sequences):
-        print("WARNING: template-target sequecne match is incomplete!")
+        print("WARNING: template-target sequence match is incomplete!")
 
     print()
 
@@ -467,7 +468,7 @@ def template_preps(template_fn_list, chain_ids, target_sequences, outpath=None, 
 
     return converted_template_fns
 
-def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False):
+def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False, noseq=False):
     home_path=os.getcwd()
 
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
@@ -564,6 +565,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         print("hit ", hit.hit_sequence)
         print("qry ", hit.query)
 
+        template_idxs = hit.indices_hit
         template_sequence = hit.hit_sequence.replace('-', '')
 
         features, realign_warning = _extract_template_features(
@@ -577,6 +579,31 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         features['template_sum_probs'] = [hit.sum_probs]
 
+        if noseq:
+
+            features['template_sum_probs'] = [0]
+
+            # generate a gap-only sequence
+            _seq='-'*len(query_seq)
+
+            pos = np.zeros([1,len(query_seq), 37, 3])
+            atom_mask = np.zeros([1, len(query_seq), 37])
+
+            with tempfile.TemporaryDirectory() as tmp_path:
+                _io=MMCIFIO()
+                _io.set_structure(mmcif_obj.mmcif_object.structure)
+                _io.save(os.path.join(tmp_path, "bioout.cif"))
+                with open(os.path.join(tmp_path, "bioout.cif"), 'r') as ifile:
+                    _prot = protein.from_mmcif_string(ifile.read())
+            #_prot = protein._from_bio_structure(mmcif_obj.mmcif_object.structure)
+            pos[0, template_idxs, :5] = _prot.atom_positions[:,:5]
+            atom_mask[0, template_idxs, :5] = _prot.atom_mask[:,:5]
+
+            features["template_aatype"] = residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
+            features["template_all_atom_masks"]=atom_mask
+            features["template_all_atom_positions"]=pos
+            features["template_domain_names"] = np.asarray(["None"])
+
         single_hit_result = SingleHitResult(features=features, error=None, warning=None)
 
         for k in template_features:
@@ -587,6 +614,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         for name in template_features:
             template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
+    # remove sequence-related features
+    # dict_keys(['template_aatype', 'template_all_atom_masks', 'template_all_atom_positions', 'template_domain_names', 'template_sequence', 'template_sum_probs'])
+
 
     for key,value in template_features.items():
         if np.all(value==0): print("ERROR: Some template features are empty")
@@ -627,7 +657,8 @@ def runme(msa_filenames,
           chain_ids         =   None,
           dryrun            =   False,
           do_relax          =   False,
-          nomerge           =   False):
+          nomerge           =   False,
+          noseq             =   False):
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -683,7 +714,8 @@ def runme(msa_filenames,
                                                        db_path          =   tmp_path,
                                                        template_fn_list =   template_fn_list,
                                                        nomerge          =   nomerge,
-                                                       dryrun           =   dryrun)
+                                                       dryrun           =   dryrun,
+                                                       noseq            =   noseq)
 
     use_model = {}
     model_params = {}
@@ -777,7 +809,8 @@ def main():
           chain_ids         =   options.chain_ids,
           dryrun            =   options.dryrun,
           do_relax          =   options.relax,
-          nomerge           =   options.nomerge)
+          nomerge           =   options.nomerge,
+          noseq             =   options.noseq)
 
 
 
