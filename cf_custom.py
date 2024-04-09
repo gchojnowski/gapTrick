@@ -548,8 +548,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 print()
                 print()
                 print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)}")
-                print(f"HIT ", _h.hit_sequence)
-                print(f"QRY ", _h.query)
+                print(f"TPL ", _h.hit_sequence)
+                print(f"TRG ", _h.query)
 
             print()
 
@@ -579,8 +579,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
         mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
         print(">"+hit.name)
-        print("hit ", hit.hit_sequence) #template
-        print("qry ", hit.query) #query
+        print("template ", hit.hit_sequence) #template
+        print("target   ", hit.query) #query
 
         template_idxs = hit.indices_hit
         template_sequence = hit.hit_sequence.replace('-', '')
