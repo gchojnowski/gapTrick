@@ -596,7 +596,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         features['template_sum_probs'] = [hit.sum_probs]
 
-        if noseq:
+        if noseq: # remove sequence-related features
 
             features['template_sum_probs'] = [0]
 
@@ -614,6 +614,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
             # the following looks better, bur doesnt work...
             #_prot = protein._from_bio_structure(mmcif_obj.mmcif_object.structure)
+
+
+            # mask side-chains
             masked_coords = np.zeros([1,len(query_seq), 37, 3])
             masked_coords[0, template_idxs, :5] = template_prot.atom_positions[template_idxs,:5]
 
@@ -641,9 +644,6 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         for name in template_features:
             template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
-    # remove sequence-related features
-    # dict_keys(['template_aatype', 'template_all_atom_masks', 'template_all_atom_positions', 'template_domain_names', 'template_sequence', 'template_sum_probs'])
-
 
     for key,value in template_features.items():
         if np.all(value==0): print("ERROR: Some template features are empty")
