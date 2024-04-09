@@ -597,6 +597,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         features['template_sum_probs'] = [hit.sum_probs]
 
         if noseq: # remove sequence-related features
+            print("WARNING: masking sequence information in a template")
 
             features['template_sum_probs'] = [0]
 
@@ -646,7 +647,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
 
     for key,value in template_features.items():
-        if np.all(value==0): print("ERROR: Some template features are empty")
+        if np.all(value==0) and not noseq: print("ERROR: Some template features are empty")
 
     return template_features
 
