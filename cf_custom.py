@@ -597,7 +597,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         features['template_sum_probs'] = [hit.sum_probs]
 
         if noseq: # remove sequence-related features
-            print("WARNING: masking sequence information in a template")
+            print("WARNING: masked sequence information in a template")
 
             features['template_sum_probs'] = [0]
 
