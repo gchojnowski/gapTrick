@@ -4,6 +4,7 @@ import os, sys, re
 import sys
 import tempfile
 import numpy as np
+import jax.numpy as jnp
 import string
 import pickle
 import time
@@ -188,6 +189,22 @@ def parse_pdbstring(pdb_string):
         return inp.construct_hierarchy(sort_atoms=False), inp.crystal_symmetry()
     except:
         return inp.construct_hierarchy(), inp.crystal_symmetry()
+
+def CB_xyz(n, ca, c):
+    bondl=1.52
+    rada=1.93
+    radd=-2.14
+
+    vec_nca = (n-ca)/np.linalg.norm(n-ca)
+    vec_cca = (c-ca)/np.linalg.norm(c-ca)
+
+    normal_vec = np.cross(vec_nca, vec_cca)
+
+    m = [vec_nca, np.cross(normal_vec, vec_nca), normal_vec]
+    d = [np.cos(rada), np.sin(rada)*np.cos(radd), -np.sin(rada)*np.sin(radd)]
+    return c + sum([bondl*_m*_d for _m,_d in zip(m,d)])
+
+
 
 
 def predict_structure(prefix,
@@ -587,7 +604,6 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             _seq='-'*len(query_seq)
 
 
-
             # crate protein object from BioMMCIF
             with tempfile.TemporaryDirectory() as tmp_path:
                 _io=MMCIFIO()
@@ -600,6 +616,12 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             #_prot = protein._from_bio_structure(mmcif_obj.mmcif_object.structure)
             masked_coords = np.zeros([1,len(query_seq), 37, 3])
             masked_coords[0, template_idxs, :5] = template_prot.atom_positions[template_idxs,:5]
+
+            # add CBs (where needed)
+            backbone_modelled = jnp.all(template_prot.atom_mask[:,[0,1,2]] == 1, axis=1)
+            missing_cb = [i for i,(b,m) in enumerate(zip(backbone_modelled, template_prot.atom_mask)) if m[3] == 0 and b]
+            cbs = np.array([CB_xyz(n,ca,c) for c, n ,ca in zip(masked_coords[0,:,2], masked_coords[0,:,0], masked_coords[0,:,1])])
+            masked_coords[0, missing_cb, 3] = cbs[missing_cb]
 
             atom_mask = np.zeros([1, len(query_seq), 37])
             atom_mask[0, template_idxs, :5] = template_prot.atom_mask[template_idxs,:5]
