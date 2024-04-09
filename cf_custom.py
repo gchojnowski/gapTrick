@@ -562,8 +562,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
         mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
         print(">"+hit.name)
-        print("hit ", hit.hit_sequence)
-        print("qry ", hit.query)
+        print("hit ", hit.hit_sequence) #template
+        print("qry ", hit.query) #query
 
         template_idxs = hit.indices_hit
         template_sequence = hit.hit_sequence.replace('-', '')
@@ -586,23 +586,28 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             # generate a gap-only sequence
             _seq='-'*len(query_seq)
 
-            pos = np.zeros([1,len(query_seq), 37, 3])
-            atom_mask = np.zeros([1, len(query_seq), 37])
 
+
+            # crate protein object from BioMMCIF
             with tempfile.TemporaryDirectory() as tmp_path:
                 _io=MMCIFIO()
                 _io.set_structure(mmcif_obj.mmcif_object.structure)
                 _io.save(os.path.join(tmp_path, "bioout.cif"))
                 with open(os.path.join(tmp_path, "bioout.cif"), 'r') as ifile:
-                    _prot = protein.from_mmcif_string(ifile.read())
-            #_prot = protein._from_bio_structure(mmcif_obj.mmcif_object.structure)
-            pos[0, template_idxs, :5] = _prot.atom_positions[:,:5]
-            atom_mask[0, template_idxs, :5] = _prot.atom_mask[:,:5]
+                    template_prot = protein.from_mmcif_string(ifile.read())
 
-            features["template_aatype"] = residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
-            features["template_all_atom_masks"]=atom_mask
-            features["template_all_atom_positions"]=pos
-            features["template_domain_names"] = np.asarray(["None"])
+            # the following looks better, bur doesnt work...
+            #_prot = protein._from_bio_structure(mmcif_obj.mmcif_object.structure)
+            masked_coords = np.zeros([1,len(query_seq), 37, 3])
+            masked_coords[0, template_idxs, :5] = template_prot.atom_positions[template_idxs,:5]
+
+            atom_mask = np.zeros([1, len(query_seq), 37])
+            atom_mask[0, template_idxs, :5] = template_prot.atom_mask[template_idxs,:5]
+
+            features["template_aatype"]             =   residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
+            features["template_all_atom_masks"]     =   atom_mask
+            features["template_all_atom_positions"] =   masked_coords
+            features["template_domain_names"]       =   np.asarray(["None"])
 
         single_hit_result = SingleHitResult(features=features, error=None, warning=None)
 
