@@ -159,6 +159,9 @@ def parse_args():
     required_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
                   help="Mask template sequence (replace residue ids with gaps and add missing CB)")
 
+    required_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
+                  help="maximum number of MSA seqeunces", default=None)
+
     required_opts.add_option("--data_dir", action="store", \
                             dest="data_dir", type="string", metavar="DIRNAME", \
                   help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
@@ -683,6 +686,7 @@ def runme(msa_filenames,
           chain_ids         =   None,
           dryrun            =   False,
           do_relax          =   False,
+          max_seq           =   None,
           nomerge           =   False,
           noseq             =   False):
 
@@ -753,6 +757,11 @@ def runme(msa_filenames,
             model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
             model_config = config.model_config(model_name+"_ptm")
             model_config.data.common.num_recycle = num_recycle
+
+            if max_seq:
+                model_config.data.common.max_msa_clusters = max_seq
+                model_config.data.common.max_extra_msa = 2*max_seq
+
             model_config.model.num_recycle = num_recycle
             model_config.data.eval.num_ensemble = 1
             model_runner = model.RunModel(model_config, model_params[model_name])
@@ -826,6 +835,7 @@ def main():
           chain_ids         =   options.chain_ids,
           dryrun            =   options.dryrun,
           do_relax          =   options.relax,
+          max_seq           =   options.max_seq,
           nomerge           =   options.nomerge,
           noseq             =   options.noseq)
 
