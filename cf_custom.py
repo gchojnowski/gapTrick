@@ -661,6 +661,7 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
             if max_seq: # subsample
+                max_seq = min(max_seq, len(input_msas[n].sequences))
                 msa_sample_indices = np.random.choice(len(input_msas[n].sequences), max_seq, replace=False)
                 print(f" Reducing MSA depth from {len(input_msas[n].sequences)} to {max_seq}")
             else:
