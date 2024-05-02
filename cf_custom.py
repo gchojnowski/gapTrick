@@ -213,8 +213,7 @@ def predict_structure(prefix,
                       Ls,
                       model_params,
                       use_model,
-                      model_runner_1,
-                      model_runner_3,
+                      model_runner,
                       do_relax=False,
                       random_seed=0, 
                       gap_size=200,
@@ -240,8 +239,7 @@ def predict_structure(prefix,
     for model_name, params in model_params.items():
         if model_name in use_model:
             print(f"running {model_name}")
-            if any(str(m) in model_name for m in [1,2]): model_runner = model_runner_1
-            if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runner_3
+
             model_runner.params = params
 
             processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed)
@@ -747,25 +745,17 @@ def runme(msa_filenames,
 
     use_model = {}
     model_params = {}
-    model_runner_1 = None
-    model_runner_3 = None
+    model_runner = None
     for model_idx in range(1,6)[:num_models]:
         model_name=f"model_{model_idx}"
         use_model[model_name] = True
         if model_name not in list(model_params.keys()):
             model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
-            if model_idx == 1:
-                model_config = config.model_config(model_name+"_ptm")
-                model_config.data.common.num_recycle = num_recycle
-                model_config.model.num_recycle = num_recycle
-                model_config.data.eval.num_ensemble = 1
-                model_runner_1 = model.RunModel(model_config, model_params[model_name])
-            if model_idx == 3:
-                model_config = config.model_config(model_name+"_ptm")
-                model_config.data.common.num_recycle = num_recycle
-                model_config.model.num_recycle = num_recycle
-                model_config.data.eval.num_ensemble = 1
-                model_runner_3 = model.RunModel(model_config, model_params[model_name])
+            model_config = config.model_config(model_name+"_ptm")
+            model_config.data.common.num_recycle = num_recycle
+            model_config.model.num_recycle = num_recycle
+            model_config.data.eval.num_ensemble = 1
+            model_runner = model.RunModel(model_config, model_params[model_name])
 
     is_complex=True
 
@@ -784,8 +774,7 @@ def runme(msa_filenames,
     output = predict_structure(jobname, query_seq_combined, feature_dict,
                              Ls=tuple(map(len, query_seq_extended)),
                              model_params=model_params, use_model=use_model,
-                             model_runner_1=model_runner_1,
-                             model_runner_3=model_runner_3,
+                             model_runner=model_runner,
                              is_complex=is_complex,
                              do_relax=do_relax)
 
