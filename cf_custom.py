@@ -668,7 +668,7 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max
                 msa_sample_indices = range(len(input_msas[n].sequences))
 
             #for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
-            for idx in msa_sample_indices:
+            for idx in sorted(msa_sample_indices):
                 _desc = input_msas[n].descriptions[idx]
                 _seq  = input_msas[n].sequences[idx]
 
