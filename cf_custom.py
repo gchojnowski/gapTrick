@@ -652,7 +652,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
     return template_features
 
-def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
+def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max_seq=None):
     pos=0
     msa_combined=[]
 
@@ -660,7 +660,16 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
-            for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
+            if max_seq: # subsample
+                msa_sample_indices = np.random.choice(len(input_msas[n].sequences), max_seq, replace=False)
+            else:
+                msa_sample_indices = range(len(input_msas[n].sequences))
+
+            #for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
+            for idx in msa_sample_indices:
+                _desc = input_msas[n].descriptions[idx]
+                _seq  = input_msas[n].sequences[idx]
+
                 if not len(set(_seq[query_trim[n][0]:query_trim[n][1]]))>1: continue
                 msa_combined.append(">%s"%_desc)
                 msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[query_trim[n][0]:query_trim[n][1]]] + _blank_seq[pos + 1 :]))
@@ -701,7 +710,7 @@ def runme(msa_filenames,
     query_seq_combined="".join(query_seq_extended)
 
 
-    msas = combine_msas(query_sequences, msas, query_cardinality, query_trim)
+    msas = combine_msas(query_sequences, msas, query_cardinality, query_trim, max_seq=max_seq)
 
 
 
@@ -758,9 +767,10 @@ def runme(msa_filenames,
             model_config = config.model_config(model_name+"_ptm")
             model_config.data.common.num_recycle = num_recycle
 
-            if max_seq:
-                model_config.data.common.max_msa_clusters = max_seq
-                model_config.data.common.max_extra_msa = 2*max_seq
+            # this clusters MSAs and may unevenly subsample merged sequences
+            #if max_seq:
+            #    model_config.data.common.max_msa_clusters = max_seq
+            #    model_config.data.common.max_extra_msa = 2*max_seq
 
             model_config.model.num_recycle = num_recycle
             model_config.data.eval.num_ensemble = 1
