@@ -389,6 +389,7 @@ def match_template_chains_to_target(ph, target_sequences):
 
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
+
             print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
                            "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
 
