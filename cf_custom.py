@@ -4,7 +4,6 @@ import os, sys, re
 import sys
 import tempfile
 import numpy as np
-import jax.numpy as jnp
 import string
 import pickle
 import time
@@ -20,7 +19,7 @@ from alphafold.data.tools import hhsearch
 #import colabfold as cf
 
 
-from alphafold.common import residue_constants
+#from alphafold.common import residue_constants
 from alphafold.relax import relax
 
 from alphafold.data import mmcif_parsing
@@ -35,7 +34,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 #from Bio.PDB import  PDBParser, MMCIFParser
-from Bio.PDB.mmcifio import MMCIFIO
+#from Bio.PDB.mmcifio import MMCIFIO
 #from Bio import PDB
 import io
 
@@ -156,9 +155,6 @@ def parse_args():
     required_opts.add_option("--nomerge", action="store_true", dest="nomerge", default=False, \
                   help="Use input templates as monomers. Benchmarks only!")
 
-    required_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
-                  help="Mask template sequence (replace residue ids with gaps and add missing CB)")
-
     required_opts.add_option("--data_dir", action="store", \
                             dest="data_dir", type="string", metavar="DIRNAME", \
                   help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
@@ -189,22 +185,6 @@ def parse_pdbstring(pdb_string):
         return inp.construct_hierarchy(sort_atoms=False), inp.crystal_symmetry()
     except:
         return inp.construct_hierarchy(), inp.crystal_symmetry()
-
-def CB_xyz(n, ca, c):
-    bondl=1.52
-    rada=1.93
-    radd=-2.14
-
-    vec_nca = (n-ca)/np.linalg.norm(n-ca)
-    vec_cca = (c-ca)/np.linalg.norm(c-ca)
-
-    normal_vec = np.cross(vec_nca, vec_cca)
-
-    m = [vec_nca, np.cross(normal_vec, vec_nca), normal_vec]
-    d = [np.cos(rada), np.sin(rada)*np.cos(radd), -np.sin(rada)*np.sin(radd)]
-    return c + sum([bondl*_m*_d for _m,_d in zip(m,d)])
-
-
 
 
 def predict_structure(prefix,
@@ -394,7 +374,7 @@ def match_template_chains_to_target(ph, target_sequences):
                            "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
 
     if not len(greedy_selection) == len(target_sequences):
-        print("WARNING: template-target sequence match is incomplete!")
+        print("WARNING: template-target sequecne match is incomplete!")
 
     print()
 
@@ -486,7 +466,7 @@ def template_preps(template_fn_list, chain_ids, target_sequences, outpath=None, 
 
     return converted_template_fns
 
-def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False, noseq=False):
+def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False):
     home_path=os.getcwd()
 
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
@@ -549,8 +529,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 print()
                 print()
                 print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)}")
-                print(f"TPL ", _h.hit_sequence)
-                print(f"TRG ", _h.query)
+                print(f"HIT ", _h.hit_sequence)
+                print(f"QRY ", _h.query)
 
             print()
 
@@ -580,10 +560,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
         mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
         print(">"+hit.name)
-        print("template ", hit.hit_sequence) #template
-        print("target   ", hit.query) #query
+        print("hit ", hit.hit_sequence)
+        print("qry ", hit.query)
 
-        template_idxs = hit.indices_hit
         template_sequence = hit.hit_sequence.replace('-', '')
 
         features, realign_warning = _extract_template_features(
@@ -597,45 +576,6 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         features['template_sum_probs'] = [hit.sum_probs]
 
-        if noseq: # remove sequence-related features
-            print("WARNING: masked sequence information in a template")
-
-            features['template_sum_probs'] = [0]
-
-            # generate a gap-only sequence
-            _seq='-'*len(query_seq)
-
-
-            # crate protein object from BioMMCIF
-            with tempfile.TemporaryDirectory() as tmp_path:
-                _io=MMCIFIO()
-                _io.set_structure(mmcif_obj.mmcif_object.structure)
-                _io.save(os.path.join(tmp_path, "bioout.cif"))
-                with open(os.path.join(tmp_path, "bioout.cif"), 'r') as ifile:
-                    template_prot = protein.from_mmcif_string(ifile.read())
-
-            # the following looks better, bur doesnt work...
-            #_prot = protein._from_bio_structure(mmcif_obj.mmcif_object.structure)
-
-
-            # mask side-chains
-            masked_coords = np.zeros([1,len(query_seq), 37, 3])
-            masked_coords[0, template_idxs, :5] = template_prot.atom_positions[template_idxs,:5]
-
-            # add CBs (where needed)
-            backbone_modelled = jnp.all(template_prot.atom_mask[:,[0,1,2]] == 1, axis=1)
-            missing_cb = [i for i,(b,m) in enumerate(zip(backbone_modelled, template_prot.atom_mask)) if m[3] == 0 and b]
-            cbs = np.array([CB_xyz(n,ca,c) for c, n ,ca in zip(masked_coords[0,:,2], masked_coords[0,:,0], masked_coords[0,:,1])])
-            masked_coords[0, missing_cb, 3] = cbs[missing_cb]
-
-            atom_mask = np.zeros([1, len(query_seq), 37])
-            atom_mask[0, template_idxs, :5] = template_prot.atom_mask[template_idxs,:5]
-
-            features["template_aatype"]             =   residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
-            features["template_all_atom_masks"]     =   atom_mask
-            features["template_all_atom_positions"] =   masked_coords
-            features["template_domain_names"]       =   np.asarray(["None"])
-
         single_hit_result = SingleHitResult(features=features, error=None, warning=None)
 
         for k in template_features:
@@ -648,7 +588,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
 
     for key,value in template_features.items():
-        if np.all(value==0) and not noseq: print("ERROR: Some template features are empty")
+        if np.all(value==0): print("ERROR: Some template features are empty")
 
     return template_features
 
@@ -686,8 +626,7 @@ def runme(msa_filenames,
           chain_ids         =   None,
           dryrun            =   False,
           do_relax          =   False,
-          nomerge           =   False,
-          noseq             =   False):
+          nomerge           =   False):
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -743,8 +682,7 @@ def runme(msa_filenames,
                                                        db_path          =   tmp_path,
                                                        template_fn_list =   template_fn_list,
                                                        nomerge          =   nomerge,
-                                                       dryrun           =   dryrun,
-                                                       noseq            =   noseq)
+                                                       dryrun           =   dryrun)
 
     use_model = {}
     model_params = {}
@@ -838,8 +776,7 @@ def main():
           chain_ids         =   options.chain_ids,
           dryrun            =   options.dryrun,
           do_relax          =   options.relax,
-          nomerge           =   options.nomerge,
-          noseq             =   options.noseq)
+          nomerge           =   options.nomerge)
 
 
 
