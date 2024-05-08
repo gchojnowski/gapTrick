@@ -130,6 +130,10 @@ def parse_args():
                             dest="msa", type="string", metavar="FILENAME,FILENAME", \
                   help="comma-separated a3m MSAs. First sequence is a target", default=None)
 
+    required_opts.add_option("--seqin", action="store", \
+                            dest="seqin", type="string", metavar="FILENAME", \
+                  help="Fasta file with target sequences. Corresponding (unique) MSAs will be acquired from the mmseqs2 API", default=None)
+
     required_opts.add_option("--templates", action="store", \
                             dest="templates", type="string", metavar="FILENAME,FILENAME", \
                   help="comma-separated temlates in mmCIF/PDB format", default=None)
@@ -157,7 +161,7 @@ def parse_args():
                   help="Use input templates as monomers. Benchmarks only!")
 
     required_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
-                  help="Mask template sequence (replace residue ids with gaps and add missing CB)")
+                  help="Mask template sequence (replace residue ids with gaps and add missing CBs)")
 
     required_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
                   help="maximum number of MSA seqeunces", default=None)
@@ -176,6 +180,8 @@ def parse_args():
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
+# -----------------------------------------------------------------------------
+
 def parse_pdbstring(pdb_string):
 
     # there may be issues with repeated BREAK lines, that we do not use here anyway
@@ -192,6 +198,68 @@ def parse_pdbstring(pdb_string):
         return inp.construct_hierarchy(sort_atoms=False), inp.crystal_symmetry()
     except:
         return inp.construct_hierarchy(), inp.crystal_symmetry()
+
+# -----------------------------------------------------------------------------
+
+def query_mmseqs2(query_sequence, outdir, use_env=True, filter=False):
+
+    def submit(query_sequence, mode):
+        res = requests.post('https://a3m.mmseqs.com/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode})
+        return res.json()
+
+    def status(ID):
+        res = requests.get(f'https://a3m.mmseqs.com/ticket/{ID}')
+        return res.json()
+
+    def download(ID, path):
+        res = requests.get(f'https://a3m.mmseqs.com/result/download/{ID}')
+        with open(path,"wb") as out: out.write(res.content)
+
+    if filter:
+        mode = "env" if use_env else "all"
+    else:
+        mode = "env-nofilter" if use_env else "nofilter"
+
+    if not os.path.isdir(outdir):
+        print(f"Output dir >>{outdir}<< doesnt exist!")
+        return 1
+
+    msadir = os.path.join(outdir, "msa")
+    print(f"MMSeqs2 API query: {query_sequence}")
+    print(f"MMSeqs2 PAI output: {msadir}")
+
+    if not os.path.isdir(msadir): os.mkdir(msadir)
+    # call mmseqs2 api
+    tar_gz_file = f'{msadir}/out.tar.gz'
+    if not os.path.isfile(tar_gz_file):
+        out = submit(query_sequence, mode)
+        while out["status"] in ["RUNNING","PENDING"]:
+            time.sleep(3)
+            out = status(out["id"])
+        download(out["id"], tar_gz_file)
+
+    # parse a3m files
+    a3m = f"{msadir}/msa.a3m"
+    if not os.path.isfile(a3m):
+        with tarfile.open(tar_gz_file) as tar_gz: tar_gz.extractall(msadir)
+        a3m_files = [f"{msadir}/uniref.a3m"]
+        if use_env: a3m_files.append(f"{msadir}/bfd.mgnify30.metaeuk30.smag30.a3m")
+        a3m_out = open(a3m,"w")
+        for a3m_file in a3m_files:
+            for line in open(a3m_file,"r"):
+                line = line.replace("\x00","")
+                if len(line) > 0:
+                    a3m_out.write(line)
+    else:
+        print(f"Output file {a3m} already exists!")
+
+    print(f"Successfully parsed {a3m}")
+    print()
+
+
+    return 0
+
+# -----------------------------------------------------------------------------
 
 def CB_xyz(n, ca, c):
     bondl=1.52
@@ -817,20 +885,45 @@ def main():
 
     (parser, options) = parse_args()
 
-    print( " ==> Command line: af2_cplx_templates.py %s" % (" ".join(sys.argv[1:])) )
+    print( " ==> Command line: gapTrick.py %s" % (" ".join(sys.argv[1:])) )
 
-    msas = options.msa.split(',')
 
-    if not options.trim:
-        trim = [[0,9999]]*len(msas)
+
+    if options.msas:
+
+        msas = options.msa.split(',')
+
+        if not options.trim:
+            trim = [[0,9999]]*len(msas)
+        else:
+            trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
+
+        print("TRIM: ", trim)
+        if not options.cardinality:
+            cardinality = [1]*len(msas)
+        else:
+            cardinality = tuple(map(int,options.cardinality.split(',')))
+    elif options.seqin:
+        mmseqspath=Path(jobname, "mmseqs2")
+        mmseqspath.mkdir(parents=True)
+
+        query_mmseqs2(query_sequence, outdir, use_env=True, filter=False)
+
+        template_seq_path = Path(msa_dir,"template.fasta")
+        with template_seq_path.open("w") as fh:
+            SeqIO.write([seq], fh, "fasta")
+
+
+
+        with open(options.seqin) as ifiile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                print(record.id)
+        exit(1)
+
     else:
-        trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
+        print("ERROR: --msas or --seqin required on input")
+        exit(1)
 
-    print("TRIM: ", trim)
-    if not options.cardinality:
-        cardinality = [1]*len(msas)
-    else:
-        cardinality = tuple(map(int,options.cardinality.split(',')))
 
     if options.jobname is None:
         print('Define jobname - output directory')
