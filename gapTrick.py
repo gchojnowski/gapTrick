@@ -1,6 +1,7 @@
 import os, sys, re
 
 import uuid
+import glob
 
 import sys
 import tempfile
@@ -140,6 +141,10 @@ def parse_args():
     required_opts.add_option("--msa", action="store", \
                             dest="msa", type="string", metavar="FILENAME,FILENAME", \
                   help="comma-separated a3m MSAs. First sequence is a target", default=None)
+
+    required_opts.add_option("--msa_dir", action="store", \
+                            dest="msa_dir", type="string", metavar="DIRNAME", \
+                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", default=None)
 
     required_opts.add_option("--seqin", action="store", \
                             dest="seqin", type="string", metavar="FILENAME", \
@@ -922,19 +927,37 @@ def main():
         mmseqspath=Path(options.jobname, "mmseqs2")
         mmseqspath.mkdir(parents=True, exist_ok=False)
 
+
+        existing_msas={}
+        if options.msa_dir:
+            for fn in glob.glob( os.path.join(options.msa_dir, '*.*') ):
+                with open(fn) as ifile:
+                    _=ifile.readline()
+                    existing_msas[ifile.readline().strip()]=fn
+            print(f"Parsed {len(existing_msas)} MSA files")
+            print("\n")
+
         msas = []
-        seq_dict = {}
-        #template_seq_path = Path(msa_dir,"template.fasta")
-        #with template_seq_path.open("w") as fh:
-        #    SeqIO.write([seq], fh, "fasta")
+        local_msa_dict = {}
 
         with open(options.seqin) as ifile:
             for record in SeqIO.parse(ifile, "fasta"):
-                a3m_fname = seq_dict.setdefault(record.seq, f"{len(seq_dict):04d}.a3m")
-                a3m_fname = os.path.join(options.jobname, "mmseqs2", a3m_fname)
+                a3m_fname = existing_msas.get(record.seq, None)
+                if not a3m_fname: a3m_fname=local_msa_dict.get(record.seq, None)
+
+                if a3m_fname:
+                    print("Found existing MSA")
+                else:
+                    if options.msa_dir:
+                        a3m_fname=os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
+                    else:
+                        a3m_fname = os.path.join(options.jobname, "mmseqs2", f"{len(local_msa_dict):04d}.a3m")
+
+                    query_mmseqs2(record.seq, a3m_fname)
+                    local_msa_dict[record.seq]=a3m_fname
 
                 print(f"{record.id}: {a3m_fname}")
-                query_mmseqs2(record.seq, a3m_fname)
+                print()
                 msas.append(a3m_fname)
 
     else:
