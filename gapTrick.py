@@ -9,6 +9,8 @@ import string
 import pickle
 import time
 
+import requests
+import tarfile
 
 from alphafold.common import protein
 from alphafold.data import pipeline
@@ -68,6 +70,14 @@ _struct_asym.entity_id   0
 _entity_poly.entity_id        0
 _entity_poly.type             polypeptide(L)
 _entity_poly.pdbx_strand_id   A
+#
+loop_
+_pdbx_audit_revision_history.ordinal
+_pdbx_audit_revision_history.data_content_type
+_pdbx_audit_revision_history.major_revision
+_pdbx_audit_revision_history.minor_revision
+_pdbx_audit_revision_history.revision_date
+1 'Structure model' 1 0 1878-05-14
 #
 _entity.id     0
 _entity.type   polymer
@@ -201,7 +211,7 @@ def parse_pdbstring(pdb_string):
 
 # -----------------------------------------------------------------------------
 
-def query_mmseqs2(query_sequence, outdir, use_env=True, filter=False):
+def query_mmseqs2(query_sequence, msa_fname, use_env=True, filter=False):
 
     def submit(query_sequence, mode):
         res = requests.post('https://a3m.mmseqs.com/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode})
@@ -220,40 +230,44 @@ def query_mmseqs2(query_sequence, outdir, use_env=True, filter=False):
     else:
         mode = "env-nofilter" if use_env else "nofilter"
 
-    if not os.path.isdir(outdir):
-        print(f"Output dir >>{outdir}<< doesnt exist!")
-        return 1
+    #if not os.path.isdir(outdir):
+    #    print(f"Output dir >>{outdir}<< doesnt exist!")
+    #    return 1
 
-    msadir = os.path.join(outdir, "msa")
     print(f"MMSeqs2 API query: {query_sequence}")
-    print(f"MMSeqs2 PAI output: {msadir}")
+    print(f"MMSeqs2 API output: {msa_fname}")
 
-    if not os.path.isdir(msadir): os.mkdir(msadir)
+    if os.path.isfile(msa_fname):
+        print(f"Output file {msa_fname} already exists!")
+        print()
+        return 0
+
+    #if not os.path.isdir(msadir): os.mkdir(msadir)
     # call mmseqs2 api
-    tar_gz_file = f'{msadir}/out.tar.gz'
-    if not os.path.isfile(tar_gz_file):
-        out = submit(query_sequence, mode)
-        while out["status"] in ["RUNNING","PENDING"]:
-            time.sleep(3)
-            out = status(out["id"])
-        download(out["id"], tar_gz_file)
 
-    # parse a3m files
-    a3m = f"{msadir}/msa.a3m"
-    if not os.path.isfile(a3m):
-        with tarfile.open(tar_gz_file) as tar_gz: tar_gz.extractall(msadir)
-        a3m_files = [f"{msadir}/uniref.a3m"]
-        if use_env: a3m_files.append(f"{msadir}/bfd.mgnify30.metaeuk30.smag30.a3m")
-        a3m_out = open(a3m,"w")
-        for a3m_file in a3m_files:
-            for line in open(a3m_file,"r"):
-                line = line.replace("\x00","")
-                if len(line) > 0:
-                    a3m_out.write(line)
-    else:
-        print(f"Output file {a3m} already exists!")
+    with tempfile.TemporaryDirectory() as tmp_path:
+        tar_gz_file = os.path.join(tmp_path, 'out.tar.gz')
+        if not os.path.isfile(tar_gz_file):
+            out = submit(query_sequence, mode)
+            while out["status"] in ["RUNNING","PENDING"]:
+                time.sleep(3)
+                out = status(out["id"])
+            download(out["id"], tar_gz_file)
 
-    print(f"Successfully parsed {a3m}")
+        # parse a3m files
+        with tarfile.open(tar_gz_file) as tar_gz: tar_gz.extractall(tmp_path)
+
+        a3m_files = [os.path.join(tmp_path, "uniref.a3m")]
+        if use_env: a3m_files.append( os.path.join(tmp_path, "bfd.mgnify30.metaeuk30.smag30.a3m") )
+
+        with open(msa_fname,"w") as a3m_out:
+            for a3m_file in a3m_files:
+                for line in open(a3m_file,"r"):
+                    line = line.replace("\x00","")
+                    if len(line) > 0:
+                        a3m_out.write(line)
+
+    print(f"Successfully created {msa_fname}")
     print()
 
 
@@ -319,7 +333,7 @@ def predict_structure(prefix,
 
 
             prediction_result = model_runner.predict(input_features, random_seed=random_seed)
-            print(len(prediction_result["plddt"]), seq_len)
+            #print(len(prediction_result["plddt"]), seq_len)
             mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
             mean_ptm = prediction_result["ptm"]
 
@@ -818,7 +832,7 @@ def runme(msa_filenames,
                                           outpath           =   inputpath)
 
     with tempfile.TemporaryDirectory() as tmp_path:
-        print("Created tmp path ", tmp_path)
+        #print("Created tmp path ", tmp_path)
         template_features = generate_template_features(query_sequence   =   query_seq_combined,
                                                        db_path          =   tmp_path,
                                                        template_fn_list =   template_fn_list,
@@ -887,53 +901,57 @@ def main():
 
     print( " ==> Command line: gapTrick.py %s" % (" ".join(sys.argv[1:])) )
 
-
-
-    if options.msas:
-
-        msas = options.msa.split(',')
-
-        if not options.trim:
-            trim = [[0,9999]]*len(msas)
-        else:
-            trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
-
-        print("TRIM: ", trim)
-        if not options.cardinality:
-            cardinality = [1]*len(msas)
-        else:
-            cardinality = tuple(map(int,options.cardinality.split(',')))
-    elif options.seqin:
-        mmseqspath=Path(jobname, "mmseqs2")
-        mmseqspath.mkdir(parents=True)
-
-        query_mmseqs2(query_sequence, outdir, use_env=True, filter=False)
-
-        template_seq_path = Path(msa_dir,"template.fasta")
-        with template_seq_path.open("w") as fh:
-            SeqIO.write([seq], fh, "fasta")
-
-
-
-        with open(options.seqin) as ifiile:
-            for record in SeqIO.parse(ifile, "fasta"):
-                print(record.id)
-        exit(1)
-
-    else:
-        print("ERROR: --msas or --seqin required on input")
-        exit(1)
-
-
     if options.jobname is None:
         print('Define jobname - output directory')
         exit(0)
+
+    if options.msa:
+
+        msas = options.msa.split(',')
+
+
+    elif options.seqin:
+        mmseqspath=Path(options.jobname, "mmseqs2")
+        mmseqspath.mkdir(parents=True, exist_ok=False)
+
+        msas = []
+        seq_dict = {}
+        #template_seq_path = Path(msa_dir,"template.fasta")
+        #with template_seq_path.open("w") as fh:
+        #    SeqIO.write([seq], fh, "fasta")
+
+        with open(options.seqin) as ifile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                a3m_fname = seq_dict.setdefault(record.seq, f"{len(seq_dict):04d}.a3m")
+                a3m_fname = os.path.join(options.jobname, "mmseqs2", a3m_fname)
+
+                print(f"{record.id}: {a3m_fname}")
+                query_mmseqs2(record.seq, a3m_fname)
+                msas.append(a3m_fname)
+
+    else:
+        print("ERROR: --msa or --seqin required on input")
+        exit(1)
+
+    if not options.trim:
+        trim = [[0,9999]]*len(msas)
+    else:
+        trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
+
+    if not options.cardinality:
+        cardinality = [1]*len(msas)
+    else:
+        cardinality = tuple(map(int,options.cardinality.split(',')))
+
+    for _mi,_m in enumerate(msas):
+        print(f"#{_mi}: {_m}")
+    print()
 
     runme(msa_filenames     =   msas,
           query_cardinality =   cardinality,
           query_trim        =   trim,
           num_models        =   options.num_models,
-          template_fn_list  =   options.templates.split(',') if options.templates else None,
+          template_fn_list  =   options.templates.split(',') if options.templates else [],
           jobname           =   options.jobname,
           data_dir          =   options.data_dir,
           num_recycle       =   options.num_recycle,
