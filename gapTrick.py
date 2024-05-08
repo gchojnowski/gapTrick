@@ -1,5 +1,6 @@
 import os, sys, re
 
+import uuid
 
 import sys
 import tempfile
@@ -904,6 +905,13 @@ def main():
     if options.jobname is None:
         print('Define jobname - output directory')
         exit(0)
+
+    jobpath=Path(options.jobname)
+    try:
+        jobpath.mkdir(parents=True, exist_ok=False)
+    except:
+        print("ERROR: target directiry exists")
+        return 1
 
     if options.msa:
 
