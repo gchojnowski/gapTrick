@@ -217,7 +217,7 @@ def parse_pdbstring(pdb_string):
 
 # -----------------------------------------------------------------------------
 
-def query_mmseqs2(query_sequence, msa_fname, use_env=True, filter=False):
+def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False):
 
     def submit(query_sequence, mode):
         res = requests.post('https://a3m.mmseqs.com/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode})
