@@ -316,7 +316,8 @@ def predict_structure(prefix,
 
     if random_seed is None:
         random_seed = random.randint()
-        print(f"Random seed: {random_seed}")
+
+    print(f"Random seed: {random_seed}")
 
     inputpath=Path(prefix, "input")
     seq_len = len(query_sequence)
