@@ -322,7 +322,7 @@ def predict_structure(prefix,
     chains = list("".join([string.ascii_uppercase[n]*L for n,L in enumerate(Ls)]))
     feature_dict['residue_index'] = idx_res
 
-    plddts,ptmscore= [],[],[]
+    plddts,ptmscore= [],[]
     unrelaxed_pdb_lines = []
     model_names = []
 
