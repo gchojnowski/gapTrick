@@ -804,7 +804,7 @@ def runme(msa_filenames,
           dryrun            =   False,
           do_relax          =   False,
           max_seq           =   None,
-          random_seed       =   options.seed,
+          random_seed       =   None,
           nomerge           =   False,
           noseq             =   False):
 
