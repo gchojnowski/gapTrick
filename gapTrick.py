@@ -919,7 +919,7 @@ def main():
     try:
         jobpath.mkdir(parents=True, exist_ok=False)
     except:
-        print("ERROR: target directiry exists")
+        print("ERROR: target directory already exists")
         return 1
 
     if options.msa:
