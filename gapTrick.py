@@ -170,6 +170,9 @@ def parse_args():
     required_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
                   help="number of recycles", default=3)
 
+    required_opts.add_option("--seed", action="store", dest="seed", type="int", metavar="INT", \
+                  help="random seed (default None)", default=None)
+
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
 
@@ -306,7 +309,7 @@ def predict_structure(prefix,
                       use_model,
                       model_runner,
                       do_relax=False,
-                      random_seed=0, 
+                      random_seed=0,
                       gap_size=200,
                       is_complex=False):
 
@@ -801,6 +804,7 @@ def runme(msa_filenames,
           dryrun            =   False,
           do_relax          =   False,
           max_seq           =   None,
+          random_seed       =   options.seed,
           nomerge           =   False,
           noseq             =   False):
 
@@ -901,7 +905,7 @@ def runme(msa_filenames,
                       model_params=model_params, use_model=use_model,
                       model_runner=model_runner,
                       is_complex=is_complex,
-                      do_relax=do_relax)
+                      do_relax=do_relax, random_seed=random_seed)
 
 
 
@@ -994,6 +998,7 @@ def main():
           dryrun            =   options.dryrun,
           do_relax          =   options.relax,
           max_seq           =   options.max_seq,
+          random_seed       =   options.seed,
           nomerge           =   options.nomerge,
           noseq             =   options.noseq)
 
