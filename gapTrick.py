@@ -322,10 +322,9 @@ def predict_structure(prefix,
     chains = list("".join([string.ascii_uppercase[n]*L for n,L in enumerate(Ls)]))
     feature_dict['residue_index'] = idx_res
 
-    plddts,paes,ptmscore= [],[],[]
+    plddts,ptmscore= [],[],[]
     unrelaxed_pdb_lines = []
-    relaxed_pdb_lines = []
-    distograms=[]
+    model_names = []
 
     for model_name, params in model_params.items():
         if model_name in use_model:
@@ -371,26 +370,37 @@ def predict_structure(prefix,
                                                 remove_leading_feature_dimension=not is_complex)
 
             unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
-
-            paes.append(prediction_result['predicted_aligned_error'])
+            #paes.append(prediction_result['predicted_aligned_error'])
             plddts.append(prediction_result["plddt"][:seq_len])
             ptmscore.append(prediction_result["ptm"])
-            distograms.append(prediction_result["distogram"])
+            model_names.append(model_name)
+            #distograms.append(prediction_result["distogram"])
+
+            with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
+
+            print(f"<pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
+
+            outdict={'predicted_aligned_error':prediction_result['predicted_aligned_error'], 'ptm':prediction_result['ptm'], 'plddt':prediction_result['plddt'][:seq_len], 'distogram':prediction_result['distogram']}
+            with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
-    output = {}
-    print(f"reranking models based on pTM score: {ptm_rank}")
-    for n,r in enumerate(ptm_rank):
+    #output = {}
 
-        with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[r])
+    print()
+    print(f"Reranking models based on pTM score: {ptm_rank}")
+    for n,_idx in enumerate(ptm_rank):
+
+        #with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[r])
 
         # relax TOP model only
         if do_relax and n<1:
 
-            pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[r])
+            #print(f"{pdb_fn} <pLDDT>={np.mean(dat['plddt']):6.4f} pTM={dat['ptm']:6.4f}")
 
-            print(f"Starting Amber relaxation for model_{n+1}")
+            pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[_idx])
+
+            print(f"Starting Amber relaxation for {model_names[_idx]}")
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
@@ -403,16 +413,21 @@ def predict_structure(prefix,
 
             _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
-            with Path(inputpath, f'relaxed_model_{n+1}.pdb').open('w') as of: of.write(_pdb_lines)
+            #with Path(inputpath, f'relaxed_{model_names[_idx]}.pdb').open('w') as of: of.write(_pdb_lines)
             print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
 
 
         else:
-            _pdb_lines = unrelaxed_pdb_lines[r]
+            _pdb_lines = unrelaxed_pdb_lines[_idx]
 
-        output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':_pdb_lines, 'distogram':distograms[r]}
+        #output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':_pdb_lines, 'distogram':distograms[r]}
+        #output[n+1] = {"plddt":plddts[_idx], 'ptm':ptmscore[_idx], 'model_name':model_names[_idx], 'pdb':_pdb_lines}
 
-    return output
+        pdb_fn = f"ranked_{n}_{model_names[_idx]}.pdb"
+        print(f"{pdb_fn} <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
+        with Path(inputpath, pdb_fn).open('w') as of: of.write(_pdb_lines)
+
+    #return output
 
 def chain2CIF(chain, outid):
 
@@ -879,26 +894,15 @@ def runme(msa_filenames,
     feature_dict["asym_id"] = \
             np.array( [int(n+1) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
     feature_dict['assembly_num_chains']=len(query_seq_extended)
-
-    output = predict_structure(jobname, query_seq_combined, feature_dict,
-                             Ls=tuple(map(len, query_seq_extended)),
-                             model_params=model_params, use_model=use_model,
-                             model_runner=model_runner,
-                             is_complex=is_complex,
-                             do_relax=do_relax)
-
-
     with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
-    # pickels for models (plddt-ranked)
-    for idx,dat in output.items():
 
-        pdb_fn = 'ranked_%d.pdb'%idx
-        print(f"{pdb_fn} <pLDDT>={np.mean(dat['plddt']):6.4f} pTM={dat['ptm']:6.4f}")
-        with Path(inputpath, pdb_fn).open('w') as of: of.write(dat['pdb'])
+    predict_structure(jobname, query_seq_combined, feature_dict,
+                      Ls=tuple(map(len, query_seq_extended)),
+                      model_params=model_params, use_model=use_model,
+                      model_runner=model_runner,
+                      is_complex=is_complex,
+                      do_relax=do_relax)
 
-        outdict={'predicted_aligned_error':dat['pae'], 'ptm':dat['ptm'], 'plddt':dat['plddt'], 'distogram':dat['distogram']}
-        pkl_fn = 'result_model_%d_ptm.pkl'%(idx+1)
-        with Path(inputpath, pkl_fn).open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def main():
