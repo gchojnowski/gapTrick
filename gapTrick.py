@@ -315,7 +315,7 @@ def predict_structure(prefix,
                       is_complex=False):
 
     if random_seed is None:
-        random_seed = np.randint(0)
+        random_seed = np.random.randint(sys.maxsize)
 
     print(f"Random seed: {random_seed}")
 
