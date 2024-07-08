@@ -51,6 +51,7 @@ from dataclasses import dataclass, replace
 #from jax.lib import xla_bridge
 
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+import random
 
 
 import iotbx
@@ -309,9 +310,13 @@ def predict_structure(prefix,
                       use_model,
                       model_runner,
                       do_relax=False,
-                      random_seed=0,
+                      random_seed=None,
                       gap_size=200,
                       is_complex=False):
+
+    if random_seed is None:
+        random_seed = random.randint()
+        print(f"Random seed: {random_seed}")
 
     inputpath=Path(prefix, "input")
     seq_len = len(query_sequence)
