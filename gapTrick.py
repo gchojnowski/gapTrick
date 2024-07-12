@@ -307,8 +307,7 @@ def predict_structure(prefix,
                       feature_dict,
                       Ls,
                       model_params,
-                      use_model,
-                      model_runner,
+                      model_runners,
                       do_relax=False,
                       random_seed=None,
                       gap_size=200,
@@ -336,60 +335,62 @@ def predict_structure(prefix,
     model_names = []
 
     for imodel, (model_name, params) in enumerate(model_params.items()):
-        if model_name in use_model:
-            print(f"running {model_name}")
+        print(f"running {model_name}")
 
-            model_runner.params = params
+        if any(str(m) in model_name for m in [1,2]): model_runner = model_runners['model_1']
+        if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runners['model_3']
 
-            processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed+imodel)
+        model_runner.params = params
 
-            input_features = processed_feature_dict
+        processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed+imodel)
 
-            prediction_result = model_runner.predict(input_features, random_seed=random_seed+imodel)
-            #print(len(prediction_result["plddt"]), seq_len)
-            mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
-            mean_ptm = prediction_result["ptm"]
+        input_features = processed_feature_dict
 
-            final_atom_mask = prediction_result["structure_module"]["final_atom_mask"]
-            b_factors = prediction_result["plddt"][:, None] * final_atom_mask
+        prediction_result = model_runner.predict(input_features, random_seed=random_seed+imodel)
+        #print(len(prediction_result["plddt"]), seq_len)
+        mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
+        mean_ptm = prediction_result["ptm"]
 
-            model_type = "AlphaFold2-ptm"
-            if is_complex and model_type == "AlphaFold2-ptm":
-                resid2chain = {}
-                input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
-                input_features["aatype"] = input_features["aatype"][0]
-                input_features["residue_index"] = input_features["residue_index"][0]
-                curr_residue_index = 1
-                res_index_array = input_features["residue_index"].copy()
-                res_index_array[0] = 0
-                for i in range(1, input_features["aatype"].shape[0]):
-                    if (input_features["residue_index"][i] - input_features["residue_index"][i - 1]) > 1:
-                        curr_residue_index = 0
+        final_atom_mask = prediction_result["structure_module"]["final_atom_mask"]
+        b_factors = prediction_result["plddt"][:, None] * final_atom_mask
 
-                    res_index_array[i] = curr_residue_index
-                    curr_residue_index += 1
+        model_type = "AlphaFold2-ptm"
+        if is_complex and model_type == "AlphaFold2-ptm":
+            resid2chain = {}
+            input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
+            input_features["aatype"] = input_features["aatype"][0]
+            input_features["residue_index"] = input_features["residue_index"][0]
+            curr_residue_index = 1
+            res_index_array = input_features["residue_index"].copy()
+            res_index_array[0] = 0
+            for i in range(1, input_features["aatype"].shape[0]):
+                if (input_features["residue_index"][i] - input_features["residue_index"][i - 1]) > 1:
+                    curr_residue_index = 0
 
-                input_features["residue_index"] = res_index_array
+                res_index_array[i] = curr_residue_index
+                curr_residue_index += 1
 
-            unrelaxed_protein = protein.from_prediction(
-                                                features=input_features,
-                                                result=prediction_result,
-                                                b_factors=b_factors,
-                                                remove_leading_feature_dimension=not is_complex)
+            input_features["residue_index"] = res_index_array
 
-            unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
-            #paes.append(prediction_result['predicted_aligned_error'])
-            plddts.append(prediction_result["plddt"][:seq_len])
-            ptmscore.append(prediction_result["ptm"])
-            model_names.append(model_name)
-            #distograms.append(prediction_result["distogram"])
+        unrelaxed_protein = protein.from_prediction(
+                                            features=input_features,
+                                            result=prediction_result,
+                                            b_factors=b_factors,
+                                            remove_leading_feature_dimension=not is_complex)
 
-            with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
+        unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
+        #paes.append(prediction_result['predicted_aligned_error'])
+        plddts.append(prediction_result["plddt"][:seq_len])
+        ptmscore.append(prediction_result["ptm"])
+        model_names.append(model_name)
+        #distograms.append(prediction_result["distogram"])
 
-            print(f"<pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
+        with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
 
-            outdict={'predicted_aligned_error':prediction_result['predicted_aligned_error'], 'ptm':prediction_result['ptm'], 'plddt':prediction_result['plddt'][:seq_len], 'distogram':prediction_result['distogram']}
-            with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
+        print(f"<pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
+
+        outdict={'predicted_aligned_error':prediction_result['predicted_aligned_error'], 'ptm':prediction_result['ptm'], 'plddt':prediction_result['plddt'][:seq_len], 'distogram':prediction_result['distogram']}
+        with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
@@ -870,12 +871,10 @@ def runme(msa_filenames,
                                                        dryrun           =   dryrun,
                                                        noseq            =   noseq)
 
-    use_model = {}
     model_params = {}
-    model_runner = None
+    model_runners = {}
     for model_idx in range(1,6)[:num_models]:
         model_name=f"model_{model_idx}"
-        use_model[model_name] = True
         if model_name not in list(model_params.keys()):
             model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
             model_config = config.model_config(model_name+"_ptm")
@@ -888,7 +887,13 @@ def runme(msa_filenames,
 
             model_config.model.num_recycle = num_recycle
             model_config.data.eval.num_ensemble = 1
-            model_runner = model.RunModel(model_config, model_params[model_name])
+            #model_runner = model.RunModel(model_config, model_params[model_name])
+
+            if model_name == "model_1":
+                model_runners[model_name] = model.RunModel(model_config, model_params[model_name])
+            if model_name == "model_3":
+                model_runners[model_name] = model.RunModel(model_config, model_params[model_name])
+
 
     is_complex=True
 
@@ -906,11 +911,12 @@ def runme(msa_filenames,
     with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     predict_structure(jobname, query_seq_combined, feature_dict,
-                      Ls=tuple(map(len, query_seq_extended)),
-                      model_params=model_params, use_model=use_model,
-                      model_runner=model_runner,
-                      is_complex=is_complex,
-                      do_relax=do_relax, random_seed=random_seed)
+                      Ls            =   tuple(map(len, query_seq_extended)),
+                      model_params  =   model_params,
+                      model_runners =   model_runners,
+                      is_complex    =   is_complex,
+                      do_relax      =   do_relax,
+                      random_seed   =   random_seed)
 
 
 
