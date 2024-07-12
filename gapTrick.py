@@ -341,10 +341,9 @@ def predict_structure(prefix,
 
             model_runner.params = params
 
-            processed_feature_dict = model_runner.process_features(feature_dict, random_seed=0)
+            processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed+imodel)
 
             input_features = processed_feature_dict
-
 
             prediction_result = model_runner.predict(input_features, random_seed=random_seed+imodel)
             #print(len(prediction_result["plddt"]), seq_len)
