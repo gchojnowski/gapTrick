@@ -314,7 +314,7 @@ def predict_structure(prefix,
                       is_complex=False):
 
     if random_seed is None:
-        random_seed = np.random.randint(sys.maxsize-100)
+        random_seed = np.random.randint(sys.maxsize//5)
 
     print(f"Random seed: {random_seed}")
 
@@ -354,8 +354,7 @@ def predict_structure(prefix,
         final_atom_mask = prediction_result["structure_module"]["final_atom_mask"]
         b_factors = prediction_result["plddt"][:, None] * final_atom_mask
 
-        model_type = "AlphaFold2-ptm"
-        if is_complex and model_type == "AlphaFold2-ptm":
+        if is_complex:
             resid2chain = {}
             input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
             input_features["aatype"] = input_features["aatype"][0]
@@ -879,15 +878,8 @@ def runme(msa_filenames,
             model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
             model_config = config.model_config(model_name+"_ptm")
             model_config.data.common.num_recycle = num_recycle
-
-            # this clusters MSAs and may unevenly subsample merged sequences
-            #if max_seq:
-            #    model_config.data.common.max_msa_clusters = max_seq
-            #    model_config.data.common.max_extra_msa = 2*max_seq
-
             model_config.model.num_recycle = num_recycle
             model_config.data.eval.num_ensemble = 1
-            #model_runner = model.RunModel(model_config, model_params[model_name])
 
             if model_name == "model_1":
                 model_runners[model_name] = model.RunModel(model_config, model_params[model_name])
