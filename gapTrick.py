@@ -307,7 +307,8 @@ def predict_structure(prefix,
                       feature_dict,
                       Ls,
                       model_params,
-                      model_runners,
+                      model_runner_1,
+-                     model_runner_3,
                       do_relax=False,
                       random_seed=None,
                       gap_size=200,
@@ -337,8 +338,8 @@ def predict_structure(prefix,
     for imodel, (model_name, params) in enumerate(model_params.items()):
         print(f"running {model_name}")
 
-        if any(str(m) in model_name for m in [1,2]): model_runner = model_runners['model_1']
-        if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runners['model_3']
+        if any(str(m) in model_name for m in [1,2]): model_runner = model_runner_1
+        if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runner_3
 
         model_runner.params = params
 
@@ -871,21 +872,24 @@ def runme(msa_filenames,
                                                        noseq            =   noseq)
 
     model_params = {}
-    model_runners = {}
+    model_runner_1 = None
+    model_runner_3 = None
     for model_idx in range(1,6)[:num_models]:
         model_name=f"model_{model_idx}"
         if model_name not in list(model_params.keys()):
             model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
-            model_config = config.model_config(model_name+"_ptm")
-            model_config.data.common.num_recycle = num_recycle
-            model_config.model.num_recycle = num_recycle
-            model_config.data.eval.num_ensemble = 1
-
-            if model_name == "model_1":
-                model_runners[model_name] = model.RunModel(model_config, model_params[model_name])
-            if model_name == "model_3":
-                model_runners[model_name] = model.RunModel(model_config, model_params[model_name])
-
+            if model_idx == 1:
+                model_config = config.model_config(model_name+"_ptm")
+                model_config.data.common.num_recycle = num_recycle
+                model_config.model.num_recycle = num_recycle
+                model_config.data.eval.num_ensemble = 1
+                model_runner_1 = model.RunModel(model_config, model_params[model_name])
+            if model_idx == 3:
+                model_config = config.model_config(model_name+"_ptm")
+                model_config.data.common.num_recycle = num_recycle
+                model_config.model.num_recycle = num_recycle
+                model_config.data.eval.num_ensemble = 1
+                model_runner_3 = model.RunModel(model_config, model_params[model_name])
 
     is_complex=True
 
@@ -903,12 +907,13 @@ def runme(msa_filenames,
     with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     predict_structure(jobname, query_seq_combined, feature_dict,
-                      Ls            =   tuple(map(len, query_seq_extended)),
-                      model_params  =   model_params,
-                      model_runners =   model_runners,
-                      is_complex    =   is_complex,
-                      do_relax      =   do_relax,
-                      random_seed   =   random_seed)
+                      Ls             =   tuple(map(len, query_seq_extended)),
+                      model_params   =   model_params,
+                      model_runner_1 =   model_runner_1,
+                      model_runner_3 =   model_runner_3,
+                      is_complex     =   is_complex,
+                      do_relax       =   do_relax,
+                      random_seed    =   random_seed)
 
 
 
