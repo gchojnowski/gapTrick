@@ -379,11 +379,9 @@ def predict_structure(prefix,
                                             remove_leading_feature_dimension=not is_complex)
 
         unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
-        #paes.append(prediction_result['predicted_aligned_error'])
         plddts.append(prediction_result["plddt"][:seq_len])
         ptmscore.append(prediction_result["ptm"])
         model_names.append(model_name)
-        #distograms.append(prediction_result["distogram"])
 
         with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
 
@@ -394,18 +392,13 @@ def predict_structure(prefix,
 
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
-    #output = {}
 
     print()
     print(f"Reranking models based on pTM score: {ptm_rank}")
     for n,_idx in enumerate(ptm_rank):
 
-        #with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[r])
-
         # relax TOP model only
         if do_relax and n<1:
-
-            #print(f"{pdb_fn} <pLDDT>={np.mean(dat['plddt']):6.4f} pTM={dat['ptm']:6.4f}")
 
             pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[_idx])
 
@@ -422,21 +415,17 @@ def predict_structure(prefix,
 
             _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
-            #with Path(inputpath, f'relaxed_{model_names[_idx]}.pdb').open('w') as of: of.write(_pdb_lines)
             print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
 
 
         else:
             _pdb_lines = unrelaxed_pdb_lines[_idx]
 
-        #output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':_pdb_lines, 'distogram':distograms[r]}
-        #output[n+1] = {"plddt":plddts[_idx], 'ptm':ptmscore[_idx], 'model_name':model_names[_idx], 'pdb':_pdb_lines}
 
-        pdb_fn = f"ranked_{n}_{model_names[_idx]}.pdb"
+        pdb_fn = f"ranked_{n}.pdb"
         print(f"{pdb_fn} <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
         with Path(inputpath, pdb_fn).open('w') as of: of.write(_pdb_lines)
 
-    #return output
 
 def chain2CIF(chain, outid):
 
