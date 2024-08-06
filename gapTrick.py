@@ -58,9 +58,10 @@ import random
 import iotbx
 import iotbx.cif
 import iotbx.pdb
-from iotbx.pdb import amino_acid_codes as aac
+#from iotbx.pdb import amino_acid_codes as aac
 #from mmtbx.alignment import align
 
+tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 
 #print(xla_bridge.get_backend().platform)
 
@@ -440,8 +441,8 @@ def chain2CIF(chain, outid):
     # AF2 expects model.id=1
     new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
     new_ph.models()[0].append_chain(chain.detached_copy())
-    ogt = aac.one_letter_given_three_letter
-    tgo = aac.three_letter_given_one_letter
+    #ogt = aac.one_letter_given_three_letter
+    #tgo = aac.three_letter_given_one_letter
 
     poly_seq_block = []
     seq=chain.as_sequence()
