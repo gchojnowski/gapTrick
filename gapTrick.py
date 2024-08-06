@@ -145,11 +145,13 @@ def parse_args():
 
     required_opts.add_option("--msa_dir", action="store", \
                             dest="msa_dir", type="string", metavar="DIRNAME", \
-                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", default=None)
+                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", \
+                                default=None)
 
     required_opts.add_option("--seqin", action="store", \
                             dest="seqin", type="string", metavar="FILENAME", \
-                  help="Fasta file with target sequences. Corresponding (unique) MSAs will be acquired from the mmseqs2 API", default=None)
+                  help="Fasta file with target sequences. Corresponding (unique) MSAs will be acquired from the mmseqs2 API", \
+                                default=None)
 
     required_opts.add_option("--templates", action="store", \
                             dest="templates", type="string", metavar="FILENAME,FILENAME", \
@@ -387,7 +389,11 @@ def predict_structure(prefix,
 
         print(f"<pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
 
-        outdict={'predicted_aligned_error':prediction_result['predicted_aligned_error'], 'ptm':prediction_result['ptm'], 'plddt':prediction_result['plddt'][:seq_len], 'distogram':prediction_result['distogram']}
+        outdict={'predicted_aligned_error' : prediction_result['predicted_aligned_error'], \
+                 'ptm'                     : prediction_result['ptm'], \
+                 'plddt'                   : prediction_result['plddt'][:seq_len], \
+                 'distogram'               : prediction_result['distogram']}
+
         with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     # rerank models based on pTM (not predicted lddt!)
@@ -732,7 +738,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             atom_mask = np.zeros([1, len(query_seq), 37])
             atom_mask[0, template_idxs, :5] = template_prot.atom_mask[template_idxs,:5]
 
-            features["template_aatype"]             =   residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
+            features["template_aatype"]             =   \
+                    residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
             features["template_all_atom_masks"]     =   atom_mask
             features["template_all_atom_positions"] =   masked_coords
             features["template_domain_names"]       =   np.asarray(["None"])
@@ -775,7 +782,9 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max
 
                 if not len(set(_seq[query_trim[n][0]:query_trim[n][1]]))>1: continue
                 msa_combined.append(">%s"%_desc)
-                msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[query_trim[n][0]:query_trim[n][1]]] + _blank_seq[pos + 1 :]))
+                msa_combined.append("".join(_blank_seq[:pos] + \
+                                            [re.sub('[a-z]', '', _seq)[query_trim[n][0]:query_trim[n][1]]] + \
+                                            _blank_seq[pos + 1 :]))
             pos += 1
 
 
@@ -810,7 +819,10 @@ def runme(msa_filenames,
 
 
     query_sequences=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas)]
-    query_seq_extended=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
+    query_seq_extended=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] \
+                                for _i,_m in enumerate(msas) \
+                                for _ in range(query_cardinality[_i])]
+
     query_seq_combined="".join(query_seq_extended)
 
 
