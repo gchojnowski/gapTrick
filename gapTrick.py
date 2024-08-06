@@ -38,6 +38,7 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
+from Bio import pairwise2
 #from Bio.PDB import  PDBParser, MMCIFParser
 from Bio.PDB.mmcifio import MMCIFIO
 #from Bio import PDB
@@ -58,7 +59,7 @@ import iotbx
 import iotbx.cif
 import iotbx.pdb
 from iotbx.pdb import amino_acid_codes as aac
-from mmtbx.alignment import align
+#from mmtbx.alignment import align
 
 
 #print(xla_bridge.get_backend().platform)
@@ -488,13 +489,13 @@ def match_template_chains_to_target(ph, target_sequences):
         for cid in chain_dict:
             if cid in greedy_selection: continue
 
-            align_obj = align(seq_a = chain_dict[cid],
-                              seq_b = _target_seq, similarity_function="identity")
+            #align_obj = align(seq_a = chain_dict[cid],
+            #                  seq_b = _target_seq, similarity_function="identity")
+            #alignment = align_obj.extract_alignment()
+            #si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
 
-            alignment = align_obj.extract_alignment()
-            si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
-            _tmp_si[cid]=si
-
+            si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
+            _tmp_si[cid]=si/len(_target_seq)
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
             print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
