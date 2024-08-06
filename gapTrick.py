@@ -495,7 +495,7 @@ def match_template_chains_to_target(ph, target_sequences):
             #si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
 
             si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
-            _tmp_si[cid]=si/len(_target_seq)
+            _tmp_si[cid]=100.0*si/len(_target_seq)
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
             print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
