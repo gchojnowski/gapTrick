@@ -342,8 +342,12 @@ def predict_structure(prefix,
     for imodel, (model_name, params) in enumerate(model_params.items()):
         print(f"running {model_name}")
 
-        if any(str(m) in model_name for m in [1,2]): model_runner = model_runner_1
-        if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runner_3
+        #if any(str(m) in model_name for m in [1,2]): model_runner = model_runner_1
+        #if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runner_3
+        if re.search(r'model_[12]', model_name):
+            model_runner = model_runner_1
+        else:
+            model_runner = model_runner_3
 
         model_runner.params = params
 
