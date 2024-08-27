@@ -881,7 +881,7 @@ def runme(msa_filenames,
     model_params = {}
     model_runner_1 = None
     model_runner_3 = None
-    for model_idx in range(1,2) if template_fn_list else range(1,6):
+    for model_idx in range(1,3) if template_fn_list else range(1,6):
         for run_idx in range(1, preds_per_model+1):
             model_name=f"model_{model_idx}"
             if model_name not in list(model_params.keys()):
