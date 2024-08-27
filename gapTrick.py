@@ -169,8 +169,8 @@ def parse_args():
     required_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
                   help="lengths of consecutive target seqs", default=None)
 
-    required_opts.add_option("--num_models", action="store", dest="num_models", type="int", metavar="INT", \
-                  help="number of output models (<=5)", default=5)
+    required_opts.add_option("--preds_per_model", action="store", dest="preds_per_model", type="int", metavar="INT", \
+                  help="number of predictions per model (default: %default)", default=1)
 
     required_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
                   help="number of recycles", default=3)
@@ -806,7 +806,7 @@ def runme(msa_filenames,
           query_cardinality =   [1,0],
           query_trim        =   [[0,10000],[0,10000]],
           template_fn_list  =   None,
-          num_models        =   1,
+          preds_per_model   =   1,
           jobname           =   'test',
           data_dir          =   '/scratch/AlphaFold_DBs/2.3.2',
           num_recycle       =   3,
@@ -881,22 +881,23 @@ def runme(msa_filenames,
     model_params = {}
     model_runner_1 = None
     model_runner_3 = None
-    for model_idx in range(1,6)[:num_models]:
-        model_name=f"model_{model_idx}"
-        if model_name not in list(model_params.keys()):
-            model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
-            if model_idx == 1:
-                model_config = config.model_config(model_name+"_ptm")
-                model_config.data.common.num_recycle = num_recycle
-                model_config.model.num_recycle = num_recycle
-                model_config.data.eval.num_ensemble = 1
-                model_runner_1 = model.RunModel(model_config, model_params[model_name])
-            if model_idx == 3:
-                model_config = config.model_config(model_name+"_ptm")
-                model_config.data.common.num_recycle = num_recycle
-                model_config.model.num_recycle = num_recycle
-                model_config.data.eval.num_ensemble = 1
-                model_runner_3 = model.RunModel(model_config, model_params[model_name])
+    for model_idx in range(1,2) if template_fn_list else range(1,6):
+        for run_idx in range(1, preds_per_model+1):
+            model_name=f"model_{model_idx}"
+            if model_name not in list(model_params.keys()):
+                model_params[f"{model_name}_run{run_idx}"] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
+                if model_idx == 1:
+                    model_config = config.model_config(model_name+"_ptm")
+                    model_config.data.common.num_recycle = num_recycle
+                    model_config.model.num_recycle = num_recycle
+                    model_config.data.eval.num_ensemble = 1
+                    model_runner_1 = model.RunModel(model_config, model_params[model_name])
+                if model_idx == 3:
+                    model_config = config.model_config(model_name+"_ptm")
+                    model_config.data.common.num_recycle = num_recycle
+                    model_config.model.num_recycle = num_recycle
+                    model_config.data.eval.num_ensemble = 1
+                    model_runner_3 = model.RunModel(model_config, model_params[model_name])
 
     is_complex=True
 
@@ -1004,7 +1005,7 @@ def main():
     runme(msa_filenames     =   msas,
           query_cardinality =   cardinality,
           query_trim        =   trim,
-          num_models        =   options.num_models,
+          preds_per_model   =   options.preds_per_model,
           template_fn_list  =   options.templates.split(',') if options.templates else [],
           jobname           =   options.jobname,
           data_dir          =   options.data_dir,
