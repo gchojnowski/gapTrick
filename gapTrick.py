@@ -38,7 +38,8 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
-from Bio import pairwise2
+#from Bio import pairwise2
+from Bio import Align
 #from Bio.PDB import  PDBParser, MMCIFParser
 from Bio.PDB.mmcifio import MMCIFIO
 #from Bio import PDB
@@ -478,8 +479,11 @@ def match_template_chains_to_target(ph, target_sequences):
         _tmp_si={}
         for cid in chain_dict:
             if cid in greedy_selection: continue
-
-            si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
+            aligner = Align.PairwiseAligner()
+            alignments = aligner.align(chain_dict[cid], _target_seq)
+            si = alignments[0].score
+            # depreciated!
+            #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
             _tmp_si[cid]=100.0*si/len(_target_seq)
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
