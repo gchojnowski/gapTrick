@@ -244,10 +244,6 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False):
     else:
         mode = "env-nofilter" if use_env else "nofilter"
 
-    #if not os.path.isdir(outdir):
-    #    print(f"Output dir >>{outdir}<< doesnt exist!")
-    #    return 1
-
     print(f"MMSeqs2 API query: {query_sequence}")
     print(f"MMSeqs2 API output: {msa_fname}")
 
@@ -255,9 +251,6 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False):
         print(f"Output file {msa_fname} already exists!")
         print()
         return 0
-
-    #if not os.path.isdir(msadir): os.mkdir(msadir)
-    # call mmseqs2 api
 
     with tempfile.TemporaryDirectory() as tmp_path:
         tar_gz_file = os.path.join(tmp_path, 'out.tar.gz')
@@ -327,6 +320,7 @@ def predict_structure(prefix,
 
     idx_res = feature_dict['residue_index']
     L_prev = 0
+
     # Ls: number of residues in each chain
     for L_i in Ls[:-1]:
         idx_res[L_prev+L_i:] += gap_size
@@ -341,8 +335,6 @@ def predict_structure(prefix,
     for imodel, (model_name, params) in enumerate(model_params.items()):
         print(f"running {model_name}")
 
-        #if any(str(m) in model_name for m in [1,2]): model_runner = model_runner_1
-        #if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runner_3
         if re.search(r'model_[12]', model_name):
             model_runner = model_runner_1
         else:
@@ -353,7 +345,6 @@ def predict_structure(prefix,
         input_features = model_runner.process_features(feature_dict, random_seed=random_seed+imodel)
 
         prediction_result = model_runner.predict(input_features, random_seed=random_seed+imodel)
-        #print(len(prediction_result["plddt"]), seq_len)
         mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
         mean_ptm = prediction_result["ptm"]
 
@@ -439,11 +430,8 @@ def predict_structure(prefix,
 def chain2CIF(chain, outid):
 
     new_ph = iotbx.pdb.hierarchy.root()
-    # AF2 expects model.id=1
     new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
     new_ph.models()[0].append_chain(chain.detached_copy())
-    #ogt = aac.one_letter_given_three_letter
-    #tgo = aac.three_letter_given_one_letter
 
     poly_seq_block = []
     seq=chain.as_sequence()
@@ -490,11 +478,6 @@ def match_template_chains_to_target(ph, target_sequences):
         _tmp_si={}
         for cid in chain_dict:
             if cid in greedy_selection: continue
-
-            #align_obj = align(seq_a = chain_dict[cid],
-            #                  seq_b = _target_seq, similarity_function="identity")
-            #alignment = align_obj.extract_alignment()
-            #si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
 
             si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
             _tmp_si[cid]=100.0*si/len(_target_seq)
@@ -778,7 +761,6 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max
             else:
                 msa_sample_indices = range(len(input_msas[n].sequences))
 
-            #for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
             for idx in sorted(msa_sample_indices):
                 _desc = input_msas[n].descriptions[idx]
                 _seq  = input_msas[n].sequences[idx]
@@ -867,7 +849,6 @@ def runme(msa_filenames,
                                           outpath           =   inputpath)
 
     with tempfile.TemporaryDirectory() as tmp_path:
-        #print("Created tmp path ", tmp_path)
         template_features = generate_template_features(query_sequence   =   query_seq_combined,
                                                        db_path          =   tmp_path,
                                                        template_fn_list =   template_fn_list,
