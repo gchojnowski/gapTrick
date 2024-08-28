@@ -898,9 +898,6 @@ def runme(msa_filenames,
                     model_config.data.eval.num_ensemble = 1
                     model_runner_3 = model.RunModel(model_config, model_params[model_name_local])
 
-    is_complex=True
-
-
     # gather features
     feature_dict = {
         **pipeline.make_sequence_features(sequence=query_seq_combined, description="none", num_res=len(query_seq_combined)),
@@ -918,7 +915,7 @@ def runme(msa_filenames,
                       model_params   =   model_params,
                       model_runner_1 =   model_runner_1,
                       model_runner_3 =   model_runner_3,
-                      is_complex     =   is_complex,
+                      is_complex     =   True,
                       do_relax       =   do_relax,
                       random_seed    =   random_seed)
 
