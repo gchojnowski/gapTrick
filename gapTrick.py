@@ -315,8 +315,7 @@ def predict_structure(prefix,
                       model_runner_3,
                       do_relax=False,
                       random_seed=None,
-                      gap_size=200,
-                      is_complex=False):
+                      gap_size=200):
 
     if random_seed is None:
         random_seed = np.random.randint(sys.maxsize//5)
@@ -361,28 +360,28 @@ def predict_structure(prefix,
         final_atom_mask = prediction_result["structure_module"]["final_atom_mask"]
         b_factors = prediction_result["plddt"][:, None] * final_atom_mask
 
-        if is_complex:
-            resid2chain = {}
-            input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
-            input_features["aatype"] = input_features["aatype"][0]
-            input_features["residue_index"] = input_features["residue_index"][0]
-            curr_residue_index = 1
-            res_index_array = input_features["residue_index"].copy()
-            res_index_array[0] = 0
-            for i in range(1, input_features["aatype"].shape[0]):
-                if (input_features["residue_index"][i] - input_features["residue_index"][i - 1]) > 1:
-                    curr_residue_index = 0
+        resid2chain = {}
+        input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
+        input_features["aatype"] = input_features["aatype"][0]
+        input_features["residue_index"] = input_features["residue_index"][0]
+        curr_residue_index = 1
+        res_index_array = input_features["residue_index"].copy()
+        res_index_array[0] = 0
 
-                res_index_array[i] = curr_residue_index
-                curr_residue_index += 1
+        for i in range(1, input_features["aatype"].shape[0]):
+            if (input_features["residue_index"][i] - input_features["residue_index"][i - 1]) > 1:
+                curr_residue_index = 0
 
-            input_features["residue_index"] = res_index_array
+            res_index_array[i] = curr_residue_index
+            curr_residue_index += 1
+
+        input_features["residue_index"] = res_index_array
 
         unrelaxed_protein = protein.from_prediction(
                                             features=input_features,
                                             result=prediction_result,
                                             b_factors=b_factors,
-                                            remove_leading_feature_dimension=not is_complex)
+                                            remove_leading_feature_dimension=False)
 
         unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
         plddts.append(prediction_result["plddt"][:seq_len])
@@ -915,7 +914,6 @@ def runme(msa_filenames,
                       model_params   =   model_params,
                       model_runner_1 =   model_runner_1,
                       model_runner_3 =   model_runner_3,
-                      is_complex     =   True,
                       do_relax       =   do_relax,
                       random_seed    =   random_seed)
 
