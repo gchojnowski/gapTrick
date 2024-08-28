@@ -645,10 +645,10 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
                 print()
                 print()
+                print(_h.indices_query)
                 print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)}")
-                #print(f"TRG ", _h.query)
                 print(f"TRG {query_sequence}")
-                print(f"TPL ", '-'*(_h.indices_query[0]-1) + _h.hit_sequence + '-'*(len(query_sequence)-_h.indices_query[-1]-1))
+                print(f"TPL {'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
 
             print()
 
