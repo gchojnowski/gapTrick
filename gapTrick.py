@@ -14,6 +14,9 @@ import time
 import requests
 import tarfile
 
+MMSEQS_API_SERVER = "https://api.colabfold.com"
+MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
+
 from alphafold.common import protein
 from alphafold.data import pipeline
 from alphafold.data import templates
@@ -226,19 +229,56 @@ def parse_pdbstring(pdb_string):
 
 # -----------------------------------------------------------------------------
 
-def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False):
+def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_agent=''):
 
     def submit(query_sequence, mode):
-        res = requests.post('https://a3m.mmseqs.com/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode})
+        while True:
+            try:
+                res = requests.post(f'{MMSEQS_API_SERVER}/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode}, timeout=12.01, headers=headers)
+            except requests.exceptions.Timeout:
+                print("MMSeqs2 API submission timeout. Retrying...")
+                continue
+            except Exception as e:
+                print(f"MMSeqs2 API submission error: {e}")
+                time.sleep(5)
+                continue
+            break
+
         return res.json()
 
     def status(ID):
-        res = requests.get(f'https://a3m.mmseqs.com/ticket/{ID}')
+        while True:
+            try:
+                res = requests.get(f'{MMSEQS_API_SERVER}/ticket/{ID}', timeout=12.01, headers=headers)
+            except requests.exceptions.Timeout:
+                print("MMSeqs2 API status timeout. Retrying...")
+                continue
+            except Exception as e:
+                print(f"MMSeqs2 API status error: {e}")
+                time.sleep(5)
+                continue
+            break
+
         return res.json()
 
     def download(ID, path):
-        res = requests.get(f'https://a3m.mmseqs.com/result/download/{ID}')
+        while True:
+            try:
+                res = requests.get(f'{MMSEQS_API_SERVER}/result/download/{ID}', timeout=12.01, headers=headers)
+            except requests.exceptions.Timeout:
+                print("MMSeqs2 API download timeout. Retrying...")
+                continue
+            except Exception as e:
+                print(f"MMSeqs2 API download error: {e}")
+                time.sleep(5)
+                continue
+            break
+
         with open(path,"wb") as out: out.write(res.content)
+
+    # ------------
+
+    headers = {'User-Agent':user_agent}
 
     if filter:
         mode = "env" if use_env else "all"
@@ -246,7 +286,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False):
         mode = "env-nofilter" if use_env else "nofilter"
 
     print(f"MMSeqs2 API query: {query_sequence}")
-    print(f"MMSeqs2 API output: {msa_fname}")
+    print(f"MMSeqs2 API output file: {msa_fname}")
 
     if os.path.isfile(msa_fname):
         print(f"Output file {msa_fname} already exists!")
@@ -257,10 +297,11 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False):
         tar_gz_file = os.path.join(tmp_path, 'out.tar.gz')
         if not os.path.isfile(tar_gz_file):
             out = submit(query_sequence, mode)
-            while out["status"] in ["RUNNING","PENDING"]:
-                print(f'MMSeqs2 status: {out["status"]}')
-                time.sleep(30)
+            while out["status"] in ["UNKNOWN","RUNNING","PENDING"]:
+                print(f'MMSeqs2 API status: {out["status"]}')
+                time.sleep(10)
                 out = status(out["id"])
+            print(f'MMSeqs2 API status: {out["status"]}')
             download(out["id"], tar_gz_file)
 
         # parse a3m files
