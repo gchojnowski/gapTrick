@@ -258,7 +258,8 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False):
         if not os.path.isfile(tar_gz_file):
             out = submit(query_sequence, mode)
             while out["status"] in ["RUNNING","PENDING"]:
-                time.sleep(3)
+                print(f'MMSeqs2 status: {out["status"]}')
+                time.sleep(30)
                 out = status(out["id"])
             download(out["id"], tar_gz_file)
 
