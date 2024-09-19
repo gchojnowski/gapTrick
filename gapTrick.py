@@ -139,8 +139,7 @@ MMCIF_ATOM_BLOCK_HEADER=\
    _atom_site.label_asym_id
    _atom_site.label_entity_id
    _atom_site.label_seq_id
-   _atom_site.pdbx_PDB_model_num
-"""
+   _atom_site.pdbx_PDB_model_num"""
 
 
 hhdb_build_template="""
@@ -884,7 +883,11 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         if not mmcif: print(mmcif_obj)
 
-        for chain_id,template_sequence in mmcif.chain_to_seqres.items():
+        # broken in AlphaFold/2.3.2-foss-2023a-CUDA-12.1.1
+        #for chain_id,template_sequence in mmcif.chain_to_seqres.items():
+        for chain in mmcif.structure:
+            chain_id = chain.id
+            template_sequence = "".join([ogt[_r.resname] for _r in chain.get_residues()])
             print(chain_id, template_sequence)
 
             seq_name = filepath.stem.upper()+"_"+chain_id
