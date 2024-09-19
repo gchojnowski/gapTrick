@@ -1,5 +1,7 @@
 import os, sys, re
 
+import uuid
+import glob
 
 import sys
 import tempfile
@@ -9,6 +11,11 @@ import string
 import pickle
 import time
 
+import requests
+import tarfile
+
+MMSEQS_API_SERVER = "https://api.colabfold.com"
+MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
 
 from alphafold.common import protein
 from alphafold.data import pipeline
@@ -34,6 +41,8 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
+#from Bio import pairwise2
+from Bio import Align
 #from Bio.PDB import  PDBParser, MMCIFParser
 from Bio.PDB.mmcifio import MMCIFIO
 #from Bio import PDB
@@ -47,14 +56,16 @@ from dataclasses import dataclass, replace
 #from jax.lib import xla_bridge
 
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
+import random
 
 
 import iotbx
 import iotbx.cif
 import iotbx.pdb
-from iotbx.pdb import amino_acid_codes as aac
-from mmtbx.alignment import align
+#from iotbx.pdb import amino_acid_codes as aac
+#from mmtbx.alignment import align
 
+tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 
 #print(xla_bridge.get_backend().platform)
 
@@ -68,6 +79,14 @@ _struct_asym.entity_id   0
 _entity_poly.entity_id        0
 _entity_poly.type             polypeptide(L)
 _entity_poly.pdbx_strand_id   A
+#
+loop_
+_pdbx_audit_revision_history.ordinal
+_pdbx_audit_revision_history.data_content_type
+_pdbx_audit_revision_history.major_revision
+_pdbx_audit_revision_history.minor_revision
+_pdbx_audit_revision_history.revision_date
+1 'Structure model' 1 0 1878-05-14
 #
 _entity.id     0
 _entity.type   polymer
@@ -130,6 +149,16 @@ def parse_args():
                             dest="msa", type="string", metavar="FILENAME,FILENAME", \
                   help="comma-separated a3m MSAs. First sequence is a target", default=None)
 
+    required_opts.add_option("--msa_dir", action="store", \
+                            dest="msa_dir", type="string", metavar="DIRNAME", \
+                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", \
+                                default=None)
+
+    required_opts.add_option("--seqin", action="store", \
+                            dest="seqin", type="string", metavar="FILENAME", \
+                  help="Fasta file with target sequences. Corresponding (unique) MSAs will be acquired from the mmseqs2 API", \
+                                default=None)
+
     required_opts.add_option("--templates", action="store", \
                             dest="templates", type="string", metavar="FILENAME,FILENAME", \
                   help="comma-separated temlates in mmCIF/PDB format", default=None)
@@ -144,11 +173,14 @@ def parse_args():
     required_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
                   help="lengths of consecutive target seqs", default=None)
 
-    required_opts.add_option("--num_models", action="store", dest="num_models", type="int", metavar="INT", \
-                  help="number of output models (<=5)", default=5)
+    required_opts.add_option("--preds_per_model", action="store", dest="preds_per_model", type="int", metavar="INT", \
+                  help="number of predictions per model (default: %default)", default=1)
 
     required_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
                   help="number of recycles", default=3)
+
+    required_opts.add_option("--seed", action="store", dest="seed", type="int", metavar="INT", \
+                  help="random seed (default None)", default=None)
 
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
@@ -157,7 +189,10 @@ def parse_args():
                   help="Use input templates as monomers. Benchmarks only!")
 
     required_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
-                  help="Mask template sequence (replace residue ids with gaps and add missing CB)")
+                  help="Mask template sequence (replace residue ids with gaps and add missing CBs)")
+
+    required_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
+                  help="maximum number of MSA seqeunces", default=None)
 
     required_opts.add_option("--data_dir", action="store", \
                             dest="data_dir", type="string", metavar="DIRNAME", \
@@ -172,6 +207,8 @@ def parse_args():
 
     (options, _args)  = parser.parse_args()
     return (parser, options)
+
+# -----------------------------------------------------------------------------
 
 def parse_pdbstring(pdb_string):
 
@@ -189,6 +226,104 @@ def parse_pdbstring(pdb_string):
         return inp.construct_hierarchy(sort_atoms=False), inp.crystal_symmetry()
     except:
         return inp.construct_hierarchy(), inp.crystal_symmetry()
+
+# -----------------------------------------------------------------------------
+
+def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_agent=''):
+
+    def submit(query_sequence, mode):
+        while True:
+            try:
+                res = requests.post(f'{MMSEQS_API_SERVER}/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode}, timeout=12.01, headers=headers)
+            except requests.exceptions.Timeout:
+                print("MMSeqs2 API submission timeout. Retrying...")
+                continue
+            except Exception as e:
+                print(f"MMSeqs2 API submission error: {e}")
+                time.sleep(5)
+                continue
+            break
+
+        return res.json()
+
+    def status(ID):
+        while True:
+            try:
+                res = requests.get(f'{MMSEQS_API_SERVER}/ticket/{ID}', timeout=12.01, headers=headers)
+            except requests.exceptions.Timeout:
+                print("MMSeqs2 API status timeout. Retrying...")
+                continue
+            except Exception as e:
+                print(f"MMSeqs2 API status error: {e}")
+                time.sleep(5)
+                continue
+            break
+
+        return res.json()
+
+    def download(ID, path):
+        while True:
+            try:
+                res = requests.get(f'{MMSEQS_API_SERVER}/result/download/{ID}', timeout=12.01, headers=headers)
+            except requests.exceptions.Timeout:
+                print("MMSeqs2 API download timeout. Retrying...")
+                continue
+            except Exception as e:
+                print(f"MMSeqs2 API download error: {e}")
+                time.sleep(5)
+                continue
+            break
+
+        with open(path,"wb") as out: out.write(res.content)
+
+    # ------------
+
+    headers = {'User-Agent':user_agent}
+
+    if filter:
+        mode = "env" if use_env else "all"
+    else:
+        mode = "env-nofilter" if use_env else "nofilter"
+
+    print(f"MMSeqs2 API query: {query_sequence}")
+    print(f"MMSeqs2 API output file: {msa_fname}")
+
+    if os.path.isfile(msa_fname):
+        print(f"Output file {msa_fname} already exists!")
+        print()
+        return 0
+
+    with tempfile.TemporaryDirectory() as tmp_path:
+        tar_gz_file = os.path.join(tmp_path, 'out.tar.gz')
+        if not os.path.isfile(tar_gz_file):
+            out = submit(query_sequence, mode)
+            while out["status"] in ["UNKNOWN","RUNNING","PENDING"]:
+                print(f'MMSeqs2 API status: {out["status"]}')
+                time.sleep(10)
+                out = status(out["id"])
+            print(f'MMSeqs2 API status: {out["status"]}')
+            download(out["id"], tar_gz_file)
+
+        # parse a3m files
+        with tarfile.open(tar_gz_file) as tar_gz: tar_gz.extractall(tmp_path)
+
+        a3m_files = [os.path.join(tmp_path, "uniref.a3m")]
+        if use_env: a3m_files.append( os.path.join(tmp_path, "bfd.mgnify30.metaeuk30.smag30.a3m") )
+
+        with open(msa_fname,"w") as a3m_out:
+            for a3m_file in a3m_files:
+                for line in open(a3m_file,"r"):
+                    line = line.replace("\x00","")
+                    if len(line) > 0:
+                        a3m_out.write(line)
+
+    print(f"Successfully created {msa_fname}")
+    print()
+
+
+    return 0
+
+# -----------------------------------------------------------------------------
 
 def CB_xyz(n, ca, c):
     bondl=1.52
@@ -212,19 +347,23 @@ def predict_structure(prefix,
                       feature_dict,
                       Ls,
                       model_params,
-                      use_model,
                       model_runner_1,
                       model_runner_3,
                       do_relax=False,
-                      random_seed=0, 
-                      gap_size=200,
-                      is_complex=False):
+                      random_seed=None,
+                      gap_size=200):
+
+    if random_seed is None:
+        random_seed = np.random.randint(sys.maxsize//5)
+
+    print(f"Random seed: {random_seed}")
 
     inputpath=Path(prefix, "input")
     seq_len = len(query_sequence)
 
     idx_res = feature_dict['residue_index']
     L_prev = 0
+
     # Ls: number of residues in each chain
     for L_i in Ls[:-1]:
         idx_res[L_prev+L_i:] += gap_size
@@ -232,76 +371,81 @@ def predict_structure(prefix,
     chains = list("".join([string.ascii_uppercase[n]*L for n,L in enumerate(Ls)]))
     feature_dict['residue_index'] = idx_res
 
-    plddts,paes,ptmscore= [],[],[]
+    plddts,ptmscore= [],[]
     unrelaxed_pdb_lines = []
-    relaxed_pdb_lines = []
-    distograms=[]
+    model_names = []
 
-    for model_name, params in model_params.items():
-        if model_name in use_model:
-            print(f"running {model_name}")
-            if any(str(m) in model_name for m in [1,2]): model_runner = model_runner_1
-            if any(str(m) in model_name for m in [3,4,5]): model_runner = model_runner_3
-            model_runner.params = params
+    for imodel, (model_name, params) in enumerate(model_params.items()):
+        print(f"running {model_name}")
 
-            processed_feature_dict = model_runner.process_features(feature_dict, random_seed=random_seed)
+        if re.search(r'model_[12]', model_name):
+            model_runner = model_runner_1
+        else:
+            model_runner = model_runner_3
 
-            input_features = processed_feature_dict
+        model_runner.params = params
 
+        input_features = model_runner.process_features(feature_dict, random_seed=random_seed+imodel)
 
-            prediction_result = model_runner.predict(input_features, random_seed=random_seed)
-            print(len(prediction_result["plddt"]), seq_len)
-            mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
-            mean_ptm = prediction_result["ptm"]
+        prediction_result = model_runner.predict(input_features, random_seed=random_seed+imodel)
+        mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
+        mean_ptm = prediction_result["ptm"]
 
-            final_atom_mask = prediction_result["structure_module"]["final_atom_mask"]
-            b_factors = prediction_result["plddt"][:, None] * final_atom_mask
+        final_atom_mask = prediction_result["structure_module"]["final_atom_mask"]
+        b_factors = prediction_result["plddt"][:, None] * final_atom_mask
 
-            model_type = "AlphaFold2-ptm"
-            if is_complex and model_type == "AlphaFold2-ptm":
-                resid2chain = {}
-                input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
-                input_features["aatype"] = input_features["aatype"][0]
-                input_features["residue_index"] = input_features["residue_index"][0]
-                curr_residue_index = 1
-                res_index_array = input_features["residue_index"].copy()
-                res_index_array[0] = 0
-                for i in range(1, input_features["aatype"].shape[0]):
-                    if (input_features["residue_index"][i] - input_features["residue_index"][i - 1]) > 1:
-                        curr_residue_index = 0
+        resid2chain = {}
+        input_features["asym_id"] = feature_dict["asym_id"] - feature_dict["asym_id"][...,0]
+        input_features["aatype"] = input_features["aatype"][0]
+        input_features["residue_index"] = input_features["residue_index"][0]
+        curr_residue_index = 1
+        res_index_array = input_features["residue_index"].copy()
+        res_index_array[0] = 0
 
-                    res_index_array[i] = curr_residue_index
-                    curr_residue_index += 1
+        for i in range(1, input_features["aatype"].shape[0]):
+            if (input_features["residue_index"][i] - input_features["residue_index"][i - 1]) > 1:
+                curr_residue_index = 0
 
-                input_features["residue_index"] = res_index_array
+            res_index_array[i] = curr_residue_index
+            curr_residue_index += 1
 
-            unrelaxed_protein = protein.from_prediction(
-                                                features=input_features,
-                                                result=prediction_result,
-                                                b_factors=b_factors,
-                                                remove_leading_feature_dimension=not is_complex)
+        input_features["residue_index"] = res_index_array
 
-            unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
+        unrelaxed_protein = protein.from_prediction(
+                                            features=input_features,
+                                            result=prediction_result,
+                                            b_factors=b_factors,
+                                            remove_leading_feature_dimension=False)
 
-            paes.append(prediction_result['predicted_aligned_error'])
-            plddts.append(prediction_result["plddt"][:seq_len])
-            ptmscore.append(prediction_result["ptm"])
-            distograms.append(prediction_result["distogram"])
+        unrelaxed_pdb_lines.append(protein.to_pdb(unrelaxed_protein))
+        plddts.append(prediction_result["plddt"][:seq_len])
+        ptmscore.append(prediction_result["ptm"])
+        model_names.append(model_name)
+
+        with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
+
+        print(f"<pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
+
+        outdict={'predicted_aligned_error' : prediction_result['predicted_aligned_error'], \
+                 'ptm'                     : prediction_result['ptm'], \
+                 'plddt'                   : prediction_result['plddt'][:seq_len], \
+                 'distogram'               : prediction_result['distogram']}
+
+        with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
-    output = {}
-    print(f"reranking models based on pTM score: {ptm_rank}")
-    for n,r in enumerate(ptm_rank):
 
-        with Path(inputpath, f'unrelaxed_model_{n+1}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[r])
+    print()
+    print(f"Reranking models based on pTM score: {ptm_rank}")
+    for n,_idx in enumerate(ptm_rank):
 
         # relax TOP model only
         if do_relax and n<1:
 
-            pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[r])
+            pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[_idx])
 
-            print(f"Starting Amber relaxation for model_{n+1}")
+            print(f"Starting Amber relaxation for {model_names[_idx]}")
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
@@ -314,25 +458,23 @@ def predict_structure(prefix,
 
             _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
-            with Path(inputpath, f'relaxed_model_{n+1}.pdb').open('w') as of: of.write(_pdb_lines)
             print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
 
 
         else:
-            _pdb_lines = unrelaxed_pdb_lines[r]
+            _pdb_lines = unrelaxed_pdb_lines[_idx]
 
-        output[n+1] = {"plddt":plddts[r], "pae":paes[r], 'ptm':ptmscore[r], 'pdb':_pdb_lines, 'distogram':distograms[r]}
 
-    return output
+        pdb_fn = f"ranked_{n}.pdb"
+        print(f"{pdb_fn} <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
+        with Path(inputpath, pdb_fn).open('w') as of: of.write(_pdb_lines)
+
 
 def chain2CIF(chain, outid):
 
     new_ph = iotbx.pdb.hierarchy.root()
-    # AF2 expects model.id=1
     new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
     new_ph.models()[0].append_chain(chain.detached_copy())
-    ogt = aac.one_letter_given_three_letter
-    tgo = aac.three_letter_given_one_letter
 
     poly_seq_block = []
     seq=chain.as_sequence()
@@ -379,14 +521,12 @@ def match_template_chains_to_target(ph, target_sequences):
         _tmp_si={}
         for cid in chain_dict:
             if cid in greedy_selection: continue
-
-            align_obj = align(seq_a = chain_dict[cid],
-                              seq_b = _target_seq, similarity_function="identity")
-
-            alignment = align_obj.extract_alignment()
-            si = 100*alignment.calculate_sequence_identity(skip_chars=['X'])
-            _tmp_si[cid]=si
-
+            aligner = Align.PairwiseAligner()
+            alignments = aligner.align(chain_dict[cid], _target_seq)
+            si = alignments[0].score
+            # depreciated!
+            #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
+            _tmp_si[cid]=100.0*si/len(_target_seq)
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
             print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
@@ -547,9 +687,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
                 print()
                 print()
-                print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)}")
-                print(f"TPL ", _h.hit_sequence)
-                print(f"TRG ", _h.query)
+                print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)} [sum_probs={_h.sum_probs}]")
+                print(f"TRG {query_sequence}")
+                print(f"TPL {'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
 
             print()
 
@@ -630,7 +770,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             atom_mask = np.zeros([1, len(query_seq), 37])
             atom_mask[0, template_idxs, :5] = template_prot.atom_mask[template_idxs,:5]
 
-            features["template_aatype"]             =   residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
+            features["template_aatype"]             =   \
+                    residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
             features["template_all_atom_masks"]     =   atom_mask
             features["template_all_atom_positions"] =   masked_coords
             features["template_domain_names"]       =   np.asarray(["None"])
@@ -651,7 +792,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
     return template_features
 
-def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
+def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max_seq=None):
     pos=0
     msa_combined=[]
 
@@ -659,10 +800,22 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim):
 
     for n, seq in enumerate(query_sequences):
         for j in range(0, query_cardinality[n]):
-            for _desc, _seq in zip(input_msas[n].descriptions, input_msas[n].sequences[:]):
+            if max_seq: # subsample
+                _max_seq = min(max_seq, len(input_msas[n].sequences))
+                msa_sample_indices = np.random.choice(len(input_msas[n].sequences), _max_seq, replace=False)
+                print(f" Reducing MSA depth from {len(input_msas[n].sequences)} to {_max_seq}")
+            else:
+                msa_sample_indices = range(len(input_msas[n].sequences))
+
+            for idx in sorted(msa_sample_indices):
+                _desc = input_msas[n].descriptions[idx]
+                _seq  = input_msas[n].sequences[idx]
+
                 if not len(set(_seq[query_trim[n][0]:query_trim[n][1]]))>1: continue
                 msa_combined.append(">%s"%_desc)
-                msa_combined.append("".join(_blank_seq[:pos] + [re.sub('[a-z]', '', _seq)[query_trim[n][0]:query_trim[n][1]]] + _blank_seq[pos + 1 :]))
+                msa_combined.append("".join(_blank_seq[:pos] + \
+                                            [re.sub('[a-z]', '', _seq)[query_trim[n][0]:query_trim[n][1]]] + \
+                                            _blank_seq[pos + 1 :]))
             pos += 1
 
 
@@ -678,13 +831,15 @@ def runme(msa_filenames,
           query_cardinality =   [1,0],
           query_trim        =   [[0,10000],[0,10000]],
           template_fn_list  =   None,
-          num_models        =   1,
+          preds_per_model   =   1,
           jobname           =   'test',
           data_dir          =   '/scratch/AlphaFold_DBs/2.3.2',
           num_recycle       =   3,
           chain_ids         =   None,
           dryrun            =   False,
           do_relax          =   False,
+          max_seq           =   None,
+          random_seed       =   None,
           nomerge           =   False,
           noseq             =   False):
 
@@ -695,11 +850,14 @@ def runme(msa_filenames,
 
 
     query_sequences=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas)]
-    query_seq_extended=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] for _i,_m in enumerate(msas) for _ in range(query_cardinality[_i])]
+    query_seq_extended=[_m.sequences[0][query_trim[_i][0]:query_trim[_i][1]] \
+                                for _i,_m in enumerate(msas) \
+                                for _ in range(query_cardinality[_i])]
+
     query_seq_combined="".join(query_seq_extended)
 
 
-    msas = combine_msas(query_sequences, msas, query_cardinality, query_trim)
+    msas = combine_msas(query_sequences, msas, query_cardinality, query_trim, max_seq=max_seq)
 
 
 
@@ -737,7 +895,6 @@ def runme(msa_filenames,
                                           outpath           =   inputpath)
 
     with tempfile.TemporaryDirectory() as tmp_path:
-        print("Created tmp path ", tmp_path)
         template_features = generate_template_features(query_sequence   =   query_seq_combined,
                                                        db_path          =   tmp_path,
                                                        template_fn_list =   template_fn_list,
@@ -745,30 +902,27 @@ def runme(msa_filenames,
                                                        dryrun           =   dryrun,
                                                        noseq            =   noseq)
 
-    use_model = {}
     model_params = {}
     model_runner_1 = None
     model_runner_3 = None
-    for model_idx in range(1,6)[:num_models]:
-        model_name=f"model_{model_idx}"
-        use_model[model_name] = True
-        if model_name not in list(model_params.keys()):
-            model_params[model_name] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
-            if model_idx == 1:
-                model_config = config.model_config(model_name+"_ptm")
-                model_config.data.common.num_recycle = num_recycle
-                model_config.model.num_recycle = num_recycle
-                model_config.data.eval.num_ensemble = 1
-                model_runner_1 = model.RunModel(model_config, model_params[model_name])
-            if model_idx == 3:
-                model_config = config.model_config(model_name+"_ptm")
-                model_config.data.common.num_recycle = num_recycle
-                model_config.model.num_recycle = num_recycle
-                model_config.data.eval.num_ensemble = 1
-                model_runner_3 = model.RunModel(model_config, model_params[model_name])
-
-    is_complex=True
-
+    for model_idx in range(1,3) if template_fn_list else range(1,6):
+        for run_idx in range(1, preds_per_model+1):
+            model_name=f"model_{model_idx}"
+            if model_name not in list(model_params.keys()):
+                model_name_local = f"{model_name}_run{run_idx}"
+                model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
+                if model_idx == 1:
+                    model_config = config.model_config(model_name+"_ptm")
+                    model_config.data.common.num_recycle = num_recycle
+                    model_config.model.num_recycle = num_recycle
+                    model_config.data.eval.num_ensemble = 1
+                    model_runner_1 = model.RunModel(model_config, model_params[model_name_local])
+                if model_idx == 3:
+                    model_config = config.model_config(model_name+"_ptm")
+                    model_config.data.common.num_recycle = num_recycle
+                    model_config.model.num_recycle = num_recycle
+                    model_config.data.eval.num_ensemble = 1
+                    model_runner_3 = model.RunModel(model_config, model_params[model_name_local])
 
     # gather features
     feature_dict = {
@@ -780,63 +934,108 @@ def runme(msa_filenames,
     feature_dict["asym_id"] = \
             np.array( [int(n+1) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
     feature_dict['assembly_num_chains']=len(query_seq_extended)
-
-    output = predict_structure(jobname, query_seq_combined, feature_dict,
-                             Ls=tuple(map(len, query_seq_extended)),
-                             model_params=model_params, use_model=use_model,
-                             model_runner_1=model_runner_1,
-                             model_runner_3=model_runner_3,
-                             is_complex=is_complex,
-                             do_relax=do_relax)
-
-
     with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
-    # pickels for models (plddt-ranked)
-    for idx,dat in output.items():
 
-        pdb_fn = 'ranked_%d.pdb'%idx
-        print(f"{pdb_fn} <pLDDT>={np.mean(dat['plddt']):6.4f} pTM={dat['ptm']:6.4f}")
-        with Path(inputpath, pdb_fn).open('w') as of: of.write(dat['pdb'])
+    predict_structure(jobname, query_seq_combined, feature_dict,
+                      Ls             =   tuple(map(len, query_seq_extended)),
+                      model_params   =   model_params,
+                      model_runner_1 =   model_runner_1,
+                      model_runner_3 =   model_runner_3,
+                      do_relax       =   do_relax,
+                      random_seed    =   random_seed)
 
-        outdict={'predicted_aligned_error':dat['pae'], 'ptm':dat['ptm'], 'plddt':dat['plddt'], 'distogram':dat['distogram']}
-        pkl_fn = 'result_model_%d_ptm.pkl'%(idx+1)
-        with Path(inputpath, pkl_fn).open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def main():
 
     (parser, options) = parse_args()
 
-    print( " ==> Command line: af2_cplx_templates.py %s" % (" ".join(sys.argv[1:])) )
+    print( " ==> Command line: gapTrick.py %s" % (" ".join(sys.argv[1:])) )
 
-    msas = options.msa.split(',')
+    if options.jobname is None:
+        print('Define jobname - output directory')
+        exit(0)
+
+    jobpath=Path(options.jobname)
+    try:
+        jobpath.mkdir(parents=True, exist_ok=False)
+    except:
+        print("ERROR: target directory already exists")
+        return 1
+
+    if options.msa:
+
+        msas = options.msa.split(',')
+
+
+    elif options.seqin:
+        mmseqspath=Path(options.jobname, "mmseqs2")
+        mmseqspath.mkdir(parents=True, exist_ok=False)
+
+
+        existing_msas={}
+        if options.msa_dir:
+            for fn in glob.glob( os.path.join(options.msa_dir, '*.*') ):
+                with open(fn) as ifile:
+                    _=ifile.readline()
+                    existing_msas[ifile.readline().strip()]=fn
+            print(f"Parsed {len(existing_msas)} MSA files")
+            print("\n")
+
+        msas = []
+        local_msa_dict = {}
+
+        with open(options.seqin) as ifile:
+            for record in SeqIO.parse(ifile, "fasta"):
+                a3m_fname = existing_msas.get(record.seq, None)
+                if not a3m_fname: a3m_fname=local_msa_dict.get(record.seq, None)
+
+                if a3m_fname:
+                    print("Found existing MSA")
+                else:
+                    if options.msa_dir:
+                        a3m_fname=os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
+                    else:
+                        a3m_fname = os.path.join(options.jobname, "mmseqs2", f"{len(local_msa_dict):04d}.a3m")
+
+                    query_mmseqs2(record.seq, a3m_fname)
+                    local_msa_dict[record.seq]=a3m_fname
+
+                print(f"{record.id}: {a3m_fname}")
+                print()
+                msas.append(a3m_fname)
+
+    else:
+        print("ERROR: --msa or --seqin required on input")
+        exit(1)
 
     if not options.trim:
         trim = [[0,9999]]*len(msas)
     else:
         trim=[tuple(map(int, _.split(":"))) for _ in options.trim.split(",")]
 
-    print("TRIM: ", trim)
     if not options.cardinality:
         cardinality = [1]*len(msas)
     else:
         cardinality = tuple(map(int,options.cardinality.split(',')))
 
-    if options.jobname is None:
-        print('Define jobname - output directory')
-        exit(0)
+    for _mi,_m in enumerate(msas):
+        print(f"#{_mi}: {_m}")
+    print()
 
     runme(msa_filenames     =   msas,
           query_cardinality =   cardinality,
           query_trim        =   trim,
-          num_models        =   options.num_models,
-          template_fn_list  =   options.templates.split(',') if options.templates else None,
+          preds_per_model   =   options.preds_per_model,
+          template_fn_list  =   options.templates.split(',') if options.templates else [],
           jobname           =   options.jobname,
           data_dir          =   options.data_dir,
           num_recycle       =   options.num_recycle,
           chain_ids         =   options.chain_ids,
           dryrun            =   options.dryrun,
           do_relax          =   options.relax,
+          max_seq           =   options.max_seq,
+          random_seed       =   options.seed,
           nomerge           =   options.nomerge,
           noseq             =   options.noseq)
 
