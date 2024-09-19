@@ -43,9 +43,9 @@ from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 #from Bio import pairwise2
 from Bio import Align
-from Bio.PDB import PDBIO, PDBParser, Superimposer, MMCIFParser
+from Bio.PDB import PDBIO, PDBParser, Superimposer, MMCIFParser, Select
 from Bio.PDB.mmcifio import MMCIFIO
-#from Bio import PDB
+
 import io
 
 from pathlib import Path
@@ -117,6 +117,31 @@ TYR 'L-peptide linking' TYROSINE
 VAL 'L-peptide linking' VALINE
 GLY 'L-peptide linking' GLYCINE
 #"""
+
+
+MMCIF_ATOM_BLOCK_HEADER=\
+"""loop_
+   _atom_site.group_PDB
+   _atom_site.id
+   _atom_site.label_atom_id
+   _atom_site.label_alt_id
+   _atom_site.label_comp_id
+   _atom_site.auth_asym_id
+   _atom_site.auth_seq_id
+   _atom_site.pdbx_PDB_ins_code
+   _atom_site.Cartn_x
+   _atom_site.Cartn_y
+   _atom_site.Cartn_z
+   _atom_site.occupancy
+   _atom_site.B_iso_or_equiv
+   _atom_site.type_symbol
+   _atom_site.pdbx_formal_charge
+   _atom_site.label_asym_id
+   _atom_site.label_entity_id
+   _atom_site.label_seq_id
+   _atom_site.pdbx_PDB_model_num
+"""
+
 
 hhdb_build_template="""
 cd %(msa_dir)s
@@ -206,7 +231,7 @@ def parse_args():
                   help="relax top model")
 
     #TODO
-    required_opts.add_option("--trim", action="store_true", dest="trim", default=False, \
+    required_opts.add_option("--trim_model_to_template", action="store_true", dest="trim_model_to_template", default=False, \
                   help="trim model to template (refinement mode)")
 
     (options, _args)  = parser.parse_args()
@@ -655,7 +680,7 @@ def parse_pdb_bio(ifn, outid="xyz", remove_alt_confs=False):
             for chain in structure:
                 for resi in chain:
                     for atom in resi:
-                        resi.set_altloc(" ")
+                        atom.set_altloc(" ")
 
     return structure
 
@@ -665,17 +690,17 @@ def match_template_chains_to_target_bio(structure, target_sequences):
     print(f" --> Greedy matching of template chains to target sequences")
 
     chain_seq_dict = {}
-    protein = structure.as_protein()
+    protein = get_prot_chains_bio(structure)
     for chain in protein:
         chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
 
     greedy_selection = []
     for _idx, _target_seq in enumerate(target_sequences):
         _tmp_si={}
-        for cid in chain_dict:
+        for cid in chain_seq_dict:
             if cid in greedy_selection: continue
             aligner = Align.PairwiseAligner()
-            alignments = aligner.align(chain_dict[cid], _target_seq)
+            alignments = aligner.align(chain_seq_dict[cid], _target_seq)
             si = alignments[0].score
             # depreciated!
             #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
@@ -692,21 +717,19 @@ def match_template_chains_to_target_bio(structure, target_sequences):
 
     return(greedy_selection)
 
+
 # -----------------------------------------------------------------------------
 
-def template2CIF_bio(structure, outid, outfn):
+def get_prot_chains_bio(structure):
+    return structure
 
-    #new_ph = iotbx.pdb.hierarchy.root()
-    #new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
-    #new_ph.models()[0].append_chain(chain.detached_copy())
+# -----------------------------------------------------------------------------
+
+def chain2CIF_bio(chain, outid, outfn):
 
     poly_seq_block = []
 
-    seq=[]
-    for chain in structure:
-        seq.extend( [ogt[_r.get_resname()] for _r in chain.get_unpacked_list()] )
-    seq = "".join(seq)
-
+    seq = "".join( [ogt[_r.get_resname()] for _r in chain] )
     poly_seq_block.append("#")
     poly_seq_block.append("loop_")
     poly_seq_block.append("_entity_poly_seq.entity_id")
@@ -717,23 +740,22 @@ def template2CIF_bio(structure, outid, outfn):
         three_letter_aa = tgo[aa]
         poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
 
-    #cif_object = iotbx.cif.model.cif()
-    #cif_object[outid] = new_ph.as_cif_block()
-    #cif_object[outid].pop('_chem_comp.id')
-    #cif_object[outid].pop('_struct_asym.id')
-
     with open(outfn, 'w') as of:
+        # sequence
         print(FAKE_MMCIF_HEADER%locals(), file=of)
         print("\n".join(poly_seq_block), file=of)
 
-        with io.StringIO() as outstr:
-            _io=MMCIFIO()
-            _io.set_structure(structure)
-            _io.id = outid
-            _io.save(outstr)
-            outstr.seek(0)
+        # atom block header
+        print(MMCIF_ATOM_BLOCK_HEADER, file=of)
 
-        print(outstr.read(), file=of)
+        # and atom details
+        atom_idx=1
+        for res in chain:
+            for atom in res:
+                print(f"   ATOM   {atom_idx}  {atom.name} .  {res.resname}  {chain.id}  {res._id[1]}"+\
+                      f" ? {atom.coord[0]:.4f} {atom.coord[1]:.4f} {atom.coord[2]:.4f} {atom.occupancy}"+\
+                      f" {atom.bfactor} {atom.element}  ?  {chain.id}  ?    1  1", file=of)
+                atom_idx+=1
 
 # -----------------------------------------------------------------------------
 
@@ -747,8 +769,8 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
     idx=0
     for ifn in template_fn_list:
         outid=f"{idx:04d}"
-        _ph = parse_pdb_bio(ifn, name=outid, remove_alt_confs=True)
-        prot_ph = ph.as_protein()
+        _ph = parse_pdb_bio(ifn, outid=outid, remove_alt_confs=True)
+        prot_ph = get_prot_chains_bio(_ph)
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
@@ -759,32 +781,31 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
         for ch in prot_ph:
             chaindict[ch.id]=ch
         # assembly with BioPython
-        tmp_io = PDBIO()
-
+        tmp_io = None
         for ich,chid in enumerate(selected_chids):
-            chain = chaindict[chid].detach_parent()
+            chain = chaindict[chid]
+            chain.detach_parent()
             chain.id = "A"
 
             if ich==0:
                 last_resid=1
             else:
-                last_resid = chain.get_unpacked_list()[-1]._id[1]
+                last_resid = chain.get_unpacked_list()[-1]._id[1]+resi_shift
 
             for residx,res in enumerate(chain):
                 _id = res._id
-                _id[1] = last_resid+resi_shift+residx
-                res._id = _id
+                res._id = (_id[0], last_resid+residx, _id[1])
 
             if ich==0:
-                tmp_io.set_structure(chain)
+                tmp_io = chain
             else:
-                tmp_io.add(chain)
+                for resi in chain:
+                    tmp_io.add(resi)
 
         if not outpath: continue
 
         converted_template_fns.append(os.path.join(outpath, f"{outid}.cif"))
-        template2CIF_bio(tmp_io, outid, converted_template_fns[-1])
-
+        chain2CIF_bio(tmp_io, outid, converted_template_fns[-1])
 
         idx+=1
 
@@ -1088,10 +1109,10 @@ def runme(msa_filenames,
                                                   target_sequences  =   query_seq_extended,
                                                   outpath           =   inputpath)
     else:
-        template_fn_list = template_preps(template_fn_list,
-                                          chain_ids,
-                                          target_sequences  =   query_seq_extended,
-                                          outpath           =   inputpath)
+        template_fn_list = template_preps_bio(template_fn_list,
+                                              chain_ids,
+                                              target_sequences  =   query_seq_extended,
+                                              outpath           =   inputpath)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         template_features = generate_template_features(query_sequence   =   query_seq_combined,
