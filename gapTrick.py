@@ -43,7 +43,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 #from Bio import pairwise2
 from Bio import Align
-#from Bio.PDB import  PDBParser, MMCIFParser
+from Bio.PDB import PDBIO, PDBParser, Superimposer, MMCIFParser
 from Bio.PDB.mmcifio import MMCIFIO
 #from Bio import PDB
 import io
@@ -66,6 +66,7 @@ import iotbx.pdb
 #from mmtbx.alignment import align
 
 tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
+ogt = dict([(tgo[_k], _k) for _k in tgo])
 
 #print(xla_bridge.get_backend().platform)
 
@@ -627,6 +628,201 @@ def template_preps(template_fn_list, chain_ids, target_sequences, outpath=None, 
 
 
     return converted_template_fns
+
+# -----------------------------------------------------------------------------
+
+def parse_pdb_bio(ifn, outid="xyz", remove_alt_confs=False):
+
+    class NotAlt(Select):
+        def accept_atom(self, atom):
+            return not atom.is_disordered() or atom.get_altloc() == "A"
+
+    try:
+        parser = PDBParser()
+        structure = parser.get_structure(outid, ifn)[0]
+
+    except:
+        parser = MMCIFParser()
+        structure = parser.get_structure(outid, ifn)[0]
+
+    if remove_alt_confs:
+        with io.StringIO() as outstr:
+            pdbio = PDBIO()
+            pdbio.set_structure(structure)
+            pdbio.save(outstr, select=NotAlt())
+            outstr.seek(0)
+            structure = parser.get_structure(outid, outstr)[0]
+            for chain in structure:
+                for resi in chain:
+                    for atom in resi:
+                        resi.set_altloc(" ")
+
+    return structure
+
+# -----------------------------------------------------------------------------
+
+def match_template_chains_to_target_bio(structure, target_sequences):
+    print(f" --> Greedy matching of template chains to target sequences")
+
+    chain_seq_dict = {}
+    protein = structure.as_protein()
+    for chain in protein:
+        chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
+
+    greedy_selection = []
+    for _idx, _target_seq in enumerate(target_sequences):
+        _tmp_si={}
+        for cid in chain_dict:
+            if cid in greedy_selection: continue
+            aligner = Align.PairwiseAligner()
+            alignments = aligner.align(chain_dict[cid], _target_seq)
+            si = alignments[0].score
+            # depreciated!
+            #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
+            _tmp_si[cid]=100.0*si/len(_target_seq)
+        if _tmp_si:
+            greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
+            print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
+                           "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
+
+    if not len(greedy_selection) == len(target_sequences):
+        print("WARNING: template-target sequence match is incomplete!")
+
+    print()
+
+    return(greedy_selection)
+
+# -----------------------------------------------------------------------------
+
+def template2CIF_bio(structure, outid, outfn):
+
+    #new_ph = iotbx.pdb.hierarchy.root()
+    #new_ph.append_model(iotbx.pdb.hierarchy.model(id="1"))
+    #new_ph.models()[0].append_chain(chain.detached_copy())
+
+    poly_seq_block = []
+
+    seq=[]
+    for chain in structure:
+        seq.extend( [ogt[_r.get_resname()] for _r in chain.get_unpacked_list()] )
+    seq = "".join(seq)
+
+    poly_seq_block.append("#")
+    poly_seq_block.append("loop_")
+    poly_seq_block.append("_entity_poly_seq.entity_id")
+    poly_seq_block.append("_entity_poly_seq.num")
+    poly_seq_block.append("_entity_poly_seq.mon_id")
+    poly_seq_block.append("_entity_poly_seq.hetero")
+    for i, aa in enumerate(seq):
+        three_letter_aa = tgo[aa]
+        poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
+
+    #cif_object = iotbx.cif.model.cif()
+    #cif_object[outid] = new_ph.as_cif_block()
+    #cif_object[outid].pop('_chem_comp.id')
+    #cif_object[outid].pop('_struct_asym.id')
+
+    with open(outfn, 'w') as of:
+        print(FAKE_MMCIF_HEADER%locals(), file=of)
+        print("\n".join(poly_seq_block), file=of)
+
+        with io.StringIO() as outstr:
+            _io=MMCIFIO()
+            _io.set_structure(structure)
+            _io.id = outid
+            _io.save(outstr)
+            outstr.seek(0)
+
+        print(outstr.read(), file=of)
+
+# -----------------------------------------------------------------------------
+
+def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200):
+    '''
+        BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
+    '''
+
+    converted_template_fns=[]
+
+    idx=0
+    for ifn in template_fn_list:
+        outid=f"{idx:04d}"
+        _ph = parse_pdb_bio(ifn, name=outid, remove_alt_confs=True)
+        prot_ph = ph.as_protein()
+
+        if chain_ids is None:
+            selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
+        else:
+            selected_chids = chain_ids.split(',')
+
+        chaindict={}
+        for ch in prot_ph:
+            chaindict[ch.id]=ch
+        # assembly with BioPython
+        tmp_io = PDBIO()
+
+        for ich,chid in enumerate(selected_chids):
+            chain = chaindict[chid].detach_parent()
+            chain.id = "A"
+
+            if ich==0:
+                last_resid=1
+            else:
+                last_resid = chain.get_unpacked_list()[-1]._id[1]
+
+            for residx,res in enumerate(chain):
+                _id = res._id
+                _id[1] = last_resid+resi_shift+residx
+                res._id = _id
+
+            if ich==0:
+                tmp_io.set_structure(chain)
+            else:
+                tmp_io.add(chain)
+
+        if not outpath: continue
+
+        converted_template_fns.append(os.path.join(outpath, f"{outid}.cif"))
+        template2CIF_bio(tmp_io, outid, converted_template_fns[-1])
+
+
+        idx+=1
+
+
+        ## assembly
+        #tmp_ph = iotbx.pdb.hierarchy.root()
+        #tmp_ph.append_model(iotbx.pdb.hierarchy.model(id="0"))
+        #tmp_ph.models()[0].append_chain(iotbx.pdb.hierarchy.chain(id="A"))
+
+        #for ich,chid in enumerate(selected_chids):
+        #    if not len(tmp_ph.only_chain().residue_groups()):
+        #        last_resid = 1
+        #    else:
+        #        last_resid = tmp_ph.only_chain().residue_groups()[-1].resseq_as_int()
+
+        #    for residx,res in enumerate(chaindict[chid].detached_copy().residue_groups()):
+        #        res.resseq = last_resid+resi_shift+residx
+        #        tmp_ph.only_chain().append_residue_group( res )
+
+
+        #ph_sel = tmp_ph.select(tmp_ph.atom_selection_cache().iselection(f"protein"))
+
+        #if not outpath: continue
+
+        #converted_template_fns.append(os.path.join(outpath, f"{outid}.cif"))
+        #with open(converted_template_fns[-1], 'w') as ofile:
+        #    print(chain2CIF(ph_sel.only_chain(), outid), file=ofile)
+        #idx+=1
+
+
+    return converted_template_fns
+
+
+
+
+
+
+# -----------------------------------------------------------------------------
 
 def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False, noseq=False):
     home_path=os.getcwd()
