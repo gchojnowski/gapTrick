@@ -204,6 +204,9 @@ def parse_args():
     required_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
                   help="relax top model")
 
+    #TODO
+    required_opts.add_option("--trim", action="store_true", dest="trim", default=False, \
+                  help="trim model to template (refinement mode)")
 
     (options, _args)  = parser.parse_args()
     return (parser, options)
