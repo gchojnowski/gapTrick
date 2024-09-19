@@ -649,9 +649,10 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
             if ich==0:
                 last_resid=1
             else:
-                last_resid = chain.get_unpacked_list()[-1]._id[1]+resi_shift
+                last_resid = tmp_io.get_unpacked_list()[-1]._id[1]+resi_shift
 
             for residx,res in enumerate(chain):
+                print(res, ich, last_resid+residx)
                 _id = res._id
                 res._id = (_id[0], last_resid+residx, _id[1])
 
