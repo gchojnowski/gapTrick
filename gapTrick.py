@@ -1001,7 +1001,11 @@ def runme(msa_filenames,
             model_name=f"model_{model_idx}"
             if model_name not in list(model_params.keys()):
                 model_name_local = f"{model_name}_run{run_idx}"
-                model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
+                try:
+                    model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
+                except:
+                    model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name, data_dir=data_dir)
+
                 if model_idx == 1:
                     model_config = config.model_config(model_name+"_ptm")
                     model_config.data.common.num_recycle = num_recycle
