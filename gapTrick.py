@@ -609,11 +609,11 @@ def chain2CIF_bio(chain, outid, outfn):
 
         # and atom details
         atom_idx=1
-        for res in chain:
+        for res_idx,res in enumerate(chain):
             for atom in res:
-                print(f"   ATOM   {atom_idx}  {atom.name} .  {res.resname}  {chain.id}  {res._id[1]}"+\
-                      f" ? {atom.coord[0]:.4f} {atom.coord[1]:.4f} {atom.coord[2]:.4f} {atom.occupancy}"+\
-                      f" {atom.bfactor} {atom.element}  ?  {chain.id}  ?    1  1", file=of)
+                print(f"   ATOM   {atom_idx:5} {atom.name:5} . {res.resname:4} {chain.id:3} {res._id[1]:5}"+\
+                        f" ? {atom.coord[0]:10.5f} {atom.coord[1]:10.5f} {atom.coord[2]:10.5f} {atom.occupancy:6.3f}"+\
+                      f" {atom.bfactor:9.5f}  {atom.element:3} ? {chain.id:2} ? {res_idx+1:5} 1", file=of)
                 atom_idx+=1
 
 # -----------------------------------------------------------------------------
