@@ -764,6 +764,18 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         cmd=hhdb_build_template%locals()
         os.system(cmd)
 
+        ppipe = subprocess.Popen( cmd,
+                                  shell=True,
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  universal_newlines=True)
+
+        for stdout_line in iter(ppipe.stdout.readline, ""):
+            print(stdout_line)
+
+        retcode = subprocess.Popen.wait(ppipe)
+
+
         hhsearch_runner = hhsearch.HHSearch(binary_path="hhsearch", databases=[hhDB_dir.as_posix()+"/"+db_prefix])
         with io.StringIO() as fh:
             SeqIO.write([query_seq], fh, "fasta")
