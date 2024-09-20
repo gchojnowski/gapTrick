@@ -772,7 +772,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                                   universal_newlines=True)
 
         for stdout_line in iter(ppipe.stdout.readline, ""):
-            print(stdout_line)
+            print(stdout_line.strip())
 
         retcode = subprocess.Popen.wait(ppipe)
 
