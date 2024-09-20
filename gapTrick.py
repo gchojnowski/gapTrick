@@ -1003,9 +1003,9 @@ def runme(msa_filenames,
                 model_name_local = f"{model_name}_run{run_idx}"
 
                 if Path(data_dir, 'params', 'params_model_1_ptm.npz').exists():
-                    suffix=''
-                else
                     suffix='_ptm'
+                else
+                    suffix=''
 
                 model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+suffix, data_dir=data_dir)
 
