@@ -1003,6 +1003,7 @@ def runme(msa_filenames,
                 model_name_local = f"{model_name}_run{run_idx}"
 
                 if Path(data_dir, 'params', 'params_model_1_ptm.npz').exists():
+                    print('Working with _ptm')
                     suffix='_ptm'
                 else
                     suffix=''
