@@ -1001,12 +1001,13 @@ def runme(msa_filenames,
             model_name=f"model_{model_idx}"
             if model_name not in list(model_params.keys()):
                 model_name_local = f"{model_name}_run{run_idx}"
-                try:
-                    model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
-                    suffix="_ptm"
-                except:
-                    model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name, data_dir=data_dir)
-                    suffix=""
+
+                if Path(data_dir, 'params', 'params_model_1_ptm.npz').exists():
+                    suffix=''
+                else
+                    suffix='_ptm'
+
+                model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+suffix, data_dir=data_dir)
 
                 if model_idx == 1:
                     model_config = config.model_config(model_name+suffix)
