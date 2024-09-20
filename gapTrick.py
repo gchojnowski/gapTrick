@@ -1003,17 +1003,19 @@ def runme(msa_filenames,
                 model_name_local = f"{model_name}_run{run_idx}"
                 try:
                     model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+"_ptm", data_dir=data_dir)
+                    suffix="_ptm"
                 except:
                     model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name, data_dir=data_dir)
+                    suffix=""
 
                 if model_idx == 1:
-                    model_config = config.model_config(model_name+"_ptm")
+                    model_config = config.model_config(model_name+suffix)
                     model_config.data.common.num_recycle = num_recycle
                     model_config.model.num_recycle = num_recycle
                     model_config.data.eval.num_ensemble = 1
                     model_runner_1 = model.RunModel(model_config, model_params[model_name_local])
                 if model_idx == 3:
-                    model_config = config.model_config(model_name+"_ptm")
+                    model_config = config.model_config(model_name+suffix)
                     model_config.data.common.num_recycle = num_recycle
                     model_config.model.num_recycle = num_recycle
                     model_config.data.eval.num_ensemble = 1
