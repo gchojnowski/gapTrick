@@ -140,9 +140,7 @@ MMCIF_ATOM_BLOCK_HEADER=\
 hhdb_build_template="""
 cd %(msa_dir)s
 ffindex_build -s ../DB_msa.ffdata ../DB_msa.ffindex .
-ls -la
 cd %(hhDB_dir)s
-ls -la
 ffindex_apply DB_msa.ffdata DB_msa.ffindex  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0
 rm DB_msa.ffdata DB_msa.ffindex
 ffindex_apply DB_a3m.ffdata DB_a3m.ffindex -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0
@@ -765,8 +763,6 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             SeqIO.write([seq], fh, "fasta")
 
         cmd=hhdb_build_template%locals()
-        print(cmd)
-        #os.system(cmd)
 
         ppipe = subprocess.Popen( cmd,
                                   shell=True,
