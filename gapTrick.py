@@ -139,21 +139,21 @@ MMCIF_ATOM_BLOCK_HEADER=\
 
 hhdb_build_template="""
 cd %(msa_dir)s
-ffindex_build -s ../DB_msa.ff{data,index} .
+ffindex_build -s ../DB_msa.ffdata ../DB_msa.ffindex .
 ls -la
 cd %(hhDB_dir)s
 ls -la
-ffindex_apply DB_msa.ff{data,index}  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0
-rm DB_msa.ff{data,index}
-ffindex_apply DB_a3m.ff{data,index} -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0
+ffindex_apply DB_msa.ffdata DB_msa.ffindex  -i DB_a3m.ffindex -d DB_a3m.ffdata  -- hhconsensus -M 50 -maxres 65535 -i stdin -oa3m stdout -v 0
+rm DB_msa.ffdata DB_msa.ffindex
+ffindex_apply DB_a3m.ffdata DB_a3m.ffindex -i DB_hhm.ffindex -d DB_hhm.ffdata -- hhmake -i stdin -o stdout -v 0
 cstranslate -f -x 0.3 -c 4 -I a3m -i DB_a3m -o DB_cs219 
 sort -k3 -n -r DB_cs219.ffindex | cut -f1 > sorting.dat
 
-ffindex_order sorting.dat DB_hhm.ff{data,index} DB_hhm_ordered.ff{data,index}
+ffindex_order sorting.dat DB_hhm.ffdata DB_hhm.ffindex DB_hhm_ordered.ffdata DB_hhm_ordered.ffindex
 mv DB_hhm_ordered.ffindex DB_hhm.ffindex
 mv DB_hhm_ordered.ffdata DB_hhm.ffdata
 
-ffindex_order sorting.dat DB_a3m.ff{data,index} DB_a3m_ordered.ff{data,index}
+ffindex_order sorting.dat DB_a3m.ffdata DB_a3m.ffindex DB_a3m_ordered.ffdata DB_a3m_ordered.ffindex
 mv DB_a3m_ordered.ffindex DB_a3m.ffindex
 mv DB_a3m_ordered.ffdata DB_a3m.ffdata
 cd %(home_path)s
