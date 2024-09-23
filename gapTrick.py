@@ -1041,6 +1041,8 @@ def runme(msa_filenames,
         **template_features
     }
 
+    del msas
+
     feature_dict["asym_id"] = \
             np.array( [int(n+1) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
     feature_dict['assembly_num_chains']=len(query_seq_extended)
