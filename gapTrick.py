@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import string
 import pickle
 import time
+import json
 
 import requests
 import tarfile
@@ -452,6 +453,9 @@ def predict_structure(prefix,
                  'ptm'                     : prediction_result['ptm'], \
                  'plddt'                   : prediction_result['plddt'][:seq_len], \
                  'distogram'               : prediction_result['distogram']}
+
+        with Path(inputpath, f'unrelaxed_{model_name}_pae.json').open('w') as of:
+            of.write(json.dumps([{'predicted_aligned_error':prediction_result['predicted_aligned_error']}]))
 
         with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
