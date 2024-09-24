@@ -495,9 +495,10 @@ def predict_structure(prefix,
             tpl_fn,residx_mappings = list(model2template_mappings.items())[0]
             template_structure = parse_pdb_bio(Path(inputpath, f"{tpl_fn}.cif"), outid=tpl_fn)
 
-            outstr = io.StringIO(_pdb_lines)
-            parser = PDBParser(QUIET=True)
-            model_structure = parser.get_structure("AF2", outstr)[0]
+            with io.StringIO(_pdb_lines) as outstr:
+                parser = PDBParser(QUIET=True)
+                model_structure = parser.get_structure(id='xyz', file=outstr)[0]
+
             template_CAs = get_CAs(template_structure, list(residx_mappings.values()))
             model_CAs = get_CAs(model_structure, list(residx_mappings.keys()))
 
@@ -560,11 +561,11 @@ def parse_pdb_bio(ifn, outid="xyz", remove_alt_confs=False):
             return not atom.is_disordered() or atom.get_altloc() == "A"
 
     try:
-        parser = PDBParser()
+        parser = PDBParser(QUIET=True)
         structure = parser.get_structure(outid, ifn)[0]
 
     except:
-        parser = MMCIFParser()
+        parser = MMCIFParser(QUIET=True)
         structure = parser.get_structure(outid, ifn)[0]
 
     if remove_alt_confs:
@@ -574,7 +575,7 @@ def parse_pdb_bio(ifn, outid="xyz", remove_alt_confs=False):
             pdbio.save(outstr, select=NotAlt())
             outstr.seek(0)
 
-            parser = PDBParser()
+            parser = PDBParser(QUIET=True)
             structure = parser.get_structure(outid, outstr)[0]
             for chain in structure:
                 for resi in chain:
