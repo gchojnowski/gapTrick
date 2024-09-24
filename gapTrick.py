@@ -817,10 +817,15 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
     for template_feature_name in TEMPLATE_FEATURES:
       template_features[template_feature_name] = []
 
+    model2template_mappings={}
+
     for mmcif,hit in template_hit_list:
 
         hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
         mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
+
+        model2template_mappings[mmcif.id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit)])
+
         print(">"+hit.name)
         print("template ", hit.hit_sequence) #template
         print("target   ", hit.query) #query
@@ -893,7 +898,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
     for key,value in template_features.items():
         if np.all(value==0) and not noseq: print("ERROR: Some template features are empty")
 
-    return template_features
+    return template_features,model2template_mappings
 
 def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max_seq=None):
     pos=0
@@ -998,12 +1003,12 @@ def runme(msa_filenames,
                                               outpath           =   inputpath)
 
     with tempfile.TemporaryDirectory() as tmp_path:
-        template_features = generate_template_features(query_sequence   =   query_seq_combined,
-                                                       db_path          =   tmp_path,
-                                                       template_fn_list =   template_fn_list,
-                                                       nomerge          =   nomerge,
-                                                       dryrun           =   dryrun,
-                                                       noseq            =   noseq)
+        template_features,model2template_mappings = generate_template_features(query_sequence   =   query_seq_combined,
+                                                                               db_path          =   tmp_path,
+                                                                               template_fn_list =   template_fn_list,
+                                                                               nomerge          =   nomerge,
+                                                                               dryrun           =   dryrun,
+                                                                               noseq            =   noseq)
 
     model_params = {}
     model_runner_1 = None
