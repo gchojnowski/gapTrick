@@ -618,11 +618,23 @@ def match_template_chains_to_target_bio(structure, target_sequences):
 
 
 # -----------------------------------------------------------------------------
-#TODO
-def get_prot_chains_bio(structure):
+
+def get_prot_chains_bio(structure, min_prot_content=0.999):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
     '''
+    for chain in list(structure):
+        chain_len_before = len(chain)
+        for res in list(chain):
+            # a residue must be an amino-acid and contain CA atom
+            if not (res.get_resname() in ogt.keys() and 'CA' in [_.name.strip() for _ in res]):
+                chain.detach_child(res.id)
+        if (chain_len_before-len(chain))/chain_len_before>(1.0-min_prot_content):
+            print(f'WARNING: removed non-protein template chain {chain.id}')
+            chain.parent.detach_child(chain.id)
+
+    assert len(structure), f"Template structure must contain a chain with at least {100*min_prot_content:.2f}% amino acid residues"
+
     return structure
 
 # -----------------------------------------------------------------------------
