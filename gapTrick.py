@@ -345,7 +345,23 @@ def CB_xyz(n, ca, c):
     return c + sum([bondl*_m*_d for _m,_d in zip(m,d)])
 
 
+# -----------------------------------------------------------------------------
 
+def get_CAs(structure, sel_residx=None):
+    '''
+        these multi-chain objects should preserve residue order
+            from merged 1-chain prediction (and a template)
+    '''
+    CA_atoms = []
+    residx=0
+    for _chain in structure :
+        for _res in _chain:
+            if sel_residx and residx in sel_residx:
+                CA_atoms.append(_res['CA'])
+            residx+=1
+    return CA_atoms
+
+# -----------------------------------------------------------------------------
 
 def predict_structure(prefix,
                       query_sequence,
@@ -355,6 +371,7 @@ def predict_structure(prefix,
                       model_runner_1,
                       model_runner_3,
                       do_relax=False,
+                      model2template_mappings=None,
                       random_seed=None,
                       gap_size=200):
 
@@ -472,7 +489,27 @@ def predict_structure(prefix,
 
         pdb_fn = f"ranked_{n}.pdb"
         print(f"{pdb_fn} <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
-        with Path(inputpath, pdb_fn).open('w') as of: of.write(_pdb_lines)
+
+        #superpose final models onto a template (first, if there is more of them...)
+        if model2template_mappings:
+            tpl_fn,residx_mappings = list(model2template_mappings.items())[0]
+            template_structure = parse_pdb_bio(Path(inputpath, f"{tpl_fn}.cif"), outid=tpl_fn)
+
+            outstr = io.StringIO(_pdb_lines)
+            parser = PDBParser(QUIET=True)
+            model_structure = parser.get_structure("AF2", outstr)[0]
+            template_CAs = get_CAs(template_structure, list(residx_mappings.values()))
+            model_CAs = get_CAs(model_structure, list(residx_mappings.keys()))
+
+            sup = Superimposer()
+            sup.set_atoms(template_CAs, model_CAs)
+            sup.apply(model_structure)
+
+            pdbio = PDBIO()
+            pdbio.set_structure(model_structure)
+            pdbio.save(os.path.join(inputpath, pdb_fn))
+        else:
+            with Path(inputpath, pdb_fn).open('w') as of: of.write(_pdb_lines)
 
 
 def match_template_chains_to_target(ph, target_sequences):
@@ -581,6 +618,9 @@ def match_template_chains_to_target_bio(structure, target_sequences):
 # -----------------------------------------------------------------------------
 #TODO
 def get_prot_chains_bio(structure):
+    '''
+        removes non-protein chains and residues wouth CA atoms (required for superposition)
+    '''
     return structure
 
 # -----------------------------------------------------------------------------
@@ -824,7 +864,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
         mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
 
-        model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit)])
+        model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit) if q>0 and t>0])
 
         print(">"+hit.name)
         print("template ", hit.hit_sequence) #template
@@ -1054,12 +1094,13 @@ def runme(msa_filenames,
     with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     predict_structure(jobname, query_seq_combined, feature_dict,
-                      Ls             =   tuple(map(len, query_seq_extended)),
-                      model_params   =   model_params,
-                      model_runner_1 =   model_runner_1,
-                      model_runner_3 =   model_runner_3,
-                      do_relax       =   do_relax,
-                      random_seed    =   random_seed)
+                      Ls                        =   tuple(map(len, query_seq_extended)),
+                      model_params              =   model_params,
+                      model_runner_1            =   model_runner_1,
+                      model_runner_3            =   model_runner_3,
+                      do_relax                  =   do_relax,
+                      model2template_mappings   =   model2template_mappings,
+                      random_seed               =   random_seed)
 
 
 
