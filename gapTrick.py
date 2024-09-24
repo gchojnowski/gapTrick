@@ -824,7 +824,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
         mapping = _build_query_to_hit_index_mapping(hit.query, hit.hit_sequence, hit.indices_hit, hit.indices_query,query_sequence)
 
-        model2template_mappings[mmcif.id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit)])
+        model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit)])
 
         print(">"+hit.name)
         print("template ", hit.hit_sequence) #template
