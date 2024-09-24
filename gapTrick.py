@@ -573,6 +573,8 @@ def parse_pdb_bio(ifn, outid="xyz", remove_alt_confs=False):
             pdbio.set_structure(structure)
             pdbio.save(outstr, select=NotAlt())
             outstr.seek(0)
+
+            parser = PDBParser()
             structure = parser.get_structure(outid, outstr)[0]
             for chain in structure:
                 for resi in chain:
