@@ -572,7 +572,7 @@ def make_figures(prefix):
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.png"), dpi=150, bbox_inches = 'tight')
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.svg"), bbox_inches = 'tight')
 
-    msa_dir = Path(prefix, 'mmseqs2')
+    msa_dir = Path(prefix, 'msa')
     if msa_dir.exists():
         ff = af2o.msa2fig(a3m_filenames=glob.glob( os.path.join(msa_dir, '*.a3m') ))
         ff.show()
@@ -1214,7 +1214,7 @@ def main():
 
 
     elif options.seqin:
-        mmseqspath=Path(options.jobname, "mmseqs2")
+        mmseqspath=Path(options.jobname, "msa")
         mmseqspath.mkdir(parents=True, exist_ok=False)
 
 
@@ -1241,7 +1241,7 @@ def main():
                     if options.msa_dir:
                         a3m_fname=os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
                     else:
-                        a3m_fname = os.path.join(options.jobname, "mmseqs2", f"{len(local_msa_dict):04d}.a3m")
+                        a3m_fname = os.path.join(options.jobname, "msa", f"{len(local_msa_dict):04d}.a3m")
 
                     query_mmseqs2(record.seq, a3m_fname)
                     local_msa_dict[record.seq]=a3m_fname
