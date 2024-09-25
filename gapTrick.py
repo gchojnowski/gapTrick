@@ -379,7 +379,9 @@ def predict_structure(prefix,
     if random_seed is None:
         random_seed = np.random.randint(sys.maxsize//5)
 
+    print()
     print(f"Random seed: {random_seed}")
+    print()
 
     inputpath=Path(prefix, "input")
     seq_len = len(query_sequence)
@@ -455,7 +457,7 @@ def predict_structure(prefix,
                  'distogram'               : prediction_result['distogram']}
 
         with Path(inputpath, f'unrelaxed_{model_name}_pae.json').open('w') as of:
-            of.write(json.dumps([{'predicted_aligned_error':prediction_result['predicted_aligned_error']}]))
+            of.write(json.dumps([{'predicted_aligned_error':prediction_result['predicted_aligned_error'].astype(int).tolist()}]))
 
         with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -492,7 +494,9 @@ def predict_structure(prefix,
 
 
         pdb_fn = f"ranked_{n}.pdb"
-        print(f"{pdb_fn} <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
+        Path(inputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(inputpath, f'ranked_{n}_pae.json') )
+
+        print(f"{pdb_fn} ({model_names[_idx]}) <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
 
         #superpose final models onto a template (first, if there is more of them...)
         if model2template_mappings:
