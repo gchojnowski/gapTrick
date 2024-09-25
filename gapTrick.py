@@ -17,6 +17,10 @@ import requests
 import tarfile
 from datetime import datetime
 
+sys.path.append(os.path.join(os.path.dirname(__file__), 'af2plots'))
+sys.path.append(os.path.dirname(__file__))
+from af2plots.plotter import plotter
+
 MMSEQS_API_SERVER = "https://api.colabfold.com"
 MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
 
@@ -540,6 +544,43 @@ def predict_structure(prefix,
             with Path(inputpath, pdb_fn).open('w') as of:
                 of.write(f"{pdb_header}\n")
                 of.write(_pdb_lines)
+
+
+def make_figures(prefix):
+
+    datadir=Path(prefix, "input")
+    figures_dir = Path(prefix, "figures")
+    figures_dir.mkdir(parents=True, exist_ok=False)
+
+    af2o = plotter()
+    datadict = af2o.parse_model_pickles(datadir, verbose=False)
+
+    # PAE
+    ff=af2o.plot_predicted_alignment_error(datadict)
+    #ff.tight_layout()
+    ff.savefig(fname=os.path.join(figures_dir, f"pae.png"), dpi=150, bbox_inches = 'tight')
+    ff.savefig(fname=os.path.join(figures_dir, f"pae.svg"), bbox_inches = 'tight')
+
+    # pLDDT
+    ff=af2o.plot_plddts(datadict)
+    #ff.tight_layout()
+    ff.savefig(fname=os.path.join(figures_dir, f"plddt.png"), dpi=150, bbox_inches = 'tight')
+    ff.savefig(fname=os.path.join(figures_dir, f"plddt.svg"), bbox_inches = 'tight')
+
+    # distogram
+    pbty_cutoff=0.8
+    distance_cutoff=8.0
+    ff,dat=af2o.plot_distogram(datadict, distance=distance_cutoff, print_contacts=False, pbtycutoff=pbty_cutoff)
+    #ff.tight_layout()
+    ff.savefig(fname=os.path.join(figures_dir, f"distogram.png"), dpi=150, bbox_inches = 'tight')
+    ff.savefig(fname=os.path.join(figures_dir, f"distogram.svg"), bbox_inches = 'tight')
+
+    msa_dir = Path(prefix, 'mmseqs2')
+    if msa_dir.exists():
+        ff = af2o.msa2fig(a3m_filenames=glob.glob( os.path.join(msa_dir, '*.a3m') ))
+        ff.show()
+        ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
+        ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
 
 
 def match_template_chains_to_target(ph, target_sequences):
@@ -1151,7 +1192,7 @@ def runme(msa_filenames,
                       random_seed               =   random_seed,
                       template_fn_list          =   input_template_fn_list)
 
-
+    make_figures(jobname)
 
 def main():
 
