@@ -225,6 +225,9 @@ def parse_args():
     required_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
                   help="relax top model")
 
+    required_opts.add_option("--debug", action="store_true", dest="debug", default=False, \
+                  help="write more on output")
+
     #TODO
     required_opts.add_option("--trim_model_to_template", action="store_true", dest="trim_model_to_template", default=False, \
                   help="trim model to template (refinement mode)")
@@ -776,7 +779,7 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
 
 # -----------------------------------------------------------------------------
 
-def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False, noseq=False):
+def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False, noseq=False, debug=False):
     home_path=os.getcwd()
 
     query_seq = SeqRecord(Seq(query_sequence),id="query",name="",description="")
@@ -834,7 +837,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                                   universal_newlines=True)
 
         for stdout_line in iter(ppipe.stdout.readline, ""):
-            print(stdout_line.strip())
+            if debug: print(stdout_line.strip())
 
         retcode = subprocess.Popen.wait(ppipe)
 
@@ -1012,7 +1015,8 @@ def runme(msa_filenames,
           max_seq           =   None,
           random_seed       =   None,
           nomerge           =   False,
-          noseq             =   False):
+          noseq             =   False,
+          debug             =   False):
 
     msas=[]
     for a3m_fn in msa_filenames:
@@ -1071,7 +1075,8 @@ def runme(msa_filenames,
                                                                                template_fn_list =   template_fn_list,
                                                                                nomerge          =   nomerge,
                                                                                dryrun           =   dryrun,
-                                                                               noseq            =   noseq)
+                                                                               noseq            =   noseq,
+                                                                               debug            =   debug)
 
     model_params = {}
     model_runner_1 = None
@@ -1218,7 +1223,8 @@ def main():
           max_seq           =   options.max_seq,
           random_seed       =   options.seed,
           nomerge           =   options.nomerge,
-          noseq             =   options.noseq)
+          noseq             =   options.noseq,
+          debug             =   options.debug)
 
 
 
