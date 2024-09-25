@@ -893,8 +893,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit) if q>0 and t>0])
 
         print(">"+hit.name)
-        print("template ", hit.hit_sequence) #template
         print("target   ", hit.query) #query
+        print("template ", hit.hit_sequence) #template
 
         template_idxs = hit.indices_hit
         template_sequence = hit.hit_sequence.replace('-', '')
