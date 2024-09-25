@@ -378,7 +378,8 @@ def predict_structure(prefix,
                       do_relax=False,
                       model2template_mappings=None,
                       random_seed=None,
-                      gap_size=200):
+                      gap_size=200,
+                      template_fn_list=[]):
 
     if random_seed is None:
         random_seed = np.random.randint(sys.maxsize//5)
@@ -502,6 +503,17 @@ def predict_structure(prefix,
 
         print(f"{pdb_fn} ({model_names[_idx]}) <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
 
+        pdb_header     = [ f"REMARK 0" ]
+        pdb_header.append( f"REMARK 0 MODEL PREDICTED WITH ALPHAFOLD2/gapTRICK ON {datetime.now().strftime('%H:%M %d/%m/%Y')}")
+
+        pdb_header.append( f"REMARK 0" )
+        pdb_header.append( f"REMARK 0 TEMPLATES {','.join(template_fn_list)}" )
+        pdb_header.append( f"REMARK 0 MEAN pLDDT {np.mean(plddts[_idx]):6.4f}" )
+        pdb_header.append( f"REMARK 0 pTM {ptmscore[_idx]:6.4f}" )
+        if do_relax and n<1: pdb_header.append("REMARK 0 ENERGY MINIMIZED WITH AMBER")
+        pdb_header.append( f"REMARK 0" )
+
+        pdb_header = "\n".join(pdb_header)
         #superpose final models onto a template (first, if there is more of them...)
         if model2template_mappings:
             tpl_fn,residx_mappings = list(model2template_mappings.items())[0]
@@ -520,9 +532,14 @@ def predict_structure(prefix,
 
             pdbio = PDBIO()
             pdbio.set_structure(model_structure)
-            pdbio.save(os.path.join(inputpath, pdb_fn))
+            with Path(inputpath, pdb_fn).open('w') as of:
+                of.write(f"{pdb_header}\n")
+                pdbio.save(of)
+
         else:
-            with Path(inputpath, pdb_fn).open('w') as of: of.write(_pdb_lines)
+            with Path(inputpath, pdb_fn).open('w') as of:
+                of.write(f"{pdb_header}\n")
+                of.write(_pdb_lines)
 
 
 def match_template_chains_to_target(ph, target_sequences):
@@ -1057,6 +1074,8 @@ def runme(msa_filenames,
         for _i, _m in enumerate(msas):
             of.write("\n".join([">%s\n%s"%(_d,_s) for (_d,_s) in zip(_m.descriptions,_m.sequences)]))
 
+    input_template_fn_list = list(template_fn_list)
+
     print(f" --> Combined target sequence:\n {query_seq_combined}")
     print()
     if nomerge:
@@ -1129,7 +1148,8 @@ def runme(msa_filenames,
                       model_runner_3            =   model_runner_3,
                       do_relax                  =   do_relax,
                       model2template_mappings   =   model2template_mappings,
-                      random_seed               =   random_seed)
+                      random_seed               =   random_seed,
+                      template_fn_list          =   input_template_fn_list)
 
 
 
