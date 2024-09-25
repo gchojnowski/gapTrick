@@ -15,6 +15,7 @@ import json
 
 import requests
 import tarfile
+from datetime import datetime
 
 MMSEQS_API_SERVER = "https://api.colabfold.com"
 MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
@@ -857,7 +858,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 print()
                 print()
                 print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)} [sum_probs={_h.sum_probs}]")
-                print(f"TRG {query_sequence}")
+                print(f"TRG {'-'*_h.indices_query[0]}{_h.query}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
                 print(f"TPL {'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
 
             print()
@@ -1227,7 +1228,9 @@ def main():
           debug             =   options.debug)
 
 
-
+    print()
+    print(f"Normal termination at {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
+    print()
 
 if __name__=="__main__":
     main()
