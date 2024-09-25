@@ -557,13 +557,11 @@ def make_figures(prefix):
 
     # PAE
     ff=af2o.plot_predicted_alignment_error(datadict)
-    #ff.tight_layout()
     ff.savefig(fname=os.path.join(figures_dir, f"pae.png"), dpi=150, bbox_inches = 'tight')
     ff.savefig(fname=os.path.join(figures_dir, f"pae.svg"), bbox_inches = 'tight')
 
     # pLDDT
     ff=af2o.plot_plddts(datadict)
-    #ff.tight_layout()
     ff.savefig(fname=os.path.join(figures_dir, f"plddt.png"), dpi=150, bbox_inches = 'tight')
     ff.savefig(fname=os.path.join(figures_dir, f"plddt.svg"), bbox_inches = 'tight')
 
@@ -571,7 +569,6 @@ def make_figures(prefix):
     pbty_cutoff=0.8
     distance_cutoff=8.0
     ff,dat=af2o.plot_distogram(datadict, distance=distance_cutoff, print_contacts=False, pbtycutoff=pbty_cutoff)
-    #ff.tight_layout()
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.png"), dpi=150, bbox_inches = 'tight')
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.svg"), bbox_inches = 'tight')
 
