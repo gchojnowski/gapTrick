@@ -975,25 +975,22 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         features['template_sum_probs'] = [hit.sum_probs]
 
         if noseq: # remove sequence-related features
-            print("WARNING: masked sequence information in a template")
+            print()
+            print("WARNING: sequence information in a template has been masked")
+            print()
 
             features['template_sum_probs'] = [0]
 
             # generate a gap-only sequence
             _seq='-'*len(query_seq)
 
-
-            # crate protein object from BioMMCIF
-            with tempfile.TemporaryDirectory() as tmp_path:
-                _io=MMCIFIO()
+            # crate protein object from biopython strurture
+            with io.StringIO() as outstr:
+                _io=PDBIO()
                 _io.set_structure(mmcif_obj.mmcif_object.structure)
-                _io.save(os.path.join(tmp_path, "bioout.cif"))
-                with open(os.path.join(tmp_path, "bioout.cif"), 'r') as ifile:
-                    template_prot = protein.from_mmcif_string(ifile.read())
-
-            # the following looks better, bur doesnt work...
-            #_prot = protein._from_bio_structure(mmcif_obj.mmcif_object.structure)
-
+                _io.save(outstr)
+                outstr.seek(0)
+                template_prot = protein.from_pdb_string(outstr.read())
 
             # mask side-chains
             masked_coords = np.zeros([1,len(query_seq), 37, 3])
