@@ -1202,6 +1202,9 @@ def runme(msa_filenames,
 
 def main():
 
+    start_time = datetime.now()
+
+
     (parser, options) = parse_args()
 
     print( " ==> Command line: gapTrick.py %s" % (" ".join(sys.argv[1:])) )
@@ -1294,7 +1297,11 @@ def main():
           noseq             =   options.noseq,
           debug             =   options.debug)
 
-
+    print()
+    td = (datetime.now() - start_time) 
+    print("Elapsed time %02i:%02i:%02i" % (td.total_seconds()//3600,
+                                          (td.total_seconds()%3600)//60,
+                                           td.total_seconds()%60))
     print()
     print(f"Normal termination at {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
     print()
