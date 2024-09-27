@@ -960,7 +960,10 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         print("target   ", hit.query) #query
         print("template ", hit.hit_sequence) #template
 
+        # handles nomerge+noseq and other weird cases
         template_idxs = hit.indices_hit
+        query_idxs = hit.indices_query
+
         template_sequence = hit.hit_sequence.replace('-', '')
 
         features, realign_warning = _extract_template_features(
@@ -987,23 +990,27 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             # crate protein object from biopython strurture
             with io.StringIO() as outstr:
                 _io=PDBIO()
-                _io.set_structure(mmcif_obj.mmcif_object.structure)
+                _io.set_structure(mmcif.structure)
                 _io.save(outstr)
                 outstr.seek(0)
                 template_prot = protein.from_pdb_string(outstr.read())
 
             # mask side-chains
             masked_coords = np.zeros([1,len(query_seq), 37, 3])
-            masked_coords[0, template_idxs, :5] = template_prot.atom_positions[template_idxs,:5]
+            masked_coords[0, query_idxs, :5] = template_prot.atom_positions[template_idxs,:5]
 
-            # add CBs (where needed)
-            backbone_modelled = jnp.all(template_prot.atom_mask[:,[0,1,2]] == 1, axis=1)
-            missing_cb = [i for i,(b,m) in enumerate(zip(backbone_modelled, template_prot.atom_mask)) if m[3] == 0 and b]
-            cbs = np.array([CB_xyz(n,ca,c) for c, n ,ca in zip(masked_coords[0,:,2], masked_coords[0,:,0], masked_coords[0,:,1])])
-            masked_coords[0, missing_cb, 3] = cbs[missing_cb]
+            # add missing CBs
+            bb_idxs = [q for t,q in zip(template_idxs,query_idxs) if jnp.all(template_prot.atom_mask[t,[0,1,2]] == 1)]
+            backbone_modelled = np.full(len(query_seq), False)
+            backbone_modelled[bb_idxs] = True
+
+            missing_cb = [i for (i,b,m) in zip(bb_idxs, backbone_modelled, template_prot.atom_mask) if m[3] == 0 and b]
+            missing_cb = [q for (t,q) in zip(template_idxs,query_idxs) if template_prot.atom_mask[t][3] == 0 and backbone_modelled[q] ]
+            cbs = np.array([CB_xyz(masked_coords[0,_,0], masked_coords[0,_,1], masked_coords[0,_,2]) for _ in missing_cb])
+            masked_coords[0, missing_cb, 3] = cbs
 
             atom_mask = np.zeros([1, len(query_seq), 37])
-            atom_mask[0, template_idxs, :5] = template_prot.atom_mask[template_idxs,:5]
+            atom_mask[0, query_idxs, :5] = template_prot.atom_mask[template_idxs,:5]
 
             features["template_aatype"]             =   \
                     residue_constants.sequence_to_onehot(_seq, residue_constants.HHBLITS_AA_TO_ID)[None],
