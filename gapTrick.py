@@ -843,6 +843,21 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
 
 # -----------------------------------------------------------------------------
 
+def pretty_sequence_print(name_a, seq_a, name_b=None, seq_b=None, block_width=80):
+
+    if seq_b: assert len(seq_a) == len(seq_b)
+
+    length = len(seq_a)
+    n_blocks = length//block_width
+
+    for ii in range(n_blocks+1):
+        print(f"{name_a} {seq_a[ii*block_width:(ii+1)*block_width]}")
+        if seq_b:
+            print(f"{name_b} {seq_b[ii*block_width:(ii+1)*block_width]}")
+            print()
+
+# -----------------------------------------------------------------------------
+
 def generate_template_features(query_sequence, db_path, template_fn_list, nomerge=False, dryrun=False, noseq=False, debug=False):
     home_path=os.getcwd()
 
@@ -879,7 +894,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         for chain in mmcif.structure:
             chain_id = chain.id
             template_sequence = "".join([ogt[_r.resname] for _r in chain.get_residues()])
-            print(chain_id, template_sequence)
+            pretty_sequence_print(name_a=f"{chain_id:8s}", seq_a=template_sequence)
 
             seq_name = filepath.stem.upper()+"_"+chain_id
             seq = SeqRecord(Seq(template_sequence),id=seq_name,name="",description="")
@@ -921,9 +936,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 print()
                 print()
                 print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)} [sum_probs={_h.sum_probs}]")
-                print(f"TRG {'-'*_h.indices_query[0]}{_h.query}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
-                print(f"TPL {'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
-
+                pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
+                    name_b="template", seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
             print()
 
             # in no-merge mode accept multiple alignments, in case target is a homomultimer
@@ -957,8 +971,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit) if q>0 and t>0])
 
         print(f">{hit.name}")
-        print(f"target   {'-'*hit.indices_query[0]}{hit.query}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}") #query
-        print(f"template {'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}") #template
+
+        pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
+            name_b="template", seq_b=f"{'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}")
 
         # handles nomerge+noseq and other weird cases
         template_idxs = hit.indices_hit
@@ -1126,7 +1141,8 @@ def runme(msa_filenames,
 
     input_template_fn_list = list(template_fn_list)
 
-    print(f" --> Combined target sequence:\n {query_seq_combined}")
+    print(f" --> Combined target sequence:")#\n {query_seq_combined}")
+    pretty_sequence_print(name_a="        ", seq_a=query_seq_combined)
     print()
     if nomerge:
         template_fn_list = template_preps_nomerge_bio(template_fn_list,
