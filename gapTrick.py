@@ -956,9 +956,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit) if q>0 and t>0])
 
-        print(">"+hit.name)
-        print("target   ", hit.query) #query
-        print("template ", hit.hit_sequence) #template
+        print(f">{hit.name}")
+        print(f"target   {'-'*hit.indices_query[0]}{hit.query}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}") #query
+        print(f"template {'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}") #template
 
         # handles nomerge+noseq and other weird cases
         template_idxs = hit.indices_hit
