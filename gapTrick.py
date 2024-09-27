@@ -846,7 +846,7 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
 
 def pretty_sequence_print(name_a, seq_a, name_b=None, seq_b=None, block_width=80):
 
-    if seq_b: assert len(seq_a) == len(seq_b)
+    #if seq_b: assert len(seq_a) == len(seq_b)
 
     length = len(seq_a)
     n_blocks = length//block_width
@@ -934,11 +934,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             naligned=[]
             for _i,_h in enumerate(hhsearch_hits):
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
-                print()
-                print()
                 print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)} [sum_probs={_h.sum_probs}]")
-                pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
-                    name_b="template", seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
+                if debug: pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
+                            name_b="template", seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
             print()
 
             # in no-merge mode accept multiple alignments, in case target is a homomultimer
