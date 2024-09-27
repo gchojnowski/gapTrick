@@ -305,9 +305,9 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
     else:
         mode = "env-nofilter" if use_env else "nofilter"
 
-    print(f"MMSeqs2 API query:")
+    print(f" --> MMSeqs2 API query:")
     pretty_sequence_print(name_a="        ", seq_a=query_sequence)
-    print(f"MMSeqs2 API output file: {msa_fname}")
+    print(f"     MMSeqs2 API output file: {msa_fname}")
 
     if os.path.isfile(msa_fname):
         print(f"Output file {msa_fname} already exists!")
@@ -319,10 +319,10 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
         if not os.path.isfile(tar_gz_file):
             out = submit(query_sequence, mode)
             while out["status"] in ["UNKNOWN","RUNNING","PENDING"]:
-                print(f'MMSeqs2 API status: {out["status"]}')
+                print(f'     MMSeqs2 API status: {out["status"]}')
                 time.sleep(10)
                 out = status(out["id"])
-            print(f'MMSeqs2 API status: {out["status"]}')
+            print(f'     MMSeqs2 API status: {out["status"]}')
             download(out["id"], tar_gz_file)
 
         # parse a3m files
@@ -338,7 +338,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
                     if len(line) > 0:
                         a3m_out.write(line)
 
-    print(f"Successfully created {msa_fname}")
+    print(f"     Successfully created {msa_fname}")
     print()
 
 
@@ -931,10 +931,12 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
 
         if len(hhsearch_hits) >0:
+            print()
+            print(" --> Aligning template to the target sequence")
             naligned=[]
             for _i,_h in enumerate(hhsearch_hits):
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
-                print(f">{_h.name}_{_i+1} coverage is {naligned[-1]} of {len(query_sequence)} [sum_probs={_h.sum_probs}]")
+                print(f" #{_i+1} aligned {naligned[-1]} out of {len(query_sequence)} residues [sum_probs={_h.sum_probs}]")
                 if debug: pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
                             name_b="template", seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
             print()
@@ -1100,8 +1102,13 @@ def runme(msa_filenames,
           noseq             =   False,
           debug             =   False):
 
+
+
+
+    print(" --> Combining input MSAs...")
     msas=[]
-    for a3m_fn in msa_filenames:
+    for ia3m, a3m_fn in enumerate(msa_filenames):
+        print(f"     #{ia3m} {a3m_fn}")
         with open(a3m_fn, 'r') as fin:
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
@@ -1113,10 +1120,7 @@ def runme(msa_filenames,
 
     query_seq_combined="".join(query_seq_extended)
 
-
     msas = combine_msas(query_sequences, msas, query_cardinality, query_trim, max_seq=max_seq)
-
-
 
     #reproduce af2-like output paths
     # do not clean jobpath - processed template will be stored there before job is started
@@ -1226,7 +1230,9 @@ def main():
 
     (parser, options) = parse_args()
 
+    print()
     print( " ==> Command line: gapTrick.py %s" % (" ".join(sys.argv[1:])) )
+    print()
 
     if options.jobname is None:
         print('Define jobname - output directory')
@@ -1242,7 +1248,6 @@ def main():
     if options.msa:
 
         msas = options.msa.split(',')
-
 
     elif options.seqin:
         mmseqspath=Path(options.jobname, "msa")
@@ -1277,8 +1282,6 @@ def main():
                     query_mmseqs2(record.seq, a3m_fname)
                     local_msa_dict[record.seq]=a3m_fname
 
-                print(f"{record.id}: {a3m_fname}")
-                print()
                 msas.append(a3m_fname)
 
     else:
@@ -1295,9 +1298,6 @@ def main():
     else:
         cardinality = tuple(map(int,options.cardinality.split(',')))
 
-    for _mi,_m in enumerate(msas):
-        print(f"#{_mi}: {_m}")
-    print()
 
     runme(msa_filenames     =   msas,
           query_cardinality =   cardinality,
