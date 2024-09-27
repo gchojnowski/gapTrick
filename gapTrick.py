@@ -17,9 +17,15 @@ import requests
 import tarfile
 from datetime import datetime
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'af2plots'))
-sys.path.append(os.path.dirname(__file__))
-from af2plots.plotter import plotter
+# try to import a plotter lib and disable plotting if not available
+# eg due to missing matplolib (not installed with AlphaFold by default)
+try:
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'af2plots'))
+    sys.path.append(os.path.dirname(__file__))
+    from af2plots.plotter import plotter
+    PLOTTER_AVAILABLE = 1
+except:
+    PLOTTER_AVAILABLE = 0
 
 MMSEQS_API_SERVER = "https://api.colabfold.com"
 MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
@@ -573,11 +579,13 @@ def make_figures(prefix):
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.svg"), bbox_inches = 'tight')
 
     msa_dir = Path(prefix, 'msa')
+
     if msa_dir.exists():
-        ff = af2o.msa2fig(a3m_filenames=glob.glob( os.path.join(msa_dir, '*.a3m') ))
-        ff.show()
-        ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
-        ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
+        a3m_filenames = glob.glob( os.path.join(msa_dir, '*.a3m') )
+        if a3m_filenames:
+            ff = af2o.msa2fig(a3m_filenames=a3m_filenames)
+            ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
+            ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
 
 
 def match_template_chains_to_target(ph, target_sequences):
@@ -1189,7 +1197,8 @@ def runme(msa_filenames,
                       random_seed               =   random_seed,
                       template_fn_list          =   input_template_fn_list)
 
-    make_figures(jobname)
+    if PLOTTER_AVAILABLE:
+        make_figures(jobname)
 
 def main():
 
