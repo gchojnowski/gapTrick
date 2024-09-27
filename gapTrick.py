@@ -417,7 +417,7 @@ def predict_structure(prefix,
     model_names = []
 
     for imodel, (model_name, params) in enumerate(model_params.items()):
-        print(f"running {model_name}")
+        print(f" --> Running {model_name} ({imodel+1} of {len(model_params)})")
 
         if re.search(r'model_[12]', model_name):
             model_runner = model_runner_1
@@ -465,7 +465,7 @@ def predict_structure(prefix,
 
         with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
 
-        print(f"<pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
+        print(f"     <pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
 
         outdict={'predicted_aligned_error' : prediction_result['predicted_aligned_error'], \
                  'ptm'                     : prediction_result['ptm'], \
@@ -618,7 +618,7 @@ def match_template_chains_to_target(ph, target_sequences):
             _tmp_si[cid]=100.0*si/len(_target_seq)
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
-            print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
+            print(f"     #{_idx}: chain {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
                            "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
 
     if not len(greedy_selection) == len(target_sequences):
@@ -663,7 +663,7 @@ def parse_pdb_bio(ifn, outid="xyz", remove_alt_confs=False):
 # -----------------------------------------------------------------------------
 
 def match_template_chains_to_target_bio(structure, target_sequences):
-    print(f" --> Greedy matching of template chains to target sequences")
+    print(f" --> Greedy matching template chains to target sequences")
 
     chain_seq_dict = {}
     protein = get_prot_chains_bio(structure)
@@ -936,7 +936,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             naligned=[]
             for _i,_h in enumerate(hhsearch_hits):
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
-                print(f" #{_i+1} aligned {naligned[-1]} out of {len(query_sequence)} residues [sum_probs={_h.sum_probs}]")
+                print(f"     #{_i+1} aligned {naligned[-1]} out of {len(query_sequence)} residues [sum_probs={_h.sum_probs}]")
                 if debug: pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
                             name_b="template", seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
             print()
@@ -1144,7 +1144,8 @@ def runme(msa_filenames,
 
     input_template_fn_list = list(template_fn_list)
 
-    print(f" --> Combined target sequence:")#\n {query_seq_combined}")
+    print()
+    print(f" --> Combined target sequence:")
     pretty_sequence_print(name_a="        ", seq_a=query_seq_combined)
     print()
     if nomerge:
@@ -1260,8 +1261,8 @@ def main():
                 with open(fn) as ifile:
                     _=ifile.readline()
                     existing_msas[ifile.readline().strip()]=fn
-            print(f"Parsed {len(existing_msas)} MSA files")
-            print("\n")
+            print(f" --> Parsed {len(existing_msas)} MSA files")
+            print()
 
         msas = []
         local_msa_dict = {}
@@ -1272,7 +1273,7 @@ def main():
                 if not a3m_fname: a3m_fname=local_msa_dict.get(record.seq, None)
 
                 if a3m_fname:
-                    print("Found existing MSA")
+                    print(f" --> Found existing MSA for target sequence [{record.id}]")
                 else:
                     if options.msa_dir:
                         a3m_fname=os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
@@ -1283,7 +1284,7 @@ def main():
                     local_msa_dict[record.seq]=a3m_fname
 
                 msas.append(a3m_fname)
-
+        print()
     else:
         print("ERROR: --msa or --seqin required on input")
         exit(1)
