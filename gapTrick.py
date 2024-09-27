@@ -305,7 +305,8 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
     else:
         mode = "env-nofilter" if use_env else "nofilter"
 
-    print(f"MMSeqs2 API query: {query_sequence}")
+    print(f"MMSeqs2 API query:")
+    pretty_sequence_print(name_a="        ", seq_a=query_sequence)
     print(f"MMSeqs2 API output file: {msa_fname}")
 
     if os.path.isfile(msa_fname):
