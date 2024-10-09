@@ -937,8 +937,10 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             for _i,_h in enumerate(hhsearch_hits):
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
                 print(f"     #{_i+1} aligned {naligned[-1]} out of {len(query_sequence)} residues [sum_probs={_h.sum_probs}]")
-                if debug: pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
-                            name_b="template", seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
+                if debug: pretty_sequence_print(name_a="target  ",
+                            seq_a=query_sequence[:_h.indices_query[0]]+_h.query+query_sequence[_h.indices_query[-1]+1:],
+                            name_b="template",
+                            seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
             print()
 
             # in no-merge mode accept multiple alignments, in case target is a homomultimer
@@ -972,8 +974,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit) if q>0 and t>0])
 
         print(f">{hit.name}")
-
-        pretty_sequence_print(name_a="target  ", seq_a=query_sequence,
+        pretty_sequence_print(name_a="target  ", seq_a=query_sequence[:hit.indices_query[0]]+hit.query+query_sequence[hit.indices_query[-1]+1:],
             name_b="template", seq_b=f"{'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}")
 
         # handles nomerge+noseq and other weird cases
