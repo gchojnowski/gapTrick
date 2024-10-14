@@ -764,7 +764,7 @@ def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None):
         for chain in structure:
             _ch = get_resi_chunks(chain)
             _a = resi2keep.setdefault(chain.id, [])
-            _a.extend( select_resi2keep(_ch, truncate=0.3) )
+            _a.extend( select_resi2keep(_ch, truncate=truncate) )
 
         for chain in list(structure):
             chain_len_before = len(chain)
