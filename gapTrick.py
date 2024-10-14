@@ -12,6 +12,8 @@ import string
 import pickle
 import time
 import json
+from itertools import groupby
+from operator import itemgetter
 
 import requests
 import tarfile
@@ -757,6 +759,7 @@ def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None):
     assert len(structure), f"Template structure must contain at least one protein chain (>{100*min_prot_content:.1f}% amino acid residues)"
 
     if truncate:
+        print(f"WARNING: Removed {100*truncate:.0f}% residues from template!")
         resi2keep = {}
         for chain in structure:
             _ch = get_resi_chunks(chain)
