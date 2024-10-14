@@ -243,6 +243,10 @@ def parse_args():
     required_opts.add_option("--trim_model_to_template", action="store_true", dest="trim_model_to_template", default=False, \
                   help="trim model to template (refinement mode)")
 
+    #BENCHMARKS ONLY!
+    required_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
+                  help="remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
+
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
@@ -696,7 +700,47 @@ def match_template_chains_to_target_bio(structure, target_sequences):
 
 # -----------------------------------------------------------------------------
 
-def get_prot_chains_bio(structure, min_prot_content=0.5):
+def get_resi_chunks(chain):
+    """
+        find residue ranges of continous perotein chunks in a chain
+        (ignores 1-resi gaps due to SeMet)
+    """
+
+    resi_chunks = []
+
+    resids=[_r.id[1] for _r in chain]
+    for k, g in groupby(enumerate(set(resids)), lambda idx : idx[0] - idx[1]):
+        chunk =list(map(itemgetter(1), g))
+        if not resi_chunks:
+            resi_chunks.append( [chunk[0], chunk[-1]] )
+        else:
+            # ignore single-resi gaps - removed SeMet
+            if chunk[0]-resi_chunks[-1][-1]==2:
+                resi_chunks[-1] = (resi_chunks[-1][0], chunk[-1])
+            else:
+                resi_chunks.append( [chunk[0], chunk[-1]] )
+
+    return resi_chunks
+
+
+def select_resi2keep(chunks, truncate=0.3):
+    """
+        generates list of residues to keep after removing a fraction truncate from each chain
+    """
+
+    _chunk2keep = []
+
+    for _frag in chunks:
+        chunk2cut = int(truncate*(_frag[-1]-_frag[0]))
+        if np.random.uniform(0,1)>0.5:
+            _chunk2keep.extend(range(_frag[0], _frag[-1]-chunk2cut))
+        else:
+            _chunk2keep.extend(range(_frag[0]+chunk2cut, _frag[-1]))
+
+    return _chunk2keep 
+
+
+def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
     '''
@@ -711,6 +755,19 @@ def get_prot_chains_bio(structure, min_prot_content=0.5):
             chain.parent.detach_child(chain.id)
 
     assert len(structure), f"Template structure must contain at least one protein chain (>{100*min_prot_content:.1f}% amino acid residues)"
+
+    if truncate:
+        resi2keep = {}
+        for chain in structure:
+            _ch = get_resi_chunks(chain)
+            _a = resi2keep.setdefault(chain.id, [])
+            _a.extend( select_resi2keep(_ch, truncate=0.3) )
+
+        for chain in list(structure):
+            chain_len_before = len(chain)
+            for res in list(chain):
+                if not res.id[1] in resi2keep[chain.id]:
+                    chain.detach_child(res.id)
 
     return structure
 
@@ -750,7 +807,7 @@ def chain2CIF_bio(chain, outid, outfn):
 
 # -----------------------------------------------------------------------------
 
-def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200):
+def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200, truncate=None):
     '''
         BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
     '''
@@ -761,7 +818,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
     for ifn in template_fn_list:
         outid=f"{idx:04d}"
         _ph = parse_pdb_bio(ifn, outid=outid, remove_alt_confs=True)
-        prot_ph = get_prot_chains_bio(_ph)
+        prot_ph = get_prot_chains_bio(_ph, truncate=truncate)
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
@@ -806,7 +863,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
 
 # -----------------------------------------------------------------------------
 
-def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, outpath=None):
+def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, outpath=None, truncate=None):
     '''
         this one will put each requested chain from each template in a separate AF2-compatible mmCIF
     '''
@@ -815,7 +872,7 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
     idx=0
     for ifn in template_fn_list:
         _ph = parse_pdb_bio(ifn, remove_alt_confs=True)
-        prot_ph = get_prot_chains_bio(_ph)
+        prot_ph = get_prot_chains_bio(_ph, truncate=truncate)
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
@@ -1101,6 +1158,7 @@ def runme(msa_filenames,
           random_seed       =   None,
           nomerge           =   False,
           noseq             =   False,
+          truncate          =   None,
           debug             =   False):
 
 
@@ -1153,12 +1211,14 @@ def runme(msa_filenames,
         template_fn_list = template_preps_nomerge_bio(template_fn_list,
                                                   chain_ids,
                                                   target_sequences  =   query_seq_extended,
-                                                  outpath           =   inputpath)
+                                                  outpath           =   inputpath,
+                                                  truncate          =   truncate)
     else:
         template_fn_list = template_preps_bio(template_fn_list,
                                               chain_ids,
                                               target_sequences  =   query_seq_extended,
-                                              outpath           =   inputpath)
+                                              outpath           =   inputpath,
+                                              truncate          =   truncate)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         template_features,model2template_mappings = generate_template_features(query_sequence   =   query_seq_combined,
@@ -1316,6 +1376,7 @@ def main():
           random_seed       =   options.seed,
           nomerge           =   options.nomerge,
           noseq             =   options.noseq,
+          truncate          =   options.truncate,
           debug             =   options.debug)
 
     print()
