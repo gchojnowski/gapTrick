@@ -360,7 +360,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
 
 def save_pdb(structure, ofname):
     pdbio = PDBIO()
-    pdbio.set_structure(model_structure)
+    pdbio.set_structure(structure)
     with Path(ofname).open('w') as of:
         pdbio.save(of)
 
