@@ -858,13 +858,13 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
         _ph = parse_pdb_bio(ifn, outid=outid, remove_alt_confs=True)
 
         # save input template
-        save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.cif"))
+        save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.pdb"))
 
         # extarct protein chains and bias the template (if requested)
         prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
 
         # save modified template (before merging chains)
-        save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.cif"))
+        save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.pdb"))
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
