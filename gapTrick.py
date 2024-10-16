@@ -748,6 +748,13 @@ def select_resi2keep(chunks, truncate=0.3):
     return _chunk2keep 
 
 
+def random_point_on_sphere():
+    z = np.random.uniform(-1,1)
+    t = 2.0*np.pi * np.random.uniform(0,1);
+    r = np.sqrt(1.0-z*z);
+    return np.array([r * np.cos(t), r * np.sin(t), z])
+
+
 def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None, rotmax=None, transmax=None):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
