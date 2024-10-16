@@ -1406,6 +1406,7 @@ def main():
           nomerge           =   options.nomerge,
           noseq             =   options.noseq,
           truncate          =   options.truncate,
+          rotrans           =   options.rotrans,
           debug             =   options.debug)
 
     print()
