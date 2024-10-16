@@ -249,6 +249,10 @@ def parse_args():
     required_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
                   help="remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
 
+    required_opts.add_option("--rotrans", action="store", \
+                            dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
+                  help="rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
+
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
@@ -742,7 +746,7 @@ def select_resi2keep(chunks, truncate=0.3):
     return _chunk2keep 
 
 
-def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None):
+def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None, rotmax=None, transmax=None):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
     '''
@@ -759,7 +763,7 @@ def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None):
     assert len(structure), f"Template structure must contain at least one protein chain (>{100*min_prot_content:.1f}% amino acid residues)"
 
     if truncate:
-        print(f"WARNING: Removed {100*truncate:.0f}% residues from template!")
+        print(f"\nWARNING: Removed {100*truncate:.0f}% residues from template!\n")
         resi2keep = {}
         for chain in structure:
             _ch = get_resi_chunks(chain)
@@ -771,6 +775,20 @@ def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None):
             for res in list(chain):
                 if not res.id[1] in resi2keep[chain.id]:
                     chain.detach_child(res.id)
+
+
+    if rotmax and transmax:
+        print()
+        for chain in structure:
+            com_vec = Vector(np.array([atom.get_coord() for atom in chain.get_atoms()]).mean(axis=0))
+            axis = random_point_on_sphere()
+            angle = np.random.uniform(0,1) * ( np.pi - 0.001 ) * rotmax/180
+            trans = Vector(np.array(random_point_on_sphere())*np.random.uniform(0,1)*transmax)
+            rot = rotaxis2m(angle, Vector(axis))
+            print(f"WARNING: Chain {chain.id} rotated/translated by {180*angle/np.pi:4.2f} deg and {trans.norm():4.2f} A")
+            for atom in chain.get_atoms():
+                atom.set_coord( (Vector(atom.coord)-com_vec).left_multiply(rot) + trans + com_vec )
+        print()
 
     return structure
 
@@ -810,7 +828,7 @@ def chain2CIF_bio(chain, outid, outfn):
 
 # -----------------------------------------------------------------------------
 
-def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200, truncate=None):
+def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200, truncate=None, rotmax=None, transmax=None):
     '''
         BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
     '''
@@ -821,7 +839,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
     for ifn in template_fn_list:
         outid=f"{idx:04d}"
         _ph = parse_pdb_bio(ifn, outid=outid, remove_alt_confs=True)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate)
+        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
@@ -866,7 +884,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
 
 # -----------------------------------------------------------------------------
 
-def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, outpath=None, truncate=None):
+def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, outpath=None, truncate=None, rotmax=None, transmax=None):
     '''
         this one will put each requested chain from each template in a separate AF2-compatible mmCIF
     '''
@@ -875,7 +893,7 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
     idx=0
     for ifn in template_fn_list:
         _ph = parse_pdb_bio(ifn, remove_alt_confs=True)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate)
+        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
@@ -1162,6 +1180,7 @@ def runme(msa_filenames,
           nomerge           =   False,
           noseq             =   False,
           truncate          =   None,
+          rotrans           =   None,
           debug             =   False):
 
 
@@ -1210,6 +1229,13 @@ def runme(msa_filenames,
     print(f" --> Combined target sequence:")
     pretty_sequence_print(name_a="        ", seq_a=query_seq_combined)
     print()
+
+    try:
+        rotmax,transmax = map(float(rotrans.split(',')))
+        print('WARNING: Protein chains will be randomly rotated/translated abput their COMs up to {rotmax} deg and {transmax} A')
+    except:
+        rotmax,transmax=None,None
+
     if nomerge:
         template_fn_list = template_preps_nomerge_bio(template_fn_list,
                                                   chain_ids,
