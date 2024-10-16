@@ -1241,13 +1241,17 @@ def runme(msa_filenames,
                                                   chain_ids,
                                                   target_sequences  =   query_seq_extended,
                                                   outpath           =   inputpath,
-                                                  truncate          =   truncate)
+                                                  truncate          =   truncate,
+                                                  rotmax            =   rotmax,
+                                                  transmax          =   transmax)
     else:
         template_fn_list = template_preps_bio(template_fn_list,
                                               chain_ids,
                                               target_sequences  =   query_seq_extended,
                                               outpath           =   inputpath,
-                                              truncate          =   truncate)
+                                              truncate          =   truncate,
+                                              rotmax            =   rotmax,
+                                              transmax          =   transmax)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         template_features,model2template_mappings = generate_template_features(query_sequence   =   query_seq_combined,
