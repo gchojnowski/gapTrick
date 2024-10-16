@@ -60,6 +60,8 @@ from Bio import SeqIO
 from Bio import Align
 from Bio.PDB import PDBIO, PDBParser, Superimposer, MMCIFParser, Select
 from Bio.PDB.mmcifio import MMCIFIO
+from Bio.PDB.vectors import rotaxis2m
+from Bio.PDB.vectors import Vector
 
 import io
 
