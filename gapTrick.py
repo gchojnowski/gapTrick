@@ -848,7 +848,15 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
     for ifn in template_fn_list:
         outid=f"{idx:04d}"
         _ph = parse_pdb_bio(ifn, outid=outid, remove_alt_confs=True)
+
+        # save input template
+        chain2CIF_bio(_ph, "0000", os.path.join(outpath, f"{outid}_inp.cif"))
+
+        # extarct protein chains and bias the template (if requested)
         prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
+
+        # save modified template (before merging chains)
+        chain2CIF_bio(prot_ph, "0000",  os.path.join(outpath, f"{outid}_mod.cif"))
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
