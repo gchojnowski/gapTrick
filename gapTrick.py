@@ -1231,8 +1231,8 @@ def runme(msa_filenames,
     print()
 
     try:
-        rotmax,transmax = map(float(rotrans.split(',')))
-        print('WARNING: Protein chains will be randomly rotated/translated abput their COMs up to {rotmax} deg and {transmax} A')
+        rotmax,transmax = map(float, rotrans.split(','))
+        print(f"WARNING: Protein chains will be randomly rotated/translated abput their COMs up to {rotmax} deg and {transmax} A")
     except:
         rotmax,transmax=None,None
 
