@@ -763,7 +763,7 @@ def random_point_on_sphere():
     return np.array([r * np.cos(t), r * np.sin(t), z])
 
 
-def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None, rotmax=None, transmax=None):
+def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=None, transmax=None):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
     '''
