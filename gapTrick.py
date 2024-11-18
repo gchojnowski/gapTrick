@@ -850,8 +850,8 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
         BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
     '''
 
-    converted_template_fns=[]
-    merged2input_mapping = {}
+    converted_template_fns = []
+    template2input_mapping = {}
 
     idx=0
     for ifn in template_fn_list:
@@ -1294,7 +1294,7 @@ def runme(msa_filenames,
                                                                                debug            =   debug)
 
     with Path(inputpath, 'mappings.json').open('w') as of:
-        of.write(json.dumps({'template2input_mapping':template2input_mapping, 'model2template_mappings':model2template_mappings})
+        of.write(json.dumps({'template2input_mapping':template2input_mapping, 'model2template_mappings':model2template_mappings}))
 
     model_params = {}
     model_runner_1 = None
