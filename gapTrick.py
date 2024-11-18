@@ -890,7 +890,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
 
             for residx,res in enumerate(chain):
                 _id = res._id
-                res._id = (_id[0], last_resid+residx, _id[2])
+                res._id = (_id[0], last_resid+residx, _id[1])
                 _template2input[last_resid+residx] = (chid, _id[1])
 
             if ich==0:
