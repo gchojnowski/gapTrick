@@ -851,6 +851,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
     '''
 
     converted_template_fns=[]
+    merged2input_mapping = {}
 
     idx=0
     for ifn in template_fn_list:
@@ -876,6 +877,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
             chaindict[ch.id]=ch
         # assembly with BioPython
         tmp_io = None
+        _template2input = {}
         for ich,chid in enumerate(selected_chids):
             chain = chaindict[chid]
             chain.detach_parent()
@@ -888,13 +890,16 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
 
             for residx,res in enumerate(chain):
                 _id = res._id
-                res._id = (_id[0], last_resid+residx, _id[1])
+                res._id = (_id[0], last_resid+residx, _id[2])
+                _template2input[last_resid+residx] = (chid, _id[1])
 
             if ich==0:
                 tmp_io = chain
             else:
                 for resi in chain:
                     tmp_io.add(resi)
+
+        template2input_mapping[ifn]=_template2input
 
         if not outpath: continue
 
@@ -903,7 +908,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
 
         idx+=1
 
-    return converted_template_fns
+    return converted_template_fns, template2input_mapping
 
 
 
@@ -1269,14 +1274,15 @@ def runme(msa_filenames,
                                                   truncate          =   truncate,
                                                   rotmax            =   rotmax,
                                                   transmax          =   transmax)
+        template2input_mapping = None
     else:
-        template_fn_list = template_preps_bio(template_fn_list,
-                                              chain_ids,
-                                              target_sequences  =   query_seq_extended,
-                                              outpath           =   inputpath,
-                                              truncate          =   truncate,
-                                              rotmax            =   rotmax,
-                                              transmax          =   transmax)
+        template_fn_list, template2input_mapping = template_preps_bio(template_fn_list,
+                                                                      chain_ids,
+                                                                      target_sequences  =   query_seq_extended,
+                                                                      outpath           =   inputpath,
+                                                                      truncate          =   truncate,
+                                                                      rotmax            =   rotmax,
+                                                                      transmax          =   transmax)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         template_features,model2template_mappings = generate_template_features(query_sequence   =   query_seq_combined,
@@ -1286,6 +1292,9 @@ def runme(msa_filenames,
                                                                                dryrun           =   dryrun,
                                                                                noseq            =   noseq,
                                                                                debug            =   debug)
+
+    with Path(inputpath, 'mappings.json').open('w') as of:
+        of.write(json.dumps({'template2input_mapping':template2input_mapping, 'model2template_mappings':model2template_mappings})
 
     model_params = {}
     model_runner_1 = None
