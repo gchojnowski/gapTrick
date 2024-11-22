@@ -24,7 +24,7 @@ from datetime import datetime
 try:
     sys.path.append(os.path.join(os.path.abspath(''), 'af2plots'))
     sys.path.append(os.path.abspath(''))
-    from af2plots.plotter import plotter
+    from af2plots.af2plots.plotter import plotter
     PLOTTER_AVAILABLE = 1
 except:
     PLOTTER_AVAILABLE = 0
