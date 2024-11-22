@@ -579,6 +579,7 @@ def make_figures(prefix):
     figures_dir = Path(prefix, "figures")
     figures_dir.mkdir(parents=True, exist_ok=False)
 
+    from af2plots.af2plots.plotter import plotter
     af2o = plotter()
     datadict = af2o.parse_model_pickles(datadir, verbose=False)
 
