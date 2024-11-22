@@ -22,9 +22,9 @@ from datetime import datetime
 # try to import a plotter lib and disable plotting if not available
 # eg due to missing matplolib (not installed with AlphaFold by default)
 try:
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'af2plots'))
-    sys.path.append(os.path.dirname(__file__))
-    from af2plots.plotter import plotter
+    sys.path.append(os.path.join(os.path.abspath(''), 'af2plots'))
+    sys.path.append(os.path.abspath(''))
+    from af2plots.af2plots.plotter import plotter
     PLOTTER_AVAILABLE = 1
 except:
     PLOTTER_AVAILABLE = 0
