@@ -1,7 +1,3 @@
-__author__ = "Grzegorz Chojnowski"
-__date__ = "16 Oct 2024"
-
-
 import os, sys, re
 import subprocess
 
@@ -26,9 +22,9 @@ from datetime import datetime
 # try to import a plotter lib and disable plotting if not available
 # eg due to missing matplolib (not installed with AlphaFold by default)
 try:
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'af2plots'))
-    sys.path.append(os.path.dirname(__file__))
-    from af2plots.plotter import plotter
+    sys.path.append(os.path.join(os.path.abspath(''), 'af2plots'))
+    sys.path.append(os.path.abspath(''))
+    from af2plots.af2plots.plotter import plotter
     PLOTTER_AVAILABLE = 1
 except:
     PLOTTER_AVAILABLE = 0
@@ -639,7 +635,7 @@ def match_template_chains_to_target(ph, target_sequences):
             si = alignments[0].score
             # depreciated!
             #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
-            _tmp_si[cid]=100.0*si/len(_target_seq)
+            _tmp_si[cid]=100.0*si/len(chain_seq_dict[cid])
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
             print(f"     #{_idx}: chain {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
@@ -704,7 +700,7 @@ def match_template_chains_to_target_bio(structure, target_sequences):
             si = alignments[0].score
             # depreciated!
             #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
-            _tmp_si[cid]=100.0*si/len(_target_seq)
+            _tmp_si[cid]=si#100.0*si#/min(len(chain_seq_dict[cid]),len(_target_seq))
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
             print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
@@ -767,7 +763,7 @@ def random_point_on_sphere():
     return np.array([r * np.cos(t), r * np.sin(t), z])
 
 
-def get_prot_chains_bio(structure, min_prot_content=0.5, truncate=None, rotmax=None, transmax=None):
+def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=None, transmax=None):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
     '''
@@ -854,7 +850,8 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
         BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
     '''
 
-    converted_template_fns=[]
+    converted_template_fns = []
+    template2input_mapping = {}
 
     idx=0
     for ifn in template_fn_list:
@@ -880,6 +877,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
             chaindict[ch.id]=ch
         # assembly with BioPython
         tmp_io = None
+        _template2input = {}
         for ich,chid in enumerate(selected_chids):
             chain = chaindict[chid]
             chain.detach_parent()
@@ -893,12 +891,15 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
             for residx,res in enumerate(chain):
                 _id = res._id
                 res._id = (_id[0], last_resid+residx, _id[1])
+                _template2input[last_resid+residx] = (chid, _id[1])
 
             if ich==0:
                 tmp_io = chain
             else:
                 for resi in chain:
                     tmp_io.add(resi)
+
+        template2input_mapping[ifn]=_template2input
 
         if not outpath: continue
 
@@ -907,7 +908,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
 
         idx+=1
 
-    return converted_template_fns
+    return converted_template_fns, template2input_mapping
 
 
 
@@ -1273,14 +1274,15 @@ def runme(msa_filenames,
                                                   truncate          =   truncate,
                                                   rotmax            =   rotmax,
                                                   transmax          =   transmax)
+        template2input_mapping = None
     else:
-        template_fn_list = template_preps_bio(template_fn_list,
-                                              chain_ids,
-                                              target_sequences  =   query_seq_extended,
-                                              outpath           =   inputpath,
-                                              truncate          =   truncate,
-                                              rotmax            =   rotmax,
-                                              transmax          =   transmax)
+        template_fn_list, template2input_mapping = template_preps_bio(template_fn_list,
+                                                                      chain_ids,
+                                                                      target_sequences  =   query_seq_extended,
+                                                                      outpath           =   inputpath,
+                                                                      truncate          =   truncate,
+                                                                      rotmax            =   rotmax,
+                                                                      transmax          =   transmax)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         template_features,model2template_mappings = generate_template_features(query_sequence   =   query_seq_combined,
@@ -1290,6 +1292,9 @@ def runme(msa_filenames,
                                                                                dryrun           =   dryrun,
                                                                                noseq            =   noseq,
                                                                                debug            =   debug)
+
+    with Path(inputpath, 'mappings.json').open('w') as of:
+        of.write(json.dumps({'template2input_mapping':template2input_mapping, 'model2template_mappings':model2template_mappings}))
 
     model_params = {}
     model_runner_1 = None
