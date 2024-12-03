@@ -1,4 +1,4 @@
-import os, sys, re
+import os, sys, re, io
 import subprocess
 
 import uuid
@@ -19,14 +19,20 @@ import requests
 import tarfile
 from datetime import datetime
 
+from pathlib import Path
+import pickle
+import shutil
+
 # try to import a plotter lib and disable plotting if not available
 # eg due to missing matplolib (not installed with AlphaFold by default)
 try:
-    sys.path.append(os.path.join(os.path.abspath(''), 'af2plots'))
-    sys.path.append(os.path.abspath(''))
-    from af2plots.af2plots.plotter import plotter
+    rootpath = Path( __file__ ).parent.absolute()
+    sys.path.append(os.path.join(rootpath, '..', 'af2plots'))
+    sys.path.append(os.path.join(rootpath))
+    from af2plots.plotter import plotter
     PLOTTER_AVAILABLE = 1
 except:
+    print("WARNING: cannot initiate figure plotter")
     PLOTTER_AVAILABLE = 0
 
 MMSEQS_API_SERVER = "https://api.colabfold.com"
@@ -63,12 +69,6 @@ from Bio.PDB.mmcifio import MMCIFIO
 from Bio.PDB.vectors import rotaxis2m
 from Bio.PDB.vectors import Vector
 
-import io
-
-from pathlib import Path
-import pickle
-import shutil
-
 from dataclasses import dataclass, replace
 #from jax.lib import xla_bridge
 
@@ -80,6 +80,13 @@ tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', '
 ogt = dict([(tgo[_k], _k) for _k in tgo])
 
 #print(xla_bridge.get_backend().platform)
+
+# templates for a pymol script visualising predficted contacts
+pymol_dist_generic="""\
+dist \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s and name \"%(A_atom_name)s\" and alt \'\', \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s and name \"%(B_atom_name)s\" and alt \'\'"""
+
+pymol_header=f"load %(modelid)s.pdb\nshow_as cartoon, %(modelid)s\nset label_size, 0\nutil.cbc %(modelid)s"
+
 
 FAKE_MMCIF_HEADER=\
 """data_%(outid)s
@@ -572,8 +579,9 @@ def predict_structure(prefix,
                 of.write(f"{pdb_header}\n")
                 of.write(_pdb_lines)
 
+# -----------------------------------------------------------------------------                    
 
-def make_figures(prefix):
+def make_figures(prefix, print_contacts=False):
 
     datadir=Path(prefix, "input")
     figures_dir = Path(prefix, "figures")
@@ -593,9 +601,9 @@ def make_figures(prefix):
     ff.savefig(fname=os.path.join(figures_dir, f"plddt.svg"), bbox_inches = 'tight')
 
     # distogram
-    pbty_cutoff=0.8
-    distance_cutoff=8.0
-    ff,dat=af2o.plot_distogram(datadict, distance=distance_cutoff, print_contacts=False, pbtycutoff=pbty_cutoff)
+    pbty_cutoff     = 0.8
+    distance_cutoff = 8.0
+    ff,contacts_txt = af2o.plot_distogram(datadict, distance=distance_cutoff, print_contacts=False, pbtycutoff=pbty_cutoff)
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.png"), dpi=150, bbox_inches = 'tight')
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.svg"), bbox_inches = 'tight')
 
@@ -608,7 +616,57 @@ def make_figures(prefix):
             ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
             ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
 
+    # contacts list
+    contact_template = r"^(?P<res1>\w+?)/(?P<ch1>\w+?)\s+(?P<res2>\w+?)/(?P<ch2>\w+?)\s+(?P<pbty>[\d\.]*?)$"
+    structure = parse_pdb_bio(Path(prefix, "input", "ranked_0.pdb"), outid="XYZ", remove_alt_confs=True)
+    protein = get_prot_chains_bio(structure)
+    chain_seq_dict = {}
+    for chain in protein:
+        chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
+        
+    idx=0
+    d={}
+    d['modelid']="ranked_0"
+    d['A_atom_name']='CA'
+    d['B_atom_name']='CA'
 
+    pymol_all = [pymol_header%d]
+    pymol_int = [pymol_header%d]
+    contacts_list = []
+
+    for contact_str in contacts_txt:
+        m = re.match(contact_template, contact_str)
+        d['A_chain'] = ci = m.group('ch1')
+        d['B_chain'] = cj = m.group('ch2')
+        d['A_resid'] = resi = m.group('res1')
+        d['B_resid'] = resj = m.group('res2')
+        _cstr = f"""{'*' if ci!=cj else ' '} {tgo[chain_seq_dict[ci][int(resi)-1]]}/{ci}/{resi:4s} {tgo[chain_seq_dict[cj][int(resj)-1]]}/{cj}/{resj:4s} {float(m.group('pbty')):.2f}"""
+
+        if print_contacts: print(_cstr)
+        contacts_list.append(_cstr)
+        
+        if ci!=cj:
+            pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+            pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+            pymol_int.append(pymol_dist_generic%d)
+
+        pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+        pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+        pymol_all.append(pymol_dist_generic%d)
+
+        idx+=1
+
+    with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
+        ofile.write("\n".join(pymol_all))
+        
+    with open(os.path.join(datadir, "..", f"pymol_int_contacts.pml"), 'w') as ofile:
+        ofile.write("\n".join(pymol_int))
+       
+    with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
+        ofile.write("\n".join(contacts_list))
+          
+# -----------------------------------------------------------------------------                    
+                    
 def match_template_chains_to_target(ph, target_sequences):
     print(f" --> Greedy matching of template chains to target sequences")
 
