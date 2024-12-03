@@ -659,7 +659,7 @@ def make_figures(prefix, print_contacts=False):
     with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_all))
         
-    with open(os.path.join(datadir, "..", f"pymol_int_contacts.pml"), 'w') as ofile:
+    with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
        
     with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
