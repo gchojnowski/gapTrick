@@ -258,6 +258,9 @@ def parse_args():
     required_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
                   help="remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
 
+    required_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
+                  help="Probability cutoff for the contact identification [default %default]", default=0.5)
+
     required_opts.add_option("--rotrans", action="store", \
                             dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
                   help="rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
@@ -581,7 +584,7 @@ def predict_structure(prefix,
 
 # -----------------------------------------------------------------------------                    
 
-def make_figures(prefix, print_contacts=False):
+def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
 
     datadir=Path(prefix, "input")
     figures_dir = Path(prefix, "figures")
@@ -601,7 +604,6 @@ def make_figures(prefix, print_contacts=False):
     ff.savefig(fname=os.path.join(figures_dir, f"plddt.svg"), bbox_inches = 'tight')
 
     # distogram
-    pbty_cutoff     = 0.8
     distance_cutoff = 8.0
     ff,contacts_txt = af2o.plot_distogram(datadict, distance=distance_cutoff, print_contacts=False, pbtycutoff=pbty_cutoff)
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.png"), dpi=150, bbox_inches = 'tight')
@@ -623,7 +625,7 @@ def make_figures(prefix, print_contacts=False):
     chain_seq_dict = {}
     for chain in protein:
         chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
-        
+
     idx=0
     d={}
     d['modelid']="ranked_0"
@@ -644,7 +646,7 @@ def make_figures(prefix, print_contacts=False):
 
         if print_contacts: print(_cstr)
         contacts_list.append(_cstr)
-        
+
         if ci!=cj:
             pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
             pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
@@ -658,13 +660,13 @@ def make_figures(prefix, print_contacts=False):
 
     with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_all))
-        
+
     with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
-       
+
     with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
         ofile.write("\n".join(contacts_list))
-          
+
 # -----------------------------------------------------------------------------                    
                     
 def match_template_chains_to_target(ph, target_sequences):
@@ -1269,6 +1271,7 @@ def runme(msa_filenames,
           noseq             =   False,
           truncate          =   None,
           rotrans           =   None,
+          pbty_cutoff       =   0.5,
           debug             =   False):
 
 
@@ -1408,7 +1411,7 @@ def runme(msa_filenames,
                       template_fn_list          =   input_template_fn_list)
 
     if PLOTTER_AVAILABLE:
-        make_figures(jobname)
+        make_figures(jobname, pbty_cutoff=pbty_cutoff)
 
 def main():
 
@@ -1503,6 +1506,7 @@ def main():
           noseq             =   options.noseq,
           truncate          =   options.truncate,
           rotrans           =   options.rotrans,
+          pbty_cutoff       =   options.pbty_cutoff,
           debug             =   options.debug)
 
     print()
