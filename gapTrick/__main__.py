@@ -258,9 +258,15 @@ def parse_args():
     required_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
                   help="remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
 
+    required_opts.add_option("--iterate", action="store", dest="iterate", type="int", metavar="INT", \
+                  help="re-iterate prediction [default %default]", default=1)
+    
     required_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
                   help="Probability cutoff for the contact identification [default %default]", default=0.5)
 
+    required_opts.add_option("--plddt_cutoff", action="store", dest="plddt_cutoff", type="float", metavar="FLOAT", \
+                  help="AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]", default=None)
+        
     required_opts.add_option("--rotrans", action="store", \
                             dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
                   help="rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
@@ -710,11 +716,14 @@ def match_template_chains_to_target(ph, target_sequences):
 
 # -----------------------------------------------------------------------------
 
-def parse_pdb_bio(ifn, outid="xyz", remove_alt_confs=False):
+def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 
     class NotAlt(Select):
         def accept_atom(self, atom):
-            return not atom.is_disordered() or atom.get_altloc() == "A"
+            if plddt_cutoff: 
+                return (not atom.is_disordered() or atom.get_altloc() == "A") and atom.bfactor > plddt_cutoff
+            else:
+                return not atom.is_disordered() or atom.get_altloc() == "A"
 
     try:
         parser = PDBParser(QUIET=True)
@@ -905,7 +914,7 @@ def chain2CIF_bio(chain, outid, outfn):
 
 # -----------------------------------------------------------------------------
 
-def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200, truncate=None, rotmax=None, transmax=None):
+def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200, truncate=None, plddt_cutoff=None, rotmax=None, transmax=None):
     '''
         BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
     '''
@@ -916,7 +925,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
     idx=0
     for ifn in template_fn_list:
         outid=f"{idx:04d}"
-        _ph = parse_pdb_bio(ifn, outid=outid, remove_alt_confs=True)
+        _ph = parse_pdb_bio(ifn, outid=outid, plddt_cutoff=plddt_cutoff, remove_alt_confs=True)
 
         # save input template
         save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.pdb"))
@@ -974,7 +983,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
 
 # -----------------------------------------------------------------------------
 
-def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, outpath=None, truncate=None, rotmax=None, transmax=None):
+def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, outpath=None, truncate=None, plddt_cutoff=None, rotmax=None, transmax=None):
     '''
         this one will put each requested chain from each template in a separate AF2-compatible mmCIF
     '''
@@ -982,7 +991,7 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
 
     idx=0
     for ifn in template_fn_list:
-        _ph = parse_pdb_bio(ifn, remove_alt_confs=True)
+        _ph = parse_pdb_bio(ifn, plddt_cutoff=plddt_cutoff, remove_alt_confs=True)
         prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
 
         if chain_ids is None:
@@ -1272,7 +1281,9 @@ def runme(msa_filenames,
           truncate          =   None,
           rotrans           =   None,
           pbty_cutoff       =   0.5,
-          debug             =   False):
+          plddt_cutoff      =   None,
+          debug             =   False,
+          iterate           =   1):
 
 
 
@@ -1333,6 +1344,7 @@ def runme(msa_filenames,
                                                   target_sequences  =   query_seq_extended,
                                                   outpath           =   inputpath,
                                                   truncate          =   truncate,
+                                                  plddt_cutoff      =   plddt_cutoff,
                                                   rotmax            =   rotmax,
                                                   transmax          =   transmax)
         template2input_mapping = None
@@ -1342,6 +1354,7 @@ def runme(msa_filenames,
                                                                       target_sequences  =   query_seq_extended,
                                                                       outpath           =   inputpath,
                                                                       truncate          =   truncate,
+                                                                      plddt_cutoff      =   plddt_cutoff,
                                                                       rotmax            =   rotmax,
                                                                       transmax          =   transmax)
 
@@ -1507,7 +1520,9 @@ def main():
           truncate          =   options.truncate,
           rotrans           =   options.rotrans,
           pbty_cutoff       =   options.pbty_cutoff,
-          debug             =   options.debug)
+          plddt_cutoff      =   options.plddt_cutoff,
+          debug             =   options.debug,
+          iterate           =   options.iterate)
 
     print()
     td = (datetime.now() - start_time) 
