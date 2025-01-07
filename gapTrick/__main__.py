@@ -430,8 +430,7 @@ def predict_structure(prefix,
                       model2template_mappings   =   None,
                       random_seed               =   None,
                       gap_size                  =   200,
-                      template_fn_list          =   [],
-                      keepalldata               =   False):
+                      template_fn_list          =   []):
 
     if random_seed is None:
         random_seed = np.random.randint(sys.maxsize//5)
@@ -516,9 +515,8 @@ def predict_structure(prefix,
         with Path(inputpath, f'unrelaxed_{model_name}_pae.json').open('w') as of:
             of.write(json.dumps([{'predicted_aligned_error':prediction_result['predicted_aligned_error'].astype(int).tolist()}]))
 
-        if keepalldata:
-            with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of:
-                pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
+        with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of:
+            pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
@@ -1529,12 +1527,16 @@ def main():
           pbty_cutoff       =   options.pbty_cutoff,
           plddt_cutoff      =   options.plddt_cutoff,
           debug             =   options.debug,
-          iterate           =   options.iterate,
-          keepalldata       =   options.keepalldata)
+          iterate           =   options.iterate)
 
     if not options.keepalldata:
-        for fname in msas:
-            os.remove(fname)
+        for fname in os.listdir(Path(options.jobname, "msa")):
+            if Path(fname).suffix == ".a3m":
+                os.remove(Path(options.jobname, "msa", fname))
+
+        for fname in os.listdir(Path(options.jobname, "input")):
+            if Path(fname).suffix == ".pkl":
+                os.remove(Path(options.jobname, "input", fname))
 
     print()
     td = (datetime.now() - start_time) 
