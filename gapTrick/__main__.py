@@ -247,6 +247,9 @@ def parse_args():
     required_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
                   help="relax top model")
 
+    required_opts.add_option("--keepalldata", action="store_true", dest="keepalldata", default=False, \
+                  help="keep all output data (MSAs, pkls, etc), you wont need them in most of the cases")
+
     required_opts.add_option("--debug", action="store_true", dest="debug", default=False, \
                   help="write more on output")
 
@@ -260,13 +263,14 @@ def parse_args():
 
     required_opts.add_option("--iterate", action="store", dest="iterate", type="int", metavar="INT", \
                   help="re-iterate prediction [default %default]", default=1)
-    
+
     required_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
                   help="Probability cutoff for the contact identification [default %default]", default=0.5)
 
     required_opts.add_option("--plddt_cutoff", action="store", dest="plddt_cutoff", type="float", metavar="FLOAT", \
-                  help="AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]", default=None)
-        
+                  help="AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]",
+                  default=None)
+
     required_opts.add_option("--rotrans", action="store", \
                             dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
                   help="rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
@@ -422,11 +426,12 @@ def predict_structure(prefix,
                       model_params,
                       model_runner_1,
                       model_runner_3,
-                      do_relax=False,
-                      model2template_mappings=None,
-                      random_seed=None,
-                      gap_size=200,
-                      template_fn_list=[]):
+                      do_relax                  =   False,
+                      model2template_mappings   =   None,
+                      random_seed               =   None,
+                      gap_size                  =   200,
+                      template_fn_list          =   [],
+                      keepalldata               =   False):
 
     if random_seed is None:
         random_seed = np.random.randint(sys.maxsize//5)
@@ -511,7 +516,9 @@ def predict_structure(prefix,
         with Path(inputpath, f'unrelaxed_{model_name}_pae.json').open('w') as of:
             of.write(json.dumps([{'predicted_aligned_error':prediction_result['predicted_aligned_error'].astype(int).tolist()}]))
 
-        with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of: pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
+        if keepalldata:
+            with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of:
+                pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
@@ -1522,7 +1529,12 @@ def main():
           pbty_cutoff       =   options.pbty_cutoff,
           plddt_cutoff      =   options.plddt_cutoff,
           debug             =   options.debug,
-          iterate           =   options.iterate)
+          iterate           =   options.iterate,
+          keepalldata       =   options.keepalldata)
+
+    if not options.keepalldata:
+        for fname in msas:
+            os.remove(fname)
 
     print()
     td = (datetime.now() - start_time) 
