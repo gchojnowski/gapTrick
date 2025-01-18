@@ -26,7 +26,9 @@ The repository  provides a Colab notebook that can be used to run gapTrick witho
 
 # Installation
 
-The code requires only a standard AlphaFold2 installation to run. Check AlphaFold2 installation instructions at the [official webpage](https://github.com/google-deepmind/alphafold) or follow the instructions below. I use them to install the code on Colab.
+The code requires only a standard AlphaFold2 installation to run. Check AlphaFold2 installation instructions at the [official webpage](https://github.com/google-deepmind/alphafold) or follow the instructions below. I use them to install the code on Colab. It should work smoothly on recent Linux distributions.
+
+If you have a running AlphaFold2 installation, you can skip to [gapTrick installation](#gaptrick) or run it directly from a cloned repository.
 
 ## Dependencies
 First create a target directory, create a basic conda environment, and install dependencies
@@ -34,24 +36,11 @@ First create a target directory, create a basic conda environment, and install d
 ```
 mkdir AlphaFold2
 cd ALphaFold2
-curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-bash Miniforge3-Darwin-arm64.sh -b -p conda
+curl -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh -b -p conda
 source conda/bin/activate
-conda install -qy conda==24.11.1 \
 conda install -qy -c conda-forge -c bioconda python=3.10 openmm=8.0.0 matplotlib kalign2 hhsuite pdbfixer 
 ```
-
-<!--
-```
-mkdir AlphaFold2
-cd ALphaFold2
-curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p conda
-source conda/bin/activate
-conda install -qy conda==24.11.1 \
-conda install -qy -c conda-forge -c bioconda python=3.10 openmm=8.0.0 matplotlib kalign2 hhsuite pdbfixer 
-```
--->
 
 ## AlphaFold2
 Once you secured all dependencies install AlphaFold2
@@ -63,7 +52,7 @@ pip3 install pyopenssl==22.0.0
 mkdir -p alphafold/common
 curl -o alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
-cp -f alphafold/common/stereo_chemical_props.txt /opt/conda/lib/python3.10/site-packages/alphafold/common/
+cp -f alphafold/common/stereo_chemical_props.txt conda/lib/python3.10/site-packages/alphafold/common/
 ```
 
 .. and download model weights
@@ -74,7 +63,7 @@ tar --extract --verbose --file=alphafold/data/params/alphafold_params_2021-07-14
 ```
 
 ## gapTrick
-The gapTrick itself is a relatively simple script and is trivial to install with a command:
+The gapTrick itself can be installed with a command:
 ```
 pip install git+https://github.com/gchojnowski/gapTrick
 ```
