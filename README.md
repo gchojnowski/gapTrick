@@ -19,7 +19,8 @@ Grzegorz Chojnowski, to be published.
 
 # Colab notebook
 
-The repository also provides a Colab notebook that can be used to run gapTrick without having to satisfy its hardware (GPU) and software dependencies on your computer.
+The repository  provides a Colab notebook that can be used to run gapTrick without having to satisfy its hardware (GPU) and software dependencies on your computer. Click the link to start a new Colab session: 
+[gapTrick_custom.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_custom.ipynb)
 
 <br/> 
 
