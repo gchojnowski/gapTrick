@@ -1,6 +1,6 @@
 # gapTrick – structural characterisation of protein-protein interactions using AlphaFold with multimeric templates
 
-**gapTrick** is an approach based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging experimental structures and the computational identification of protein-protein interactions.
+**gapTrick** is a tools based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging experimental structures and the computational identification of protein-protein interactions.
 
 - [How to cite](#how-to-cite)
 - [Colab notebook](#colab-notebook)
@@ -19,7 +19,7 @@ Grzegorz Chojnowski, to be published.
 
 # Colab notebook
 
-The repository  provides a Colab notebook that can be used to run gapTrick without having to satisfy its hardware (GPU) and software dependencies on your computer. Click the link to start a new Colab session: 
+You can run gapTrick on Colab server without having to satisfy its hardware (GPU) and software dependencies on your computer. Click the link to start a new Colab session: 
 [gapTrick_custom.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_custom.ipynb)
 
 <br/> 
@@ -28,7 +28,7 @@ The repository  provides a Colab notebook that can be used to run gapTrick witho
 
 The code requires only a standard AlphaFold2 installation to run. Check AlphaFold2 installation instructions at the [official webpage](https://github.com/google-deepmind/alphafold) or follow the instructions below. I use them to install the code on Colab. It should work smoothly on recent Linux distributions.
 
-If you have a running AlphaFold2 installation, you can go directly to [gapTrick installation](#gaptrick) instructions or run it directly from a cloned repository.
+If you already have a running AlphaFold2 go directly to [gapTrick installation](#gaptrick) instructions. You can also run gapTrick directly from a cloned repository.
 
 ## Dependencies
 First, create a target directory, build base conda environment, and install dependencies
