@@ -1,0 +1,3 @@
+[submodule "af2plots"]
+	path = af2plots
+	url = git@gitlab.com:gchojnowski/af2plots.git
