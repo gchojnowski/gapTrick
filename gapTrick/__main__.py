@@ -534,7 +534,7 @@ def predict_structure(prefix,
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
-                                    max_iterations=3,
+                                    max_iterations=2000,
                                     tolerance=2.39,
                                     stiffness=10.0,
                                     exclude_residues=[],
