@@ -28,10 +28,10 @@ The repository  provides a Colab notebook that can be used to run gapTrick witho
 
 The code requires only a standard AlphaFold2 installation to run. Check AlphaFold2 installation instructions at the [official webpage](https://github.com/google-deepmind/alphafold) or follow the instructions below. I use them to install the code on Colab. It should work smoothly on recent Linux distributions.
 
-If you have a running AlphaFold2 installation, you can skip to [gapTrick installation](#gaptrick) or run it directly from a cloned repository.
+If you have a running AlphaFold2 installation, you can go directly to [gapTrick installation](#gaptrick) instructions or run it directly from a cloned repository.
 
 ## Dependencies
-First create a target directory, create a basic conda environment, and install dependencies
+First, create a target directory, build base conda environment, and install dependencies
 
 ```
 mkdir AlphaFold2
@@ -43,7 +43,8 @@ conda install -qy -c conda-forge -c bioconda python=3.10 openmm=8.0.0 matplotlib
 ```
 
 ## AlphaFold2
-Once you secured all dependencies install AlphaFold2
+Once you installed all dependencies install AlphaFold2 from an official repository
+
 ```
 git clone --branch main https://github.com/deepmind/alphafold alphafold
 pip3 install -r alphafold/requirements.txt
@@ -55,7 +56,7 @@ mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
 cp -f alphafold/common/stereo_chemical_props.txt conda/lib/python3.10/site-packages/alphafold/common/
 ```
 
-.. and download model weights
+... and download model weights
 ```
 mkdir --parents alphafold/data/params
 curl -O alphafold/data/params/alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
