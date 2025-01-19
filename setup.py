@@ -21,7 +21,7 @@ setup(name='gapTrick',
       author_email='gchojnowski@embl-hamburg.de',
       license='BSD',
       packages=['gapTrick'],
-      install_requires=['af2plots @ git+https://gitlab.com/gchojnowski/af2plots.git'],
+      install_requires=['af2plots @ git+https://gitlab.com/gchojnowski/af2plots.git', 'matplotlib'],
       entry_points={
           "console_scripts": [
             "gapTrick = gapTrick.__main__:main",
