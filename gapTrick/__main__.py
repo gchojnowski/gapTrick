@@ -265,7 +265,7 @@ def parse_args():
                   help="re-iterate prediction [default %default]", default=1)
 
     required_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
-                  help="Probability cutoff for the contact identification [default %default]", default=0.5)
+                  help="Probability cutoff for the contact identification [default %default]", default=0.8)
 
     required_opts.add_option("--plddt_cutoff", action="store", dest="plddt_cutoff", type="float", metavar="FLOAT", \
                   help="AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]",
