@@ -20,7 +20,7 @@ Grzegorz Chojnowski, to be published.
 # Colab notebook
 
 You can run gapTrick on Colab server without having to satisfy its hardware (GPU) and software dependencies on your computer. Click the link to start a new Colab session: 
-[gapTrick_custom.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_custom.ipynb)
+[gapTrick.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick.ipynb)
 
 <br/> 
 
