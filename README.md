@@ -60,7 +60,7 @@ git clone --branch main https://github.com/deepmind/alphafold alphafold
 pip3 install -r alphafold/requirements.txt
 pip3 install --no-dependencies alphafold
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
-curl -o conda/lib/python3.10/site-packages/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+curl -O conda/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
 
 ... and download model weights
