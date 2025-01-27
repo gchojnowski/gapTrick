@@ -23,20 +23,6 @@ from pathlib import Path
 import pickle
 import shutil
 
-# try to import a plotter lib and disable plotting if not available
-# eg due to missing matplolib (not installed with AlphaFold by default)
-try:
-    rootpath = Path( __file__ ).parent.absolute()
-    sys.path.append(os.path.join(rootpath, '..', 'af2plots'))
-    sys.path.append(os.path.join(rootpath))
-    from af2plots.plotter import plotter
-    PLOTTER_AVAILABLE = 1
-except:
-    logger.info("WARNING: cannot initiate figure plotter")
-    PLOTTER_AVAILABLE = 0
-
-import version
-
 MMSEQS_API_SERVER = "https://api.colabfold.com"
 MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
 
@@ -81,6 +67,20 @@ import logging.config
 logging.config.dictConfig({'version': 1,'disable_existing_loggers': True,})
 import logging
 logger = logging.getLogger(__name__)
+
+# try to import a plotter lib and disable plotting if not available
+# eg due to missing matplolib (not installed with AlphaFold by default)
+try:
+    rootpath = Path( __file__ ).parent.absolute()
+    sys.path.append(os.path.join(rootpath, '..', 'af2plots'))
+    sys.path.append(os.path.join(rootpath))
+    from af2plots.plotter import plotter
+    PLOTTER_AVAILABLE = 1
+except:
+    logger.info("WARNING: cannot initiate figure plotter")
+    PLOTTER_AVAILABLE = 0
+
+import version
 
 tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 ogt = dict([(tgo[_k], _k) for _k in tgo])
@@ -186,22 +186,14 @@ mv DB_a3m_ordered.ffdata DB_a3m.ffdata
 cd %(home_path)s
 """
 
-def parse_args():
+def parse_args(expert=False):
     """setup program options parsing"""
     parser = OptionParser(usage="Usage: gapTrick [options]", version=version.__version__)
 
 
-    required_opts = OptionGroup(parser, "Required parameters (model, sequences and a map)")
+    required_opts = OptionGroup(parser, "Required parameters")
     parser.add_option_group(required_opts)
 
-    required_opts.add_option("--msa", action="store", \
-                            dest="msa", type="string", metavar="FILENAME,FILENAME", \
-                  help="comma-separated a3m MSAs. First sequence is a target", default=None)
-
-    required_opts.add_option("--msa_dir", action="store", \
-                            dest="msa_dir", type="string", metavar="DIRNAME", \
-                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", \
-                                default=None)
 
     required_opts.add_option("--seqin", action="store", \
                             dest="seqin", type="string", metavar="FILENAME", \
@@ -212,74 +204,91 @@ def parse_args():
                             dest="templates", type="string", metavar="FILENAME,FILENAME", \
                   help="comma-separated temlates in mmCIF/PDB format", default=None)
 
-    required_opts.add_option("--chain_ids", action="store", \
-                            dest="chain_ids", type="string", metavar="CHAR,CHAR", \
-                  help="comma-separated template chains corresponding to consequtive MSAs", default=None)
-
-    required_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
-                  help="cardinalities of consecutive MSA", default=None)
-
-    required_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
-                  help="lengths of consecutive target seqs", default=None)
-
-    required_opts.add_option("--preds_per_model", action="store", dest="preds_per_model", type="int", metavar="INT", \
-                  help="number of predictions per model (default: %default)", default=1)
-
-    required_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
-                  help="number of recycles", default=3)
-
-    required_opts.add_option("--seed", action="store", dest="seed", type="int", metavar="INT", \
-                  help="random seed (default None)", default=None)
-
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
 
-    required_opts.add_option("--nomerge", action="store_true", dest="nomerge", default=False, \
-                  help="Use input templates as monomers. Benchmarks only!")
+    extra_opts = OptionGroup(parser, "Extra parameters")
+    parser.add_option_group(extra_opts)
 
-    required_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
-                  help="Mask template sequence (replace residue ids with gaps and add missing CBs)")
+    extra_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
+                  help="relax top model")
 
-    required_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
-                  help="maximum number of MSA seqeunces", default=None)
+    extra_opts.add_option("--msa_dir", action="store", \
+                            dest="msa_dir", type="string", metavar="DIRNAME", \
+                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", \
+                                default=None)
+    extra_opts.add_option("--chain_ids", action="store", \
+                            dest="chain_ids", type="string", metavar="CHAR,CHAR", \
+                  help="comma-separated template chains corresponding to consequtive MSAs", default=None)
 
-    required_opts.add_option("--data_dir", action="store", \
+
+
+    extra_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
+                  help="maximum number of MSA seqeunces", default=5000)
+
+    extra_opts.add_option("--data_dir", action="store", \
                             dest="data_dir", type="string", metavar="DIRNAME", \
                   help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
 
-    required_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
-                  help="check template alignments and quit")
 
-    required_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
-                  help="relax top model")
-
-    required_opts.add_option("--keepalldata", action="store_true", dest="keepalldata", default=False, \
-                  help="keep all output data (MSAs, pkls, etc), you wont need them in most of the cases")
-
-    required_opts.add_option("--debug", action="store_true", dest="debug", default=False, \
-                  help="write more on output")
-
-    #TODO
-    required_opts.add_option("--trim_model_to_template", action="store_true", dest="trim_model_to_template", default=False, \
-                  help="trim model to template (refinement mode)")
 
     #BENCHMARKS ONLY!
-    required_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
-                  help="remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
+    expert_opts = OptionGroup(parser, "Expert parameters",
+                                            "Defaults are optimal in most of "
+                                            "the cases. Enable with -e/--expert")
+    parser.add_option_group(expert_opts)
 
-    required_opts.add_option("--iterate", action="store", dest="iterate", type="int", metavar="INT", \
-                  help="re-iterate prediction [default %default]", default=1)
+    expert_opts.add_option("-e", "--expert", action="store_true", dest="expert", default=None, \
+                  help=SUPPRESS_HELP)
 
-    required_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
-                  help="Probability cutoff for the contact identification [default %default]", default=0.8)
+    expert_opts.add_option("--debug", action="store_true", dest="debug", default=False, \
+                  help=SUPPRESS_HELP if not expert else "write more on output")
 
-    required_opts.add_option("--plddt_cutoff", action="store", dest="plddt_cutoff", type="float", metavar="FLOAT", \
-                  help="AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]",
+    expert_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
+
+    expert_opts.add_option("--iterate", action="store", dest="iterate", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "re-iterate prediction [default %default]", default=1)
+
+    expert_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "Probability cutoff for the contact identification [default %default]", default=0.8)
+
+    expert_opts.add_option("--plddt_cutoff", action="store", dest="plddt_cutoff", type="float", metavar="FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]",
                   default=None)
 
-    required_opts.add_option("--rotrans", action="store", \
-                            dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
-                  help="rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
+    expert_opts.add_option("--rotrans", action="store", dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
+
+    expert_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
+                  help=SUPPRESS_HELP if not expert else "cardinalities of consecutive MSA", default=None)
+
+    expert_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
+                  help=SUPPRESS_HELP if not expert else "lengths of consecutive target seqs", default=None)
+
+    expert_opts.add_option("--preds_per_model", action="store", dest="preds_per_model", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "number of predictions per model (default: %default)", default=1)
+
+    expert_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "number of recycles", default=3)
+
+    expert_opts.add_option("--seed", action="store", dest="seed", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "random seed (default None)", default=None)
+
+    expert_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
+                  help=SUPPRESS_HELP if not expert else "check template alignments and quit")
+
+    expert_opts.add_option("--keepalldata", action="store_true", dest="keepalldata", default=False, \
+                  help=SUPPRESS_HELP if not expert else "keep all output data (MSAs, pkls, etc), you wont need them in most of the cases")
+
+    expert_opts.add_option("--nomerge", action="store_true", dest="nomerge", default=False, \
+                  help=SUPPRESS_HELP if not expert else "Use input templates as monomers. Benchmarks only!")
+
+    expert_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
+                  help=SUPPRESS_HELP if not expert else "Mask template sequence (replace residue ids with gaps and add missing CBs)")
+
+    expert_opts.add_option("--msa", action="store", dest="msa", type="string", metavar="FILENAME,FILENAME", \
+                  help=SUPPRESS_HELP if not expert else "comma-separated a3m MSAs. First sequence is a target", default=None)
 
     (options, _args)  = parser.parse_args()
     return (parser, options)
@@ -1439,33 +1448,35 @@ def runme(msa_filenames,
 
 def main():
 
+    header_msg = "\n".join(["", f"## gapTrick version {version.__version__}", ""," ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])), ""])
+    
     start_time = datetime.now()
 
     (parser, options) = parse_args()
 
+    if options.expert:
+        (parser, options) = parse_args(expert = options.expert)
+        parser.print_help()
+        exit(0)
+
+
     if options.jobname is None:
-        print( " ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])) )
-        print("")
-        print('Define jobname - output directory')
+        print( header_msg )
+        print('Define jobname - output directory with --jobname')
         exit(0)
 
     jobpath=Path(options.jobname)
     try:
         jobpath.mkdir(parents=True, exist_ok=False)
     except:
-        print( " ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])) )
-        print("")
+        print( header_msg )
         print(f"ERROR: target directory already exists '{jobpath}'")
         return 1
 
     logging.basicConfig(level=logging.INFO, format="%(message)s",\
             handlers=[logging.FileHandler(Path(jobpath, 'logfile.txt')),logging.StreamHandler()])
 
-    logger.info("")
-    logger.info(f"## gapTrick version {version.__version__}")
-    logger.info("")
-    logger.info( " ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])) )
-    logger.info("")
+    logger.info(header_msg)
 
     if options.msa:
 
