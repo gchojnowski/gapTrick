@@ -1,6 +1,5 @@
 import os, sys, re, io
 import subprocess
-import version
 
 import uuid
 import glob
@@ -35,6 +34,8 @@ try:
 except:
     logger.info("WARNING: cannot initiate figure plotter")
     PLOTTER_AVAILABLE = 0
+
+import version
 
 MMSEQS_API_SERVER = "https://api.colabfold.com"
 MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
