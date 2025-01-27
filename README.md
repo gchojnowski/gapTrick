@@ -39,7 +39,7 @@ cd ALphaFold2
 curl -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p conda
 source conda/bin/activate
-conda install -qy -c conda-forge -c bioconda python=3.10 openmm=8.0.0 matplotlib kalign2 hhsuite pdbfixer 
+conda install -qy -c conda-forge -c bioconda python=3.10 openmm=8.0.0 matplotlib kalign2 hhsuite pdbfixer pyopenssl==22.0.0
 ```
 
 ## AlphaFold2
@@ -49,11 +49,8 @@ Once you installed all dependencies install AlphaFold2 from an official reposito
 git clone --branch main https://github.com/deepmind/alphafold alphafold
 pip3 install -r alphafold/requirements.txt
 pip3 install --no-dependencies alphafold
-pip3 install pyopenssl==22.0.0
-mkdir -p alphafold/common
-curl -o alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
-cp -f alphafold/common/stereo_chemical_props.txt conda/lib/python3.10/site-packages/alphafold/common/
+curl -o conda/lib/python3.10/site-packages/alphafold/common/ https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
 
 ... and download model weights
