@@ -3,7 +3,7 @@
 # gapTrick – structural characterisation of protein-protein interactions using AlphaFold with multimeric templates
 
 
-**gapTrick** is a tools based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging cryo-EM and MX structures and the computational identification of protein-protein interactions.
+**gapTrick** is a tool based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging cryo-EM and MX structures and the computational identification of protein-protein interactions.
 
 - [How to cite](#how-to-cite)
 - [Colab notebook](#colab-notebook)
@@ -81,7 +81,7 @@ pip install git+https://github.com/gchojnowski/gapTrick
 
 # How to use gapTrick
 
-The prediction of protein-protein complexes in gapTrick is based on AlphaFold2 NN models trained on single-chain proteins. The method uses only two out of five AF2 NN models that allow for the use of input templates.  To allow prediction of multimeric structural models, all input protein chains are merged into a single protein chain interspersed with 200 amino acid gaps. The only input required from user is a PDB/mmCIF template and a FASTA file containing all target sequences in arbitrary order (it doesn't make sense to run it without a template). The structure prediction is performed fully automatically.
+The prediction of protein-protein complexes in gapTrick is based on AlphaFold2 neural network (NN) models trained on single-chain proteins. The method uses only two out of five AF2 NN models that allow for the use of input templates.  To allow prediction of multimeric structural models, all input protein chains are merged into a single protein chain interspersed with 200 amino acid gaps. The only input required from user is a PDB/mmCIF template and a FASTA file containing all target sequences in arbitrary order (it doesn't make sense to run it without a template). The structure prediction is performed fully automatically.
 
 The most important gapTrick outputs are a model and precicted contacts. Two residues are predicted to be in contact if the probability that their CB atoms (CA for glycine) are within 8Å radius is greater than 80%.  **The contact predictions are very precise.** If you see one of them on the complex interface, it's a strong evidence that your complex prediction is correct.
 
