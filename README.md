@@ -9,6 +9,7 @@
     - [AlphaFold2](#alphafold2)
     - [gapTrick](#gaptrick)
 - [How to use gapTrick](#how-to-use-gaptrick)
+    - [Input](#input)
     - [Running the predictions](#running-the-predictions)
     - [Interpreting prediction results](#interpreting-prediction-results)
 
@@ -75,7 +76,18 @@ pip install git+https://github.com/gchojnowski/gapTrick
 
 # How to use gapTrick
 
+The prediction of protein-protein complexes in gapTrick is based on AlphaFold2 NN models trained on single-chain proteins. The method uses only two out of five AF2 NN models that allow for the use of input templates.  To allow prediction of multimeric structural models, all input protein chains are merged into a single protein chain interspersed with 200 amino acid gaps. The only input required from user is a PDB/mmCIF template and a FASTA file containing all target sequences in arbitrary order (it doesn't make sense to run it without a template). The structure prediction is performed fully automatically.
+
+## Input
+
+To see a list the most recent options run 
+
+```
+gapTrick --help
+```
+
 ## Running the predictions
+
 First, check your installation with a most basic run based on files provided in a examples directory. It's a part of a larger compels ([1bjp](https://www.ebi.ac.uk/pdbe/entry/pdb/1bjp/index)) that would be difficult to predict without a template
 ```
 gapTrick --seqin examples/piaq.fasta --templates examples/1bjp2.pdb --jobname piaq_test --max_seq 5000 --relax
@@ -91,11 +103,11 @@ now, whenever you rerun the job above gapTrick will check the ``local_msas`` dir
 
 After a job finishes the outpout directory will contain the following files and directories
 
-    - msas
-    - input/ranked_0.pdb - top-ranked prediciton
+    - msas/ - MSAs downloaded from MMseqs2 API. They can be used in subsequent jobs with the ``--msa_dir`` keyword (unless you haven't used it already).
+    - input/ranked_0.pdb - top-ranked prediciton in PDB format.
     - input/ranked_0_pae.json - PAE matrix for top-ranked prediciton. You can use it for generating self-restrains in ISOLDE.
-    - figures/ - PAE, pLDDT, and distogram plots in png and svg format
-    - contacts.txt - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilities. Leading * mark inter-chain ones, if you have them, the complex prediction is most likely correct
+    - figures/ - PAE, pLDDT, and distogram plots in png and svg format.
+    - contacts.txt - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilities. Leading * mark inter-chain ones, if you have them, the complex prediction is most likely correct.
     - pymol_interchain_contacts.pml - a pymol script for displaying inter-chain contacts (first, open ranked_0.pdb and then use File->Run Script option to run it).
     - pymol_all_contacts.pml - same as above with all cointacts, there is ususally lots of them!
 
