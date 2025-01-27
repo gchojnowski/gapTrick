@@ -792,7 +792,7 @@ def match_template_chains_to_target_bio(structure, target_sequences):
             _tmp_si[cid]=si#100.0*si#/min(len(chain_seq_dict[cid]),len(_target_seq))
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
-            other_si = "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]"
+            other_si = "".join(["[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]"])
             logger.info(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f} {other_si}")
 
     if not len(greedy_selection) == len(target_sequences):
