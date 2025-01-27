@@ -76,7 +76,7 @@ The gapTrick itself can be installed with a command:
 pip install git+https://github.com/gchojnowski/gapTrick
 ```
 
-but you can also use it directly from a cloned repository (e.g. if you already have a running copy of AlphaFold2)
+but you can also use it directly from a cloned repository (e.g. if you already have a working copy of AlphaFold2)
 
 ```
 git clone --recursive https://github.com/gchojnowski/gapTrick.git
