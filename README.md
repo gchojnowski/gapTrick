@@ -9,6 +9,10 @@
     - [AlphaFold2](#alphafold2)
     - [gapTrick](#gaptrick)
 - [How to use gapTrick](#how-to-use-gaptrick)
+    - [Running the predictions](#running-the-predictions)
+    - [Interpreting prediction results](#interpreting-prediction-results)
+
+
 <br/> 
 
 # How to cite
@@ -71,7 +75,22 @@ pip install git+https://github.com/gchojnowski/gapTrick
 
 # How to use gapTrick
 
+## Running the predictions
+First, check your installation with a most basic run based on files provided in a examples directory. It's a part of a larger compels ([1bjp](https://www.ebi.ac.uk/pdbe/entry/pdb/1bjp/index)) that would be difficult to predict without a template
 ```
-gapTrick --help
+gapTrick --seqin examples/piaq.fasta --templates examples/1bjp2.pdb --jobname piaq_test --max_seq 5000 --relax
 ```
+this will automatically download MSAs from MMseqs2 API and run prediction. Remember about fair use ot the API server. To reduce the number of requests for predictions repeated for teh same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in later jobs. For example, the following will use a directory ``local_msas`` (you need to create it in advance):
+
+```
+gapTrick --seqin examples/piaq.fasta --templates examples/1bjp2.pdb --jobname piaq_test --max_seq 5000 --relax --msa_dir local_msas
+```
+now, whenever you rerun the job above gapTrick will check the ``local_msas`` directory for MSAs matching your target sequences
+
+## Interpreting prediction results
+
+After a job finishes the outpout directory will contain the following files and directories
+    - msas
+
+
 (C) 2025 Grzegorz Chojnowski
