@@ -111,7 +111,7 @@ gapTrick --help
 First, check your installation with a most basic run based on files provided in a examples directory. It's a small homo-dimer, part of a larger complex ([1bjp](https://www.ebi.ac.uk/pdbe/entry/pdb/1bjp/index)) that would be difficult to predict without a template
 
 ```
-gapTrick --seqin examples/piaq.fasta --templates examples/1bjp2.pdb --jobname piaq_test --max_seq 5000 --relax
+gapTrick --seqin examples/piaq.fasta --templates examples/piaq.pdb --jobname piaq_test --max_seq 5000 --relax
 ```
 this will automatically download MSAs from MMseqs2 API and run prediction. Remember about fair use ot the API server. To reduce the number of requests for predictions repeated for teh same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in later jobs. For example, the following will use a directory ``local_msas`` (you need to create it in advance):
 
