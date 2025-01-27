@@ -111,14 +111,14 @@ now, whenever you rerun the job above gapTrick will check the ``local_msas`` dir
 
 ## Interpreting prediction results
 
-After a job finishes the outpout directory will contain the following files and directories
+After a job finishes the output directory will contain the following files and directories
 
-    - msas/ - MSAs downloaded from MMseqs2 API. They can be used in subsequent jobs with the ``--msa_dir`` keyword (unless you haven't used it already).
-    - input/ranked_0.pdb - top-ranked prediciton in PDB format.
-    - input/ranked_0_pae.json - PAE matrix for top-ranked prediciton. You can use it for generating self-restrains in ISOLDE.
-    - figures/ - PAE, pLDDT, and distogram plots in png and svg format.
-    - contacts.txt - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilities. Leading * mark inter-chain ones, if you have them, the complex prediction is most likely correct.
-    - pymol_interchain_contacts.pml - a pymol script for displaying inter-chain contacts (first, open ranked_0.pdb and then use File->Run Script option to run it).
-    - pymol_all_contacts.pml - same as above with all cointacts, there is ususally lots of them!
+- ``msas/`` - MSAs downloaded from MMseqs2 API. They can be used in subsequent jobs with the ``--msa_dir`` keyword (unless you haven't used it already).
+- ``input/ranked_0.pdb`` - top-ranked prediciton in PDB format.
+- ``input/ranked_0_pae.json`` - PAE matrix for top-ranked prediciton. You can use it for generating self-restrains in ISOLDE.
+- ``figures/`` - PAE, pLDDT, and distogram plots in png and svg format.
+- ``contacts.txt`` - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilities. Leading * mark inter-chain ones, if you have them, the complex prediction is most likely correct.
+- ``pymol_interchain_contacts.pml`` - a pymol script for displaying inter-chain contacts (first, open ranked_0.pdb and then use File->Run Script option to run it).
+- ``pymol_all_contacts.pml`` - same as above with all cointacts, there is ususally lots of them!
 
 (C) 2025 Grzegorz Chojnowski
