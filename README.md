@@ -80,7 +80,13 @@ The prediction of protein-protein complexes in gapTrick is based on AlphaFold2 N
 
 ## Input
 
-To see a list the most recent options run 
+The most important keywords are
+
+    --seqin - input sequences in FASTA format
+    --templates - input template in PDB/mmCIF format
+    --jobnmame - name of a target job directory. Existing directories will not be overwritten
+
+To see a full keywords list run 
 
 ```
 gapTrick --help
