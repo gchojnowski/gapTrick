@@ -1,6 +1,6 @@
 ![contacts_prediction](/examples/contacts.png)
 
-# gapTrick – structural characterisation of protein-protein interactions using AlphaFold with multimeric templates
+# gapTrick – AlphaFold with multimeric templates
 
 
 **gapTrick** is a tool based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging cryo-EM and MX structures and the computational identification of protein-protein interactions.
