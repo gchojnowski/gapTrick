@@ -23,6 +23,8 @@
 
 Grzegorz Chojnowski, to be published.
 
+The gapTrick code depends on [AlphaFold2](https://www.nature.com/articles/s41586-021-03819-2) and [MMseqs2](https://doi.org/10.1093/bioinformatics/btab184), remember to cite the as well!
+
 <br/> 
 
 # Colab notebook
