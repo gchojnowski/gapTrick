@@ -83,14 +83,20 @@ gapTrick --seqin examples/piaq.fasta --templates examples/1bjp2.pdb --jobname pi
 this will automatically download MSAs from MMseqs2 API and run prediction. Remember about fair use ot the API server. To reduce the number of requests for predictions repeated for teh same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in later jobs. For example, the following will use a directory ``local_msas`` (you need to create it in advance):
 
 ```
-gapTrick --seqin examples/piaq.fasta --templates examples/1bjp2.pdb --jobname piaq_test --max_seq 5000 --relax --msa_dir local_msas
+gapTrick --seqin examples/piaq.fasta --templates examples/piaq.pdb --jobname piaq_test --max_seq 5000 --relax --msa_dir local_msas
 ```
 now, whenever you rerun the job above gapTrick will check the ``local_msas`` directory for MSAs matching your target sequences
 
 ## Interpreting prediction results
 
 After a job finishes the outpout directory will contain the following files and directories
-    - msas
 
+    - msas
+    - input/ranked_0.pdb - top-ranked prediciton
+    - input/ranked_0_pae.json - PAE matrix for top-ranked prediciton. You can use it for generating self-restrains in ISOLDE.
+    - figures/ - PAE, pLDDT, and distogram plots in png and svg format
+    - contacts.txt - list of all residue pairs predifted to be at most 8Å apart. Leading * marks inter-chain ones. If you have them, the complex prediction is most likely correct
+    - pymol_interchain_contacts.pml - a pymol script for displaying inter-chain contacts (first, open ranked_0.pdb and then use File->Run Script option to run it).
+    - pymol_all_contacts.pml - same as above with all cointacts, there is ususally lots of them!
 
 (C) 2025 Grzegorz Chojnowski
