@@ -76,6 +76,12 @@ The gapTrick itself can be installed with a command:
 pip install git+https://github.com/gchojnowski/gapTrick
 ```
 
+but you can use it directly from a cloned repository
+```
+git clone --recursive https://github.com/gchojnowski/gapTrick.git
+python gapTrick/gapTrick --help
+```
+ 
 <br/> 
 
 
