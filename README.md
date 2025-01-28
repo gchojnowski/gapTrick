@@ -44,7 +44,7 @@ If you already have a working copy of AlphaFold2 go directly to [gapTrick instal
 
 ## Hardware requirements
 
-gapTrick has the same hardware requirements as AlphaFold2. In most of the cases a standard GPU (T4, 3090) will be enough as it can handle predictions up to roughly 1,200 residues. For larger targets, you will need to either use cards with more memory (e.g. A100 that can handle up to roughly 3,000 residues), or split your target into smaller fragments.
+gapTrick has the same hardware requirements as AlphaFold2. In most of the cases a standard GPU (T4 on colab, 3090) will be enough as it can handle predictions up to roughly 1,200 residues. For larger targets, you will need to either use cards with more memory (e.g. A100 that can handle up to roughly 3,000 residues), or split your target into smaller fragments.
 
 ## Dependencies
 First, create a target directory, build base conda environment, and install dependencies
