@@ -817,9 +817,12 @@ def match_template_chains_to_target_bio(structure, target_sequences):
     logger.info(f" --> Greedy matching template chains to target sequences")
 
     chain_seq_dict = {}
+    chain_ends_dict = {}
     protein = get_prot_chains_bio(structure)
     for chain in protein:
         chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
+        _resis = list(chain.get_residues())
+        chain_ends_dict[chain.id]= (np.array(_resis[0]['CA']), np.array(_resis[-1]['CA']))
 
     greedy_selection = []
     for _idx, _target_seq in enumerate(target_sequences):
@@ -829,9 +832,8 @@ def match_template_chains_to_target_bio(structure, target_sequences):
             aligner = Align.PairwiseAligner()
             alignments = aligner.align(chain_seq_dict[cid], _target_seq)
             si = alignments[0].score
-            # depreciated!
-            #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
             _tmp_si[cid]=si#100.0*si#/min(len(chain_seq_dict[cid]),len(_target_seq))
+
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
             other_si = "".join(["[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]"])
@@ -839,6 +841,9 @@ def match_template_chains_to_target_bio(structure, target_sequences):
 
     if not len(greedy_selection) == len(target_sequences):
         logger.info("WARNING: template-target sequence match is incomplete!")
+
+    #for c1, c2 in zip(greedy_selection[:-1], greedy_selection[1:]):
+    #    print(c1, c2, np.linalg.norm(chain_ends_dict[c2][0]-chain_ends_dict[c1][1]))
 
     logger.info("")
 
