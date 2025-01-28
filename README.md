@@ -98,7 +98,7 @@ The most important gapTrick outputs are a model and precicted contacts. Two resi
 The most important keywords are
 
 - ``--seqin`` - input sequences in FASTA format (number of chains must match the target, e.g. for a homodimer same sequence must be repeated twice)
-- ``--templates`` - input template in PDB/mmCIF format
+- ``--template`` - input template in PDB/mmCIF format
 - ``--jobnmame`` - name of a target job directory. Existing directories will not be overwritten
 
 To see a full keywords list run 
