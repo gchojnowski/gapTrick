@@ -93,6 +93,11 @@ dist \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s and name \"%
 
 pymol_header=f"load %(modelid)s.pdb\nshow_as cartoon, %(modelid)s\nset label_size, 0\nutil.cbc %(modelid)s"
 
+chimerax_footer="distance style radius 0.15\ndistance style color red\ndistance style dashes 0\ncolor bychain"
+chimerax_dist_generic=\
+        "\n".join(["distance #$1/%(A_chain)s:%(A_resid)s@%(A_atom_name)s #$1/%(B_chain)s:%(B_resid)s@%(B_atom_name)s",
+                   "show #$1/%(A_chain)s:%(A_resid)s bonds",
+                   "show #$1/%(B_chain)s:%(B_resid)s bonds"])
 
 FAKE_MMCIF_HEADER=\
 """data_%(outid)s
@@ -660,6 +665,8 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
 
     pymol_all = [pymol_header%d]
     pymol_int = [pymol_header%d]
+    chimerax_int = []
+
     contacts_list = []
     interchain_contacts_list = []
 
@@ -669,6 +676,18 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
         d['B_chain'] = cj = m.group('ch2')
         d['A_resid'] = resi = m.group('res1')
         d['B_resid'] = resj = m.group('res2')
+        if chain_seq_dict[ci][int(resi)-1].upper()=='G':
+            d['A_atom_name']='CA'
+        else:
+            d['A_atom_name']='CB'
+
+        if chain_seq_dict[ci][int(resj)-1].upper()=='G':
+            d['B_atom_name']='CA'
+        else:
+            d['B_atom_name']='CB'
+
+
+
         _cstr = f"""{'*' if ci!=cj else ' '} {tgo[chain_seq_dict[ci][int(resi)-1]]}/{ci}/{resi:4s} {tgo[chain_seq_dict[cj][int(resj)-1]]}/{cj}/{resj:4s} {float(m.group('pbty')):.2f}"""
 
         if print_contacts: logger.info(_cstr)
@@ -678,6 +697,9 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
             pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
             pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
             pymol_int.append(pymol_dist_generic%d)
+
+            chimerax_int.append(chimerax_dist_generic%d)
+
             interchain_contacts_list.append(_cstr[2:])
 
         pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
@@ -691,6 +713,10 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
 
     with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
+
+    with open(os.path.join(datadir, "..", f"chimerax_interchain_contacts.cxc"), 'w') as ofile:
+        chimerax_int.append(chimerax_footer)
+        ofile.write("\n".join(chimerax_int))
 
     with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
         ofile.write("\n".join(contacts_list))
