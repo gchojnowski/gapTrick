@@ -5,7 +5,7 @@
 
 **gapTrick** is a tool based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging cryo-EM and MX structures and the computational identification of protein-protein interactions.
 
-- [How to cite](#how-to-cite)
+- [Citing this work](#citing-this-work)
 - [Colab notebook](#colab-notebook)
 - [Installation](#installation)
     - [Dependencies](#dependencies)
@@ -20,11 +20,11 @@
 
 <br/> 
 
-# How to cite
+# Citing this work
 
 Grzegorz Chojnowski, to be published.
 
-The gapTrick code depends on [AlphaFold2](https://www.nature.com/articles/s41586-021-03819-2) and [MMseqs2](https://doi.org/10.1093/bioinformatics/btab184), remember to cite the as well!
+The gapTrick code depends on [AlphaFold2](https://www.nature.com/articles/s41586-021-03819-2) and [MMseqs2](https://doi.org/10.1093/bioinformatics/btab184), remember to cite them as well!
 
 <br/> 
 
