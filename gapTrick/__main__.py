@@ -1491,7 +1491,7 @@ def main():
         return 1
 
     logging.basicConfig(level=logging.INFO, format="%(message)s",\
-            handlers=[logging.FileHandler(Path(jobpath, 'logfile.txt')),logging.StreamHandler()])
+            handlers=[logging.FileHandler(Path(jobpath, 'logfile.txt')),logging.StreamHandler(sys.stdout)])
 
     logger.info(header_msg)
 
