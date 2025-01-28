@@ -15,6 +15,7 @@
     - [Input](#input)
     - [Running the predictions](#running-the-predictions)
     - [Prediction results](#prediction-results)
+- [Using gapTrick for cryoEM model building](#using-gaptrick-for-cryoEM-model-building)
 
 
 <br/> 
@@ -131,5 +132,7 @@ After a job finishes the output directory will contain the following files and d
 - ``contacts.txt`` - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilities. Leading * mark inter-chain ones, if you have them, the complex prediction is most likely correct.
 - ``pymol_interchain_contacts.pml`` - a pymol script for displaying inter-chain contacts (first, open ranked_0.pdb and then use File->Run Script option to run it).
 - ``pymol_all_contacts.pml`` - same as above with all cointacts, there is ususally lots of them!
+
+# Using gapTrick for cryoEM model building
 
 (C) 2025 Grzegorz Chojnowski
