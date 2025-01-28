@@ -663,7 +663,7 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
     d['A_atom_name']='CA'
     d['B_atom_name']='CA'
 
-    pymol_all = [pymol_header%d]
+    #pymol_all = [pymol_header%d]
     pymol_int = [pymol_header%d]
     chimerax_int = []
 
@@ -702,14 +702,14 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
 
             interchain_contacts_list.append(_cstr[2:])
 
-        pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
-        pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
-        pymol_all.append(pymol_dist_generic%d)
+        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+        #pymol_all.append(pymol_dist_generic%d)
 
         idx+=1
 
-    with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
-        ofile.write("\n".join(pymol_all))
+    #with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
+    #    ofile.write("\n".join(pymol_all))
 
     with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
