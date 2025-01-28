@@ -46,7 +46,7 @@ First, create a target directory, build base conda environment, and install depe
 
 ```
 mkdir AlphaFold2
-cd ALphaFold2
+cd AlphaFold2
 curl -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p conda
 source conda/bin/activate
