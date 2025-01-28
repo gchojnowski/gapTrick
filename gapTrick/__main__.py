@@ -661,6 +661,7 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
     pymol_all = [pymol_header%d]
     pymol_int = [pymol_header%d]
     contacts_list = []
+    interchain_contacts_list = []
 
     for contact_str in contacts_txt:
         m = re.match(contact_template, contact_str)
@@ -677,6 +678,7 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
             pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
             pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
             pymol_int.append(pymol_dist_generic%d)
+            interchain_contacts_list.append(_cstr[2:])
 
         pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
         pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
@@ -692,6 +694,21 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
 
     with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
         ofile.write("\n".join(contacts_list))
+
+    logger.info("\n\n")
+
+    if not interchain_contacts_list:
+        logger.info(f""" ==> Found NO inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
+                     """     The prediction may be NOT correct\n""")
+    else:
+        logger.info(f""" ==> Found {len(interchain_contacts_list)} inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
+                     """     The prediction is very likely to be correct\n""")
+        for idx,_c in enumerate(interchain_contacts_list):
+            logger.info(f"     {idx+1:03d} {_c}")
+            if idx>8:
+                logger.info("    [..] full list in contacts.txt")
+                break
+
 
 # -----------------------------------------------------------------------------                    
                     
