@@ -63,9 +63,9 @@ from dataclasses import dataclass, replace
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 import random
 
+import logging
 import logging.config
 logging.config.dictConfig({'version': 1,'disable_existing_loggers': True,})
-import logging
 logger = logging.getLogger(__name__)
 
 # try to import a plotter lib and disable plotting if not available
