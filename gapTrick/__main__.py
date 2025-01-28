@@ -200,9 +200,9 @@ def parse_args(expert=False):
                   help="Fasta file with target sequences. Corresponding (unique) MSAs will be acquired from the mmseqs2 API", \
                                 default=None)
 
-    required_opts.add_option("--templates", action="store", \
-                            dest="templates", type="string", metavar="FILENAME,FILENAME", \
-                  help="comma-separated temlates in mmCIF/PDB format", default=None)
+    required_opts.add_option("--template", action="store", \
+                            dest="templates", type="string", metavar="FILENAME", \
+                  help="template in mmCIF or PDB format", default=None)
 
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
