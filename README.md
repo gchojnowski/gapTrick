@@ -8,6 +8,7 @@
 - [Citing this work](#citing-this-work)
 - [Colab notebook](#colab-notebook)
 - [Installation](#installation)
+    - [Hardware requirements](#hardware-requirements)    
     - [Dependencies](#dependencies)
     - [AlphaFold2](#alphafold2)
     - [gapTrick](#gaptrick)
@@ -40,6 +41,10 @@ You can run gapTrick on Colab server without having to satisfy its hardware (GPU
 The code requires only a standard AlphaFold2 installation to run. Check AlphaFold2 installation instructions at the [official webpage](https://github.com/google-deepmind/alphafold) or follow the instructions below. I use them to install the code on Colab. It should work smoothly on most Linux distributions.
 
 If you already have a working copy of AlphaFold2 go directly to [gapTrick installation](#gaptrick) instructions. You can also run gapTrick directly from a cloned repository.
+
+## Hardware requirements
+
+gapTrick has the same hardware requirements as AlphaFold2. In most of the cases a standard GPU (T4 on colab, 3090) will be enough as it can handle predictions up to roughly 1,200 residues. For larger targets, you will need to either use cards with more memory (e.g. A100 that can handle up to roughly 3,000 residues), or split your target into smaller fragments.
 
 ## Dependencies
 First, create a target directory, build base conda environment, and install dependencies
@@ -132,6 +137,7 @@ After a job finishes the output directory will contain the following files and d
 - ``contacts.txt`` - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilitiesn (above 0.8). Leading * marks inter-chain intercations. If you have them, the complex prediction is very likely to be correct.
 - ``pymol_interchain_contacts.pml`` - a pymol script for displaying inter-chain contacts (first, open ranked_0.pdb and then use File->Run Script option to run it).
 - ``pymol_all_contacts.pml`` - same as above with all cointacts, there is ususally lots of them!
+- ``chimerax_interchain_contacts.cxc`` - a script for displaying contacts in ChimeraX. Open top prediction and run a command ``run [path to scirpt]/chimerax_interchain_contacts.cxc [model id]``
 
 # Using gapTrick for cryoEM model building
 
