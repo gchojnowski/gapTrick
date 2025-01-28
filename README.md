@@ -8,6 +8,7 @@
 - [Citing this work](#citing-this-work)
 - [Colab notebook](#colab-notebook)
 - [Installation](#installation)
+    - [Hardware requirements](#hardware-requirements)    
     - [Dependencies](#dependencies)
     - [AlphaFold2](#alphafold2)
     - [gapTrick](#gaptrick)
@@ -40,6 +41,10 @@ You can run gapTrick on Colab server without having to satisfy its hardware (GPU
 The code requires only a standard AlphaFold2 installation to run. Check AlphaFold2 installation instructions at the [official webpage](https://github.com/google-deepmind/alphafold) or follow the instructions below. I use them to install the code on Colab. It should work smoothly on most Linux distributions.
 
 If you already have a working copy of AlphaFold2 go directly to [gapTrick installation](#gaptrick) instructions. You can also run gapTrick directly from a cloned repository.
+
+## Hardware requirements
+
+gapTrick has the same hardware requirements as AlphaFold2. In most of the cases a standard GPU (T4, 3090) will be enough as it can handle predictions up to roughly 1,200 residues. For larger targets, you will need to either use cards with more memory (e.g. A100 that can handle up to roughly 3,000 residues), or split your target into smaller fragments.
 
 ## Dependencies
 First, create a target directory, build base conda environment, and install dependencies
