@@ -137,6 +137,7 @@ After a job finishes the output directory will contain the following files and d
 - ``contacts.txt`` - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilitiesn (above 0.8). Leading * marks inter-chain intercations. If you have them, the complex prediction is very likely to be correct.
 - ``pymol_interchain_contacts.pml`` - a pymol script for displaying inter-chain contacts (first, open ranked_0.pdb and then use File->Run Script option to run it).
 - ``pymol_all_contacts.pml`` - same as above with all cointacts, there is ususally lots of them!
+- ``chimerax_interchain_contacts.cxc`` - a script for displaying contacts in ChimeraX. Open top prediction and run a command ``run [path to scirpt]/chimerax_interchain_contacts.cxc [model id]``
 
 # Using gapTrick for cryoEM model building
 
