@@ -615,7 +615,7 @@ def predict_structure(prefix,
 
 # -----------------------------------------------------------------------------                    
 
-def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
+def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
 
     datadir=Path(prefix, "input")
     figures_dir = Path(prefix, "figures")
@@ -1347,7 +1347,7 @@ def runme(msa_filenames,
           noseq             =   False,
           truncate          =   None,
           rotrans           =   None,
-          pbty_cutoff       =   0.5,
+          pbty_cutoff       =   0.8,
           plddt_cutoff      =   None,
           debug             =   False,
           iterate           =   1):
@@ -1496,7 +1496,7 @@ def runme(msa_filenames,
 def main():
 
     header_msg = "\n".join(["", f"## gapTrick version {version.__version__}", ""," ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])), ""])
-    
+
     start_time = datetime.now()
 
     (parser, options) = parse_args()
@@ -1536,6 +1536,9 @@ def main():
 
         existing_msas={}
         if options.msa_dir:
+            # create msa_dir, if needed 
+            Path(options.msa_dir).mkdir(parents=True, exist_ok=True)
+
             for fn in glob.glob( os.path.join(options.msa_dir, '*.*') ):
                 with open(fn) as ifile:
                     _=ifile.readline()
@@ -1555,7 +1558,7 @@ def main():
                     logger.info(f" --> Found existing MSA for target sequence [{record.id}]")
                 else:
                     if options.msa_dir:
-                        a3m_fname=os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
+                        a3m_fname = os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
                     else:
                         a3m_fname = os.path.join(options.jobname, "msa", f"{len(local_msa_dict):04d}.a3m")
 
