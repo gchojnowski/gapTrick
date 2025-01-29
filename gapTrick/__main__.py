@@ -681,7 +681,7 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
         else:
             d['A_atom_name']='CB'
 
-        if chain_seq_dict[ci][int(resj)-1].upper()=='G':
+        if chain_seq_dict[cj][int(resj)-1].upper()=='G':
             d['B_atom_name']='CA'
         else:
             d['B_atom_name']='CB'
