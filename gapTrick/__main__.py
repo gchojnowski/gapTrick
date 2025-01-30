@@ -666,9 +666,12 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
     #pymol_all = [pymol_header%d]
     pymol_int = [pymol_header%d]
     chimerax_int = []
+    pymol_sb_int = [pymol_header%d]
+    chimerax_sb_int = []
 
     contacts_list = []
     interchain_contacts_list = []
+    interchain_sb_list = []
 
     for contact_str in contacts_txt:
         m = re.match(contact_template, contact_str)
@@ -676,19 +679,22 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
         d['B_chain'] = cj = m.group('ch2')
         d['A_resid'] = resi = m.group('res1')
         d['B_resid'] = resj = m.group('res2')
-        if chain_seq_dict[ci][int(resi)-1].upper()=='G':
+
+        resni = tgo[chain_seq_dict[ci][int(resi)-1]].upper()
+        resnj = tgo[chain_seq_dict[cj][int(resj)-1]].upper()
+
+        if resni=='GLY':
             d['A_atom_name']='CA'
         else:
             d['A_atom_name']='CB'
 
-        if chain_seq_dict[cj][int(resj)-1].upper()=='G':
+        if resnj=='GLY':
             d['B_atom_name']='CA'
         else:
             d['B_atom_name']='CB'
 
 
-
-        _cstr = f"""{'*' if ci!=cj else ' '} {tgo[chain_seq_dict[ci][int(resi)-1]]}/{ci}/{resi:4s} {tgo[chain_seq_dict[cj][int(resj)-1]]}/{cj}/{resj:4s} {float(m.group('pbty')):.2f}"""
+        _cstr = f"""{'*' if ci!=cj else ' '} {resni}/{ci}/{resi:4s} {resnj}/{cj}/{resj:4s} {float(m.group('pbty')):.2f}"""
 
         if print_contacts: logger.info(_cstr)
         contacts_list.append(_cstr)
@@ -699,8 +705,14 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
             pymol_int.append(pymol_dist_generic%d)
 
             chimerax_int.append(chimerax_dist_generic%d)
-
             interchain_contacts_list.append(_cstr[2:])
+
+            if (resnj in ['ASP', 'GLU'] and resni in ['LYS', 'ARG']) or (resni in ['ASP', 'GLU'] and resnj in ['LYS', 'ARG']):
+                interchain_sb_list.append(_cstr[2:])
+                pymol_sb_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+                pymol_sb_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+                pymol_sb_int.append(pymol_dist_generic%d)
+                chimerax_sb_int.append(chimerax_dist_generic%d)
 
         #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
         #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
@@ -718,6 +730,14 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
         chimerax_int.append(chimerax_footer)
         ofile.write("\n".join(chimerax_int))
 
+    if interchain_sb_list:
+        with open(os.path.join(datadir, "..", f"pymol_interchain_saltbridges.pml"), 'w') as ofile:
+            ofile.write("\n".join(pymol_sb_int))
+
+        with open(os.path.join(datadir, "..", f"chimerax_interchain_saltbridges.cxc"), 'w') as ofile:
+            chimerax_sb_int.append(chimerax_footer)
+            ofile.write("\n".join(chimerax_sb_int))
+
     with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
         ofile.write("\n".join(contacts_list))
 
@@ -734,7 +754,14 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
             if idx>8:
                 logger.info("    [..] full list in contacts.txt")
                 break
-
+        if interchain_sb_list:
+            logger.info("")
+            logger.info(f"""     Among these {len(interchain_sb_list)} may form salt-bridges""")
+            for idx,_c in enumerate(interchain_sb_list):
+                logger.info(f"     {idx+1:03d} {_c}")
+                if idx>8:
+                    logger.info("    [..] full list in contacts.txt")
+                    break
 
 # -----------------------------------------------------------------------------                    
                     
