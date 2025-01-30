@@ -140,7 +140,7 @@ After a job finishes the output directory will contain the following files and d
 
 # Using gapTrick for cryoEM model building
 
-gapTrick can be very useful in interpreting your cryo-EM (and MX!) maps. Single-chain predictions fittend into maps and rebuilt with gapTrick will have very good stereochemical properties (**easy to refine**) and provide contact predictions (**powerful validation score**), which will help in functinal analysis. Here, in a few simple steps, I will show you how I use it on daily basis.
+gapTrick can be very useful in interpreting your cryo-EM (and MX!) maps. Single-chain predictions fittend into maps and rebuilt with gapTrick will have very good stereochemical properties (**easy to refine**) and provide contact predictions (**powerful validation score**), which will help in functinal analysis. Here, in a few simple steps, I will show how I use it
 
  - Fit your chains (or complexes, if available) into the cryo-EM map. I like to use Molrep in [Doppio](https://www.ccpem.ac.uk/docs/doppio/index.html).
  - Refine the models in real space with self-restraints (COOT or ISOLDE). It needs to fit the map as good as possible.
