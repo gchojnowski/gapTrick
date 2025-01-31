@@ -92,9 +92,10 @@ pip install tensorflow==2.16.1
 ... and download model weights (we don't need the MSA pipeline or databases here!)
 
 ```
-mkdir --parents alphafold/data/params
-curl -o alphafold/data/params/alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
-tar --extract --verbose --file=alphafold/data/params/alphafold_params_2021-07-14.tar --directory=alphafold/data/params --preserve-permissions
+mkdir --parents conda/lib/python3.10/site-packages/alphafold/data/params
+curl -o alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
+tar --extract --verbose --file=alphafold_params_2021-07-14.tar --directory=conda/lib/python3.10/site-packages/alphafold/data/params --preserve-permissions
+rm alphafold_params_2021-07-14.tar
 ```
 
 ## gapTrick
