@@ -112,5 +112,8 @@ if __name__=="__main__":
         pymol_str.append(f"show sticks, (chain {d['A_chain']} and resi {d['A_resid']})")
         pymol_str.append(f"show sticks, (chain {d['B_chain']} and resi {d['B_resid']})")
 
-    with open(ref_ph_fn[:-4]+'.pml', 'w') as ofile:
+    fn = ref_ph_fn[:-4]+'.pml'
+    with open(fn, 'w') as ofile:
         ofile.write( "\n".join(pymol_str) )
+    print()
+    print(f"Wrote pymol scirpt {fn}. Open the model {ref_ph_fn} and run the script with File->Run Script")
