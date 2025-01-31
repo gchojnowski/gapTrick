@@ -50,7 +50,17 @@ If you already have a working copy of AlphaFold2 go directly to [gapTrick instal
 gapTrick has the same hardware requirements as AlphaFold2. In most of the cases a standard GPU (T4 on colab, 3090) will be enough as it can handle predictions up to roughly 1,200 residues. For larger targets, you will need to either use cards with more memory (e.g. A100 that can handle up to roughly 3,000 residues), or split your target into smaller fragments.
 
 ## Dependencies
-If you will be using GPU (highly recommended) install the NVIDIA CUDA Toolkit first. 
+First, install the NVIDIA CUDA Toolkit on the system level.
+<!--
+```
+module load CUDA/12.1.1
+module load cuDNN/8.9.2.26-CUDA-12.1.1
+```
+
+```
+sudo apt-get install cuda-toolkit-12-2
+```
+-->
 
 Create a target directory, build base conda environment, and install dependencies
 
@@ -69,7 +79,7 @@ Once you installed all dependencies install AlphaFold2 from an official reposito
 ```
 git clone --branch main https://github.com/deepmind/alphafold alphafold
 pip install -r alphafold/requirements.txt
-pip install --no-dependencies alphafold/
+pip install --no-dependencies ./alphafold
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
 curl -o conda/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
