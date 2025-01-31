@@ -80,6 +80,8 @@ Once you installed all dependencies install AlphaFold2 from an official reposito
 git clone --branch main https://github.com/deepmind/alphafold alphafold
 pip install -r alphafold/requirements.txt
 pip install --no-dependencies ./alphafold
+pip install --upgrade "jax[cuda12]"==0.4.26
+pip install --upgrade tensorflow==2.16.1
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
 curl -o conda/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
