@@ -110,15 +110,12 @@ but you can also use it directly from a cloned repository (e.g. with a shared co
 git clone --recursive https://github.com/gchojnowski/gapTrick.git
 python gapTrick/gapTrick --help
 ```
-
+<!--
  ## Installation issues
 
-  - on some systems you may get an error about incompatible jaxlib version. In such cases, simply reinstall it with
-    ```
-    pip install jaxlib==0.4.26
-    ``` 
+  - none so far...
 <br/> 
-
+-->
 
 # How to use gapTrick
 
