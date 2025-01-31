@@ -83,6 +83,9 @@ pip install --no-dependencies ./alphafold
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
 curl -o conda/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
+<!--
+pip install tensorflow==2.16.1
+-->
 
 ... and download model weights (we don't need the MSA pipeline or databases here!)
 
