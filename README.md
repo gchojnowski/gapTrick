@@ -105,7 +105,7 @@ pip install git+https://github.com/gchojnowski/gapTrick
 gapTrick --help
 ```
 
-but you can also use it directly from a cloned repository (e.g. with a shared copy of AlphaFold2 on a cluster)
+but you can also use it directly from a cloned repository, e.g. with a shared copy of AlphaFold2 on a cluster. If you use your own installation, remember to specify directory with AF2 parameters using ``--data_dir`` keyword
 
 ```
 git clone --recursive https://github.com/gchojnowski/gapTrick.git
