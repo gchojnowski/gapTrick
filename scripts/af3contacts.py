@@ -53,7 +53,7 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 if __name__=="__main__":
 
     if not len(sys.argv)==3:
-        print('Usage: [fold_xyz_full_data_0.json] [fold_xyz_model_0.cif]')
+        print('Usage: af3contacts.py [fold_xyz_full_data_0.json] [fold_xyz_model_0.cif]')
         exit(0)
 
 
