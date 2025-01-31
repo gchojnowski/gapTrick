@@ -12,6 +12,8 @@
     - [Dependencies](#dependencies)
     - [AlphaFold2](#alphafold2)
     - [gapTrick](#gaptrick)
+    - [Installation issues](#installation-issues)
+
 - [How to use gapTrick](#how-to-use-gaptrick)
     - [Input](#input)
     - [Running the predictions](#running-the-predictions)
@@ -64,13 +66,14 @@ Once you installed all dependencies install AlphaFold2 from an official reposito
 
 ```
 git clone --branch main https://github.com/deepmind/alphafold alphafold
-pip3 install -r alphafold/requirements.txt
-pip3 install --no-dependencies alphafold/
+pip install -r alphafold/requirements.txt
+pip install --no-dependencies alphafold/
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
 curl -o conda/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
 
 ... and download model weights (we don't need the MSA pipeline or databases here!)
+
 ```
 mkdir --parents alphafold/data/params
 curl -o alphafold/data/params/alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
@@ -81,15 +84,22 @@ tar --extract --verbose --file=alphafold/data/params/alphafold_params_2021-07-14
 The gapTrick itself can be installed with a command:
 ```
 pip install git+https://github.com/gchojnowski/gapTrick
+gapTrick --help
 ```
 
-but you can also use it directly from a cloned repository (e.g. if you already have a working copy of AlphaFold2)
+but you can also use it directly from a cloned repository (e.g. with a shared copy of AlphaFold2 on a cluster)
 
 ```
 git clone --recursive https://github.com/gchojnowski/gapTrick.git
 python gapTrick/gapTrick --help
 ```
- 
+
+ ## Installation issues
+
+  - on some systems you may get an error about incompatible jaxlib version. In such cases, simply reinstall it with
+    ```
+    pip install jaxlib==0.4.26
+    ``` 
 <br/> 
 
 
