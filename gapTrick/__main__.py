@@ -80,7 +80,7 @@ except:
     logger.info("WARNING: cannot initiate figure plotter")
     PLOTTER_AVAILABLE = 0
 
-import version
+from gapTrick import version
 
 tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 ogt = dict([(tgo[_k], _k) for _k in tgo])
