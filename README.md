@@ -143,7 +143,7 @@ After a job finishes the output directory will contain the following files and d
 
 ## Troubleshooting
 
- - if running gapTrick produces models identical to those given on input (and there are no contact predictions), it often means that they are far from native conformation
+ - if running gapTrick produces models identical to those given on input (and there are no contact predictions), it often means that the template is far from a native conformation
 
 # Using gapTrick for cryoEM model building
 
