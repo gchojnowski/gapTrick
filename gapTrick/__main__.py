@@ -233,7 +233,7 @@ def parse_args(expert=False):
 
     extra_opts.add_option("--data_dir", action="store", \
                             dest="data_dir", type="string", metavar="DIRNAME", \
-                  help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
+                  help="AlphaFold2 database", default=None)
 
 
 
@@ -1477,6 +1477,9 @@ def runme(msa_filenames,
                     suffix=''
                 else:
                     suffix='_ptm'
+                  
+                if data_dir is None:
+                    data_dir = Path(os.path.dirname(__file__), '..', 'alphafold', 'data')
 
                 model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+suffix, data_dir=data_dir)
 
