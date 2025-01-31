@@ -226,14 +226,11 @@ def parse_args(expert=False):
                             dest="chain_ids", type="string", metavar="CHAR,CHAR", \
                   help="comma-separated template chains corresponding to consequtive MSAs", default=None)
 
-
-
     extra_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
                   help="maximum number of MSA seqeunces", default=5000)
 
-    extra_opts.add_option("--data_dir", action="store", \
-                            dest="data_dir", type="string", metavar="DIRNAME", \
-                  help="AlphaFold2 database", default=None)
+    extra_opts.add_option("--data_dir", action="store", dest="data_dir", type="string", metavar="DIRNAME", \
+                  help="Path to AlphaFold2 parameters", default=None)
 
 
 
