@@ -16,6 +16,7 @@
     - [Input](#input)
     - [Running the predictions](#running-the-predictions)
     - [Prediction results](#prediction-results)
+    - [Troubleshooting](#troubleshooting)
 - [Using gapTrick for cryoEM model building](#using-gaptrick-for-cryoEM-model-building)
 
 
@@ -139,6 +140,10 @@ After a job finishes the output directory will contain the following files and d
 - ``pymol_interchain_saltbridges.pml`` - this pymol script will ald salt-bridges only to your model. These may be the most crucial intercations!
 - ``chimerax_interchain_contacts.cxc`` - a script for displaying contacts in ChimeraX. Open top prediction and run a command ``run [path to scirpt]/chimerax_interchain_contacts.cxc [model id]``
 - ``chimerax_interchain_saltbridges.cxc`` - a script for displaying inter-chain salt-bridges in ChimeraX. Open top prediction and run a command ``run [path to scirpt]/chimerax_interchain_saltbridges.cxc [model id]``
+
+## Troubleshooting
+
+ - if running gapTrick produces models identical to those given on input (and there are no contact predictions), it often means that they are far from native conformation
 
 # Using gapTrick for cryoEM model building
 
