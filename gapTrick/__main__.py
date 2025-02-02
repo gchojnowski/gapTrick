@@ -23,18 +23,6 @@ from pathlib import Path
 import pickle
 import shutil
 
-# try to import a plotter lib and disable plotting if not available
-# eg due to missing matplolib (not installed with AlphaFold by default)
-try:
-    rootpath = Path( __file__ ).parent.absolute()
-    sys.path.append(os.path.join(rootpath, '..', 'af2plots'))
-    sys.path.append(os.path.join(rootpath))
-    from af2plots.plotter import plotter
-    PLOTTER_AVAILABLE = 1
-except:
-    print("WARNING: cannot initiate figure plotter")
-    PLOTTER_AVAILABLE = 0
-
 MMSEQS_API_SERVER = "https://api.colabfold.com"
 MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
 
@@ -75,11 +63,29 @@ from dataclasses import dataclass, replace
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 import random
 
+import logging
+import logging.config
+logging.config.dictConfig({'version': 1,'disable_existing_loggers': True,})
+logger = logging.getLogger(__name__)
+
+# try to import a plotter lib and disable plotting if not available
+# eg due to missing matplolib (not installed with AlphaFold by default)
+try:
+    rootpath = Path( __file__ ).parent.absolute()
+    sys.path.append(os.path.join(rootpath, '..', 'af2plots'))
+    sys.path.append(os.path.join(rootpath))
+    from af2plots.plotter import plotter
+    PLOTTER_AVAILABLE = 1
+except:
+    logger.info("WARNING: cannot initiate figure plotter")
+    PLOTTER_AVAILABLE = 0
+
+from gapTrick import version
 
 tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 ogt = dict([(tgo[_k], _k) for _k in tgo])
 
-#print(xla_bridge.get_backend().platform)
+#logger.info(xla_bridge.get_backend().platform)
 
 # templates for a pymol script visualising predficted contacts
 pymol_dist_generic="""\
@@ -87,6 +93,11 @@ dist \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s and name \"%
 
 pymol_header=f"load %(modelid)s.pdb\nshow_as cartoon, %(modelid)s\nset label_size, 0\nutil.cbc %(modelid)s"
 
+chimerax_footer="distance style radius 0.15\ndistance style color red\ndistance style dashes 0\ncolor bychain"
+chimerax_dist_generic=\
+        "\n".join(["distance #$1/%(A_chain)s:%(A_resid)s@%(A_atom_name)s #$1/%(B_chain)s:%(B_resid)s@%(B_atom_name)s",
+                   "show #$1/%(A_chain)s:%(A_resid)s bonds",
+                   "show #$1/%(B_chain)s:%(B_resid)s bonds"])
 
 FAKE_MMCIF_HEADER=\
 """data_%(outid)s
@@ -180,100 +191,106 @@ mv DB_a3m_ordered.ffdata DB_a3m.ffdata
 cd %(home_path)s
 """
 
-def parse_args():
+def parse_args(expert=False):
     """setup program options parsing"""
-    parser = OptionParser(usage="Usage: af2_cplx_templates.py [options]", version="0.0.1")
+    parser = OptionParser(usage="Usage: gapTrick [options]", version=version.__version__)
 
 
-    required_opts = OptionGroup(parser, "Required parameters (model, sequences and a map)")
+    required_opts = OptionGroup(parser, "Required parameters")
     parser.add_option_group(required_opts)
 
-    required_opts.add_option("--msa", action="store", \
-                            dest="msa", type="string", metavar="FILENAME,FILENAME", \
-                  help="comma-separated a3m MSAs. First sequence is a target", default=None)
-
-    required_opts.add_option("--msa_dir", action="store", \
-                            dest="msa_dir", type="string", metavar="DIRNAME", \
-                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", \
-                                default=None)
 
     required_opts.add_option("--seqin", action="store", \
                             dest="seqin", type="string", metavar="FILENAME", \
                   help="Fasta file with target sequences. Corresponding (unique) MSAs will be acquired from the mmseqs2 API", \
                                 default=None)
 
-    required_opts.add_option("--templates", action="store", \
-                            dest="templates", type="string", metavar="FILENAME,FILENAME", \
-                  help="comma-separated temlates in mmCIF/PDB format", default=None)
-
-    required_opts.add_option("--chain_ids", action="store", \
-                            dest="chain_ids", type="string", metavar="CHAR,CHAR", \
-                  help="comma-separated template chains corresponding to consequtive MSAs", default=None)
-
-    required_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
-                  help="cardinalities of consecutive MSA", default=None)
-
-    required_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
-                  help="lengths of consecutive target seqs", default=None)
-
-    required_opts.add_option("--preds_per_model", action="store", dest="preds_per_model", type="int", metavar="INT", \
-                  help="number of predictions per model (default: %default)", default=1)
-
-    required_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
-                  help="number of recycles", default=3)
-
-    required_opts.add_option("--seed", action="store", dest="seed", type="int", metavar="INT", \
-                  help="random seed (default None)", default=None)
+    required_opts.add_option("--template", action="store", \
+                            dest="templates", type="string", metavar="FILENAME", \
+                  help="template in mmCIF or PDB format", default=None)
 
     required_opts.add_option("--jobname", action="store", dest="jobname", type="string", metavar="DIRECTORY", \
                   help="output directory name", default=None)
 
-    required_opts.add_option("--nomerge", action="store_true", dest="nomerge", default=False, \
-                  help="Use input templates as monomers. Benchmarks only!")
+    extra_opts = OptionGroup(parser, "Extra parameters")
+    parser.add_option_group(extra_opts)
 
-    required_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
-                  help="Mask template sequence (replace residue ids with gaps and add missing CBs)")
-
-    required_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
-                  help="maximum number of MSA seqeunces", default=None)
-
-    required_opts.add_option("--data_dir", action="store", \
-                            dest="data_dir", type="string", metavar="DIRNAME", \
-                  help="AlphaFold2 database", default='/scratch/AlphaFold_DBs/2.3.2')
-
-    required_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
-                  help="check template alignments and quit")
-
-    required_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
+    extra_opts.add_option("--relax", action="store_true", dest="relax", default=False, \
                   help="relax top model")
 
-    required_opts.add_option("--keepalldata", action="store_true", dest="keepalldata", default=False, \
-                  help="keep all output data (MSAs, pkls, etc), you wont need them in most of the cases")
+    extra_opts.add_option("--msa_dir", action="store", \
+                            dest="msa_dir", type="string", metavar="DIRNAME", \
+                  help="directory with precomputed MSAs for recycling. It assumes that first line in a MSA is a target sequence", \
+                                default=None)
+    extra_opts.add_option("--chain_ids", action="store", \
+                            dest="chain_ids", type="string", metavar="CHAR,CHAR", \
+                  help="comma-separated template chains corresponding to consequtive MSAs", default=None)
 
-    required_opts.add_option("--debug", action="store_true", dest="debug", default=False, \
-                  help="write more on output")
+    extra_opts.add_option("--max_seq", action="store", dest="max_seq", type="int", metavar="INT", \
+                  help="maximum number of MSA seqeunces", default=5000)
 
-    #TODO
-    required_opts.add_option("--trim_model_to_template", action="store_true", dest="trim_model_to_template", default=False, \
-                  help="trim model to template (refinement mode)")
+    extra_opts.add_option("--data_dir", action="store", dest="data_dir", type="string", metavar="DIRNAME", \
+                  help="Path to AlphaFold2 parameters", default=None)
+
+
 
     #BENCHMARKS ONLY!
-    required_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
-                  help="remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
+    expert_opts = OptionGroup(parser, "Expert parameters",
+                                            "Defaults are optimal in most of "
+                                            "the cases. Enable with -e/--expert")
+    parser.add_option_group(expert_opts)
 
-    required_opts.add_option("--iterate", action="store", dest="iterate", type="int", metavar="INT", \
-                  help="re-iterate prediction [default %default]", default=1)
+    expert_opts.add_option("-e", "--expert", action="store_true", dest="expert", default=None, \
+                  help=SUPPRESS_HELP)
 
-    required_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
-                  help="Probability cutoff for the contact identification [default %default]", default=0.5)
+    expert_opts.add_option("--debug", action="store_true", dest="debug", default=False, \
+                  help=SUPPRESS_HELP if not expert else "write more on output")
 
-    required_opts.add_option("--plddt_cutoff", action="store", dest="plddt_cutoff", type="float", metavar="FLOAT", \
-                  help="AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]",
+    expert_opts.add_option("--truncate", action="store", dest="truncate", type="float", metavar="FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "remove a fraction of truncate residues from each continuous chain fragment in a template", default=None)
+
+    expert_opts.add_option("--iterate", action="store", dest="iterate", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "re-iterate prediction [default %default]", default=1)
+
+    expert_opts.add_option("--pbty_cutoff", action="store", dest="pbty_cutoff", type="float", metavar="FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "Probability cutoff for the contact identification [default %default]", default=0.8)
+
+    expert_opts.add_option("--plddt_cutoff", action="store", dest="plddt_cutoff", type="float", metavar="FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "AF templates only; removes all residues with plddt (B-factor) below given threshold [default %default]",
                   default=None)
 
-    required_opts.add_option("--rotrans", action="store", \
-                            dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
-                  help="rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
+    expert_opts.add_option("--rotrans", action="store", dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
+
+    expert_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
+                  help=SUPPRESS_HELP if not expert else "cardinalities of consecutive MSA", default=None)
+
+    expert_opts.add_option("--trim", action="store", dest="trim", type="string", metavar="INT,INT", \
+                  help=SUPPRESS_HELP if not expert else "lengths of consecutive target seqs", default=None)
+
+    expert_opts.add_option("--preds_per_model", action="store", dest="preds_per_model", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "number of predictions per model (default: %default)", default=1)
+
+    expert_opts.add_option("--num_recycle", action="store", dest="num_recycle", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "number of recycles", default=3)
+
+    expert_opts.add_option("--seed", action="store", dest="seed", type="int", metavar="INT", \
+                  help=SUPPRESS_HELP if not expert else "random seed (default None)", default=None)
+
+    expert_opts.add_option("--dryrun", action="store_true", dest="dryrun", default=False, \
+                  help=SUPPRESS_HELP if not expert else "check template alignments and quit")
+
+    expert_opts.add_option("--keepalldata", action="store_true", dest="keepalldata", default=False, \
+                  help=SUPPRESS_HELP if not expert else "keep all output data (MSAs, pkls, etc), you wont need them in most of the cases")
+
+    expert_opts.add_option("--nomerge", action="store_true", dest="nomerge", default=False, \
+                  help=SUPPRESS_HELP if not expert else "Use input templates as monomers. Benchmarks only!")
+
+    expert_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
+                  help=SUPPRESS_HELP if not expert else "Mask template sequence (replace residue ids with gaps and add missing CBs)")
+
+    expert_opts.add_option("--msa", action="store", dest="msa", type="string", metavar="FILENAME,FILENAME", \
+                  help=SUPPRESS_HELP if not expert else "comma-separated a3m MSAs. First sequence is a target", default=None)
 
     (options, _args)  = parser.parse_args()
     return (parser, options)
@@ -288,10 +305,10 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
             try:
                 res = requests.post(f'{MMSEQS_API_SERVER}/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode}, timeout=12.01, headers=headers)
             except requests.exceptions.Timeout:
-                print("MMSeqs2 API submission timeout. Retrying...")
+                logger.info("MMSeqs2 API submission timeout. Retrying...")
                 continue
             except Exception as e:
-                print(f"MMSeqs2 API submission error: {e}")
+                logger.info(f"MMSeqs2 API submission error: {e}")
                 time.sleep(5)
                 continue
             break
@@ -303,10 +320,10 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
             try:
                 res = requests.get(f'{MMSEQS_API_SERVER}/ticket/{ID}', timeout=12.01, headers=headers)
             except requests.exceptions.Timeout:
-                print("MMSeqs2 API status timeout. Retrying...")
+                logger.info("MMSeqs2 API status timeout. Retrying...")
                 continue
             except Exception as e:
-                print(f"MMSeqs2 API status error: {e}")
+                logger.info(f"MMSeqs2 API status error: {e}")
                 time.sleep(5)
                 continue
             break
@@ -318,10 +335,10 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
             try:
                 res = requests.get(f'{MMSEQS_API_SERVER}/result/download/{ID}', timeout=12.01, headers=headers)
             except requests.exceptions.Timeout:
-                print("MMSeqs2 API download timeout. Retrying...")
+                logger.info("MMSeqs2 API download timeout. Retrying...")
                 continue
             except Exception as e:
-                print(f"MMSeqs2 API download error: {e}")
+                logger.info(f"MMSeqs2 API download error: {e}")
                 time.sleep(5)
                 continue
             break
@@ -337,13 +354,13 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
     else:
         mode = "env-nofilter" if use_env else "nofilter"
 
-    print(f" --> MMSeqs2 API query:")
+    logger.info(f" --> MMSeqs2 API query:")
     pretty_sequence_print(name_a="        ", seq_a=query_sequence)
-    print(f"     MMSeqs2 API output file: {msa_fname}")
+    logger.info(f"     MMSeqs2 API output file: {msa_fname}")
 
     if os.path.isfile(msa_fname):
-        print(f"Output file {msa_fname} already exists!")
-        print()
+        logger.info(f"Output file {msa_fname} already exists!")
+        logger.info("")
         return 0
 
     with tempfile.TemporaryDirectory() as tmp_path:
@@ -351,10 +368,10 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
         if not os.path.isfile(tar_gz_file):
             out = submit(query_sequence, mode)
             while out["status"] in ["UNKNOWN","RUNNING","PENDING"]:
-                print(f'     MMSeqs2 API status: {out["status"]}')
+                logger.info(f'     MMSeqs2 API status: {out["status"]}')
                 time.sleep(10)
                 out = status(out["id"])
-            print(f'     MMSeqs2 API status: {out["status"]}')
+            logger.info(f'     MMSeqs2 API status: {out["status"]}')
             download(out["id"], tar_gz_file)
 
         # parse a3m files
@@ -370,8 +387,8 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
                     if len(line) > 0:
                         a3m_out.write(line)
 
-    print(f"     Successfully created {msa_fname}")
-    print()
+    logger.info(f"     Successfully created {msa_fname}")
+    logger.info("")
 
 
     return 0
@@ -435,9 +452,9 @@ def predict_structure(prefix,
     if random_seed is None:
         random_seed = np.random.randint(sys.maxsize//5)
 
-    print()
-    print(f"Random seed: {random_seed}")
-    print()
+    logger.info("")
+    logger.info(f"Random seed: {random_seed}")
+    logger.info("")
 
     inputpath=Path(prefix, "input")
     seq_len = len(query_sequence)
@@ -457,7 +474,7 @@ def predict_structure(prefix,
     model_names = []
 
     for imodel, (model_name, params) in enumerate(model_params.items()):
-        print(f" --> Running {model_name} ({imodel+1} of {len(model_params)})")
+        logger.info(f" --> Running {model_name} ({imodel+1} of {len(model_params)})")
 
         if re.search(r'model_[12]', model_name):
             model_runner = model_runner_1
@@ -505,7 +522,7 @@ def predict_structure(prefix,
 
         with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
 
-        print(f"     <pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
+        logger.info(f"     <pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
 
         outdict={'predicted_aligned_error' : prediction_result['predicted_aligned_error'], \
                  'ptm'                     : prediction_result['ptm'], \
@@ -521,8 +538,8 @@ def predict_structure(prefix,
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
 
-    print()
-    print(f"Reranking models based on pTM score: {ptm_rank}")
+    logger.info("")
+    logger.info(f"Reranking models based on pTM score: {ptm_rank}")
     for n,_idx in enumerate(ptm_rank):
 
         # relax TOP model only
@@ -530,7 +547,7 @@ def predict_structure(prefix,
 
             pdb_obj = protein.from_pdb_string(unrelaxed_pdb_lines[_idx])
 
-            print(f"Starting Amber relaxation for {model_names[_idx]}")
+            logger.info(f"Starting Amber relaxation for {model_names[_idx]}")
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
@@ -543,7 +560,7 @@ def predict_structure(prefix,
 
             _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
-            print(f"Done, relaxation took {(time.time() - start_time):.1f}s")
+            logger.info(f"Done, relaxation took {(time.time() - start_time):.1f}s")
 
 
         else:
@@ -553,7 +570,7 @@ def predict_structure(prefix,
         pdb_fn = f"ranked_{n}.pdb"
         Path(inputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(inputpath, f'ranked_{n}_pae.json') )
 
-        print(f"{pdb_fn} ({model_names[_idx]}) <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
+        logger.info(f"{pdb_fn} ({model_names[_idx]}) <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
 
         pdb_header     = [ f"REMARK 0" ]
         pdb_header.append( f"REMARK 0 MODEL PREDICTED WITH ALPHAFOLD2/gapTRICK ON {datetime.now().strftime('%H:%M %d/%m/%Y')}")
@@ -595,7 +612,7 @@ def predict_structure(prefix,
 
 # -----------------------------------------------------------------------------                    
 
-def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
+def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
 
     datadir=Path(prefix, "input")
     figures_dir = Path(prefix, "figures")
@@ -643,9 +660,15 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
     d['A_atom_name']='CA'
     d['B_atom_name']='CA'
 
-    pymol_all = [pymol_header%d]
+    #pymol_all = [pymol_header%d]
     pymol_int = [pymol_header%d]
+    chimerax_int = []
+    pymol_sb_int = [pymol_header%d]
+    chimerax_sb_int = []
+
     contacts_list = []
+    interchain_contacts_list = []
+    interchain_sb_list = []
 
     for contact_str in contacts_txt:
         m = re.match(contact_template, contact_str)
@@ -653,9 +676,24 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
         d['B_chain'] = cj = m.group('ch2')
         d['A_resid'] = resi = m.group('res1')
         d['B_resid'] = resj = m.group('res2')
-        _cstr = f"""{'*' if ci!=cj else ' '} {tgo[chain_seq_dict[ci][int(resi)-1]]}/{ci}/{resi:4s} {tgo[chain_seq_dict[cj][int(resj)-1]]}/{cj}/{resj:4s} {float(m.group('pbty')):.2f}"""
 
-        if print_contacts: print(_cstr)
+        resni = tgo[chain_seq_dict[ci][int(resi)-1]].upper()
+        resnj = tgo[chain_seq_dict[cj][int(resj)-1]].upper()
+
+        if resni=='GLY':
+            d['A_atom_name']='CA'
+        else:
+            d['A_atom_name']='CB'
+
+        if resnj=='GLY':
+            d['B_atom_name']='CA'
+        else:
+            d['B_atom_name']='CB'
+
+
+        _cstr = f"""{'*' if ci!=cj else ' '} {resni}/{ci}/{resi:4s} {resnj}/{cj}/{resj:4s} {float(m.group('pbty')):.2f}"""
+
+        if print_contacts: logger.info(_cstr)
         contacts_list.append(_cstr)
 
         if ci!=cj:
@@ -663,25 +701,69 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.5):
             pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
             pymol_int.append(pymol_dist_generic%d)
 
-        pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
-        pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
-        pymol_all.append(pymol_dist_generic%d)
+            chimerax_int.append(chimerax_dist_generic%d)
+            interchain_contacts_list.append(_cstr[2:])
+
+            if (resnj in ['ASP', 'GLU'] and resni in ['LYS', 'ARG']) or (resni in ['ASP', 'GLU'] and resnj in ['LYS', 'ARG']):
+                interchain_sb_list.append(_cstr[2:])
+                pymol_sb_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+                pymol_sb_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+                pymol_sb_int.append(pymol_dist_generic%d)
+                chimerax_sb_int.append(chimerax_dist_generic%d)
+
+        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+        #pymol_all.append(pymol_dist_generic%d)
 
         idx+=1
 
-    with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
-        ofile.write("\n".join(pymol_all))
+    #with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
+    #    ofile.write("\n".join(pymol_all))
 
     with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
 
+    with open(os.path.join(datadir, "..", f"chimerax_interchain_contacts.cxc"), 'w') as ofile:
+        chimerax_int.append(chimerax_footer)
+        ofile.write("\n".join(chimerax_int))
+
+    if interchain_sb_list:
+        with open(os.path.join(datadir, "..", f"pymol_interchain_saltbridges.pml"), 'w') as ofile:
+            ofile.write("\n".join(pymol_sb_int))
+
+        with open(os.path.join(datadir, "..", f"chimerax_interchain_saltbridges.cxc"), 'w') as ofile:
+            chimerax_sb_int.append(chimerax_footer)
+            ofile.write("\n".join(chimerax_sb_int))
+
     with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
         ofile.write("\n".join(contacts_list))
+
+    logger.info("\n\n")
+
+    if not interchain_contacts_list:
+        logger.info(f""" ==> Found NO inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
+                     """     The prediction may be NOT correct\n""")
+    else:
+        logger.info(f""" ==> Found {len(interchain_contacts_list)} inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
+                     """     The prediction is very likely to be correct\n""")
+        for idx,_c in enumerate(interchain_contacts_list):
+            logger.info(f"     {idx+1:03d} {_c}")
+            if idx>8:
+                logger.info("    [..] full list in contacts.txt")
+                break
+        if interchain_sb_list:
+            logger.info("")
+            logger.info(f"""     Among these {len(interchain_sb_list)} may form salt-bridges""")
+            for idx,_c in enumerate(interchain_sb_list):
+                logger.info(f"     {idx+1:03d} {_c}")
+                if idx>8:
+                    logger.info("    [..] full list in contacts.txt")
+                    break
 
 # -----------------------------------------------------------------------------                    
                     
 def match_template_chains_to_target(ph, target_sequences):
-    print(f" --> Greedy matching of template chains to target sequences")
+    logger.info(f" --> Greedy matching of template chains to target sequences")
 
     chain_dict = {}
     for chain in ph.chains():
@@ -704,18 +786,17 @@ def match_template_chains_to_target(ph, target_sequences):
             aligner = Align.PairwiseAligner()
             alignments = aligner.align(chain_dict[cid], _target_seq)
             si = alignments[0].score
-            # depreciated!
-            #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
             _tmp_si[cid]=100.0*si/len(chain_seq_dict[cid])
+
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
-            print(f"     #{_idx}: chain {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
+            logger.info(f"     #{_idx}: chain {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
                            "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
 
     if not len(greedy_selection) == len(target_sequences):
-        print("WARNING: template-target sequence match is incomplete!")
+        logger.info("WARNING: template-target sequence match is incomplete!")
 
-    print()
+    logger.info("")
 
     return(greedy_selection)
 
@@ -757,12 +838,15 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 # -----------------------------------------------------------------------------
 
 def match_template_chains_to_target_bio(structure, target_sequences):
-    print(f" --> Greedy matching template chains to target sequences")
+    logger.info(f" --> Greedy matching template chains to target sequences")
 
     chain_seq_dict = {}
+    chain_ends_dict = {}
     protein = get_prot_chains_bio(structure)
     for chain in protein:
         chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
+        _resis = list(chain.get_residues())
+        chain_ends_dict[chain.id]= (np.array(_resis[0]['CA']), np.array(_resis[-1]['CA']))
 
     greedy_selection = []
     for _idx, _target_seq in enumerate(target_sequences):
@@ -772,18 +856,20 @@ def match_template_chains_to_target_bio(structure, target_sequences):
             aligner = Align.PairwiseAligner()
             alignments = aligner.align(chain_seq_dict[cid], _target_seq)
             si = alignments[0].score
-            # depreciated!
-            #si = pairwise2.align.globalxx(chain_dict[cid], _target_seq, score_only=True)
             _tmp_si[cid]=si#100.0*si#/min(len(chain_seq_dict[cid]),len(_target_seq))
+
         if _tmp_si:
             greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
-            print(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
-                           "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
+            other_si = "".join(["[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]"])
+            logger.info(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f} {other_si}")
 
     if not len(greedy_selection) == len(target_sequences):
-        print("WARNING: template-target sequence match is incomplete!")
+        logger.info("WARNING: template-target sequence match is incomplete!")
 
-    print()
+    #for c1, c2 in zip(greedy_selection[:-1], greedy_selection[1:]):
+    #    print(c1, c2, np.linalg.norm(chain_ends_dict[c2][0]-chain_ends_dict[c1][1]))
+
+    logger.info("")
 
     return(greedy_selection)
 
@@ -848,13 +934,13 @@ def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=N
             if not (res.get_resname() in ogt.keys() and 'CA' in [_.name.strip() for _ in res]):
                 chain.detach_child(res.id)
         if (chain_len_before-len(chain))/chain_len_before>(1.0-min_prot_content):
-            print(f'WARNING: removed non-protein template chain {chain.id}')
+            logger.info(f'WARNING: removed non-protein template chain {chain.id}')
             chain.parent.detach_child(chain.id)
 
     assert len(structure), f"Template structure must contain at least one protein chain (>{100*min_prot_content:.1f}% amino acid residues)"
 
     if truncate:
-        print(f"\nWARNING: Removed {100*truncate:.0f}% residues from template!\n")
+        logger.info(f"\nWARNING: Removed {100*truncate:.0f}% residues from template!\n")
         resi2keep = {}
         for chain in structure:
             _ch = get_resi_chunks(chain)
@@ -869,17 +955,17 @@ def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=N
 
 
     if rotmax and transmax:
-        print()
+        logger.info("")
         for chain in structure:
             com_vec = Vector(np.array([atom.get_coord() for atom in chain.get_atoms()]).mean(axis=0))
             axis = random_point_on_sphere()
             angle = np.random.uniform(0,1) * ( np.pi - 0.001 ) * rotmax/180
             trans = Vector(np.array(random_point_on_sphere())*np.random.uniform(0,1)*transmax)
             rot = rotaxis2m(angle, Vector(axis))
-            print(f"WARNING: Chain {chain.id} rotated/translated by {180*angle/np.pi:4.2f} deg and {trans.norm():4.2f} A")
+            logger.info(f"WARNING: Chain {chain.id} rotated/translated by {180*angle/np.pi:4.2f} deg and {trans.norm():4.2f} A")
             for atom in chain.get_atoms():
                 atom.set_coord( (Vector(atom.coord)-com_vec).left_multiply(rot) + trans + com_vec )
-        print()
+        logger.info("")
 
     return structure
 
@@ -1034,10 +1120,10 @@ def pretty_sequence_print(name_a, seq_a, name_b=None, seq_b=None, block_width=80
     n_blocks = length//block_width
 
     for ii in range(n_blocks+1):
-        print(f"{name_a} {seq_a[ii*block_width:(ii+1)*block_width]}")
+        logger.info(f"{name_a} {seq_a[ii*block_width:(ii+1)*block_width]}")
         if seq_b:
-            print(f"{name_b} {seq_b[ii*block_width:(ii+1)*block_width]}")
-            print()
+            logger.info(f"{name_b} {seq_b[ii*block_width:(ii+1)*block_width]}")
+            logger.info("")
 
 # -----------------------------------------------------------------------------
 
@@ -1063,14 +1149,14 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
     template_hit_list=[]
     for template_fn in template_fn_list[:]:
-        print(f"Template file: {template_fn}")
+        logger.info(f"Template file: {template_fn}")
         filepath=Path(template_fn)
         with open(filepath, "r") as fh:
             filestr = fh.read()
             mmcif_obj = mmcif_parsing.parse(file_id=filepath.stem,mmcif_string=filestr, catch_all_errors=True)
             mmcif = mmcif_obj.mmcif_object
 
-        if not mmcif: print(mmcif_obj)
+        if not mmcif: logger.info(mmcif_obj)
 
         # broken in AlphaFold/2.3.2-foss-2023a-CUDA-12.1.1
         #for chain_id,template_sequence in mmcif.chain_to_seqres.items():
@@ -1099,7 +1185,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                                   universal_newlines=True)
 
         for stdout_line in iter(ppipe.stdout.readline, ""):
-            if debug: print(stdout_line.strip())
+            if debug: logger.info(stdout_line.strip())
 
         retcode = subprocess.Popen.wait(ppipe)
 
@@ -1113,33 +1199,33 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         hhsearch_hits = pipeline.parsers.parse_hhr(hhsearch_result)
 
         if len(hhsearch_hits) >0:
-            print()
-            print(" --> Aligning template to the target sequence")
+            logger.info("")
+            logger.info(" --> Aligning template to the target sequence")
             naligned=[]
             for _i,_h in enumerate(hhsearch_hits):
                 naligned.append(len(_h.hit_sequence)-_h.hit_sequence.count('-'))
-                print(f"     #{_i+1} aligned {naligned[-1]} out of {len(query_sequence)} residues [sum_probs={_h.sum_probs}]")
+                logger.info(f"     #{_i+1} aligned {naligned[-1]} out of {len(query_sequence)} residues [sum_probs={_h.sum_probs}]")
                 if debug: pretty_sequence_print(name_a="target  ",
                             seq_a=query_sequence[:_h.indices_query[0]]+_h.query+query_sequence[_h.indices_query[-1]+1:],
                             name_b="template",
                             seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
-            print()
+            logger.info("")
 
             # in no-merge mode accept multiple alignments, in case target is a homomultimer
             if nomerge:
                 for _i,_h in enumerate(hhsearch_hits):
                     if naligned[_i]/len(template_sequence)<0.5: continue
-                    print(f' --> Selected alignment #{_i+1}')
+                    logger.info(f' --> Selected alignment #{_i+1}')
                     template_hit_list.append([mmcif,_h])
             else:
-                print(f' --> Selected alignment #{np.argmax(naligned)+1}')
+                logger.info(f' --> Selected alignment #{np.argmax(naligned)+1}')
                 hit = hhsearch_hits[np.argmax(naligned)]
                 hit = replace(hit,**{"name":template_seq.id})
 
                 template_hit_list.append([mmcif, hit])
-        print()
+        logger.info("")
 
-    print()
+    logger.info("")
     if dryrun: exit(1)
 
     template_features = {}
@@ -1155,7 +1241,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         model2template_mappings[mmcif.file_id] = dict([(q,t) for q,t in zip(hit.indices_query, hit.indices_hit) if q>0 and t>0])
 
-        print(f">{hit.name}")
+        logger.info(f">{hit.name}")
         pretty_sequence_print(name_a="target  ", seq_a=query_sequence[:hit.indices_query[0]]+hit.query+query_sequence[hit.indices_query[-1]+1:],
             name_b="template", seq_b=f"{'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}")
 
@@ -1177,9 +1263,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         features['template_sum_probs'] = [hit.sum_probs]
 
         if noseq: # remove sequence-related features
-            print()
-            print("WARNING: sequence information in a template has been masked")
-            print()
+            logger.info("")
+            logger.info("WARNING: sequence information in a template has been masked")
+            logger.info("")
 
             features['template_sum_probs'] = [0]
 
@@ -1229,7 +1315,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
             template_features[name] = np.stack(template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
 
     for key,value in template_features.items():
-        if np.all(value==0) and not noseq: print("ERROR: Some template features are empty")
+        if np.all(value==0) and not noseq: logger.info("ERROR: Some template features are empty")
 
     return template_features,model2template_mappings
 
@@ -1244,7 +1330,7 @@ def combine_msas(query_sequences, input_msas, query_cardinality, query_trim, max
             if max_seq: # subsample
                 _max_seq = min(max_seq, len(input_msas[n].sequences))
                 msa_sample_indices = np.random.choice(len(input_msas[n].sequences), _max_seq, replace=False)
-                print(f" Reducing MSA depth from {len(input_msas[n].sequences)} to {_max_seq}")
+                logger.info(f"     Reducing MSA depth from {len(input_msas[n].sequences)} to {_max_seq}")
             else:
                 msa_sample_indices = range(len(input_msas[n].sequences))
 
@@ -1285,7 +1371,7 @@ def runme(msa_filenames,
           noseq             =   False,
           truncate          =   None,
           rotrans           =   None,
-          pbty_cutoff       =   0.5,
+          pbty_cutoff       =   0.8,
           plddt_cutoff      =   None,
           debug             =   False,
           iterate           =   1):
@@ -1293,10 +1379,10 @@ def runme(msa_filenames,
 
 
 
-    print(" --> Combining input MSAs...")
+    logger.info(" --> Combining input MSAs...")
     msas=[]
     for ia3m, a3m_fn in enumerate(msa_filenames):
-        print(f"     #{ia3m} {a3m_fn}")
+        logger.info(f"     #{ia3m} {a3m_fn}")
         with open(a3m_fn, 'r') as fin:
             msas.append(pipeline.parsers.parse_a3m(fin.read()))
 
@@ -1332,14 +1418,14 @@ def runme(msa_filenames,
 
     input_template_fn_list = list(template_fn_list)
 
-    print()
-    print(f" --> Combined target sequence:")
+    logger.info("")
+    logger.info(f" --> Combined target sequence:")
     pretty_sequence_print(name_a="        ", seq_a=query_seq_combined)
-    print()
+    logger.info("")
 
     try:
         rotmax,transmax = map(float, rotrans.split(','))
-        print(f"WARNING: Protein chains will be randomly rotated/translated abput their COMs up to {rotmax} deg and {transmax} A")
+        logger.info(f"WARNING: Protein chains will be randomly rotated/translated abput their COMs up to {rotmax} deg and {transmax} A")
     except:
         rotmax,transmax=None,None
 
@@ -1388,6 +1474,9 @@ def runme(msa_filenames,
                     suffix=''
                 else:
                     suffix='_ptm'
+                  
+                if data_dir is None:
+                    data_dir = Path(os.path.dirname(__file__), '..', 'alphafold', 'data')
 
                 model_params[model_name_local] = data.get_model_haiku_params(model_name=model_name+suffix, data_dir=data_dir)
 
@@ -1433,25 +1522,35 @@ def runme(msa_filenames,
 
 def main():
 
-    start_time = datetime.now()
+    header_msg = "\n".join(["", f"## gapTrick version {version.__version__}", ""," ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])), ""])
 
+    start_time = datetime.now()
 
     (parser, options) = parse_args()
 
-    print()
-    print( " ==> Command line: gapTrick.py %s" % (" ".join(sys.argv[1:])) )
-    print()
+    if options.expert:
+        (parser, options) = parse_args(expert = options.expert)
+        parser.print_help()
+        exit(0)
+
 
     if options.jobname is None:
-        print('Define jobname - output directory')
+        print( header_msg )
+        print('Define jobname - output directory with --jobname')
         exit(0)
 
     jobpath=Path(options.jobname)
     try:
         jobpath.mkdir(parents=True, exist_ok=False)
     except:
-        print("ERROR: target directory already exists")
+        print( header_msg )
+        print(f"ERROR: target directory already exists '{jobpath}'")
         return 1
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s",\
+            handlers=[logging.FileHandler(Path(jobpath, 'logfile.txt')),logging.StreamHandler(sys.stdout)])
+
+    logger.info(header_msg)
 
     if options.msa:
 
@@ -1464,12 +1563,15 @@ def main():
 
         existing_msas={}
         if options.msa_dir:
+            # create msa_dir, if needed 
+            Path(options.msa_dir).mkdir(parents=True, exist_ok=True)
+
             for fn in glob.glob( os.path.join(options.msa_dir, '*.*') ):
                 with open(fn) as ifile:
                     _=ifile.readline()
                     existing_msas[ifile.readline().strip()]=fn
-            print(f" --> Parsed {len(existing_msas)} MSA files")
-            print()
+            logger.info(f" --> Parsed {len(existing_msas)} MSA files")
+            logger.info("")
 
         msas = []
         local_msa_dict = {}
@@ -1480,10 +1582,10 @@ def main():
                 if not a3m_fname: a3m_fname=local_msa_dict.get(record.seq, None)
 
                 if a3m_fname:
-                    print(f" --> Found existing MSA for target sequence [{record.id}]")
+                    logger.info(f" --> Found existing MSA for target sequence [{record.id}]")
                 else:
                     if options.msa_dir:
-                        a3m_fname=os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
+                        a3m_fname = os.path.join(options.msa_dir, f"{uuid.uuid4().hex}.a3m")
                     else:
                         a3m_fname = os.path.join(options.jobname, "msa", f"{len(local_msa_dict):04d}.a3m")
 
@@ -1491,9 +1593,9 @@ def main():
                     local_msa_dict[record.seq]=a3m_fname
 
                 msas.append(a3m_fname)
-        print()
+        logger.info("")
     else:
-        print("ERROR: --msa or --seqin required on input")
+        logger.info("ERROR: --msa or --seqin required on input")
         exit(1)
 
     if not options.trim:
@@ -1538,14 +1640,14 @@ def main():
             if Path(fname).suffix == ".pkl":
                 os.remove(Path(options.jobname, "input", fname))
 
-    print()
+    logger.info("")
     td = (datetime.now() - start_time) 
-    print("Elapsed time %02i:%02i:%02i" % (td.total_seconds()//3600,
+    logger.info("Elapsed time %02i:%02i:%02i" % (td.total_seconds()//3600,
                                           (td.total_seconds()%3600)//60,
                                            td.total_seconds()%60))
-    print()
-    print(f"Normal termination at {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
-    print()
+    logger.info("")
+    logger.info(f"Normal termination at {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}")
+    logger.info("")
 
 if __name__=="__main__":
     main()

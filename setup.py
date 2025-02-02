@@ -16,12 +16,12 @@ VERSION = get_git_describe()
 setup(name='gapTrick',
       version=VERSION,
       description='rebuilds and completes models of protein complexes using AlphaFold2',
-      url='https://gitlab.com/gchojnowski/gapTrick',
+      url='https://github.com/gchojnowski/gapTrick',
       author='Grzegorz Chojnowski',
       author_email='gchojnowski@embl-hamburg.de',
       license='BSD',
       packages=['gapTrick'],
-      install_requires=['af2plot @ git+https://gitlab.com/gchojnowski/af2plots.git'],
+      install_requires=['af2plots @ git+https://gitlab.com/gchojnowski/af2plots.git', 'matplotlib'],
       entry_points={
           "console_scripts": [
             "gapTrick = gapTrick.__main__:main",
