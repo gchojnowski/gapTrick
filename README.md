@@ -162,15 +162,15 @@ this will automatically download MSAs from MMseqs2 API and run prediction. Remem
 
 ## Fair use of the MMseqs2 API
 
-The MMseqs2 API is a shared resource that has been generously provided by the developers and as such should be used in a fair manner (in simple words; not TOO extensively). Otherwise your IP will be bclocked for a while. To reduce the number of requests for predictions repeated for the same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in subsequent jobs. For example, the following will use a directory ``local_msas``:
+gapTrick by default uses MMseqs2 API to generate MSAs. MMseqs2 API is a shared resource that has been generously provided by the developers and as such should be used in a fair manner (in simple words; not TOO extensively). Otherwise your IP **will be blocked** for a while. To reduce the number of requests for predictions repeated for the same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in subsequent jobs. For example, the following will use a directory ``local_msas``:
 
 ```
 gapTrick --seqin examples/piaq.fasta --template examples/piaq.pdb --jobname piaq_test --max_seq 5000 --relax --msa_dir local_msas
 ```
 
-now, whenever you rerun the job above gapTrick will check the ``local_msas`` directory for MSAs matching your target sequences.
+now, whenever you rerun the job above, gapTrick will check the ``local_msas`` directory for MSAs matching your target sequences.
 
-Alternatively, you can pre-calculate target MSAs and store ``*.a3m`` files in a directory. A script ``colabfold_search`` distributed foth [ColabFold](https://github.com/sokrypton/ColabFold?tab=readme-ov-file#generating-msas-for-large-scale-structurecomplex-predictions) is a pretty handy solution here. All gapTrick benchmarks were based on MSAs generated with 
+Alternatively, you can pre-calculate target MSAs and store ``*.a3m`` files in a directory and reuse with ``--msa_dir`` keyword. A script ``colabfold_search`` distributed with [ColabFold](https://github.com/sokrypton/ColabFold?tab=readme-ov-file) is a pretty handy solution here. All gapTrick benchmarks were based on MSAs generated with the following command (check [ColabFold website](https://github.com/sokrypton/ColabFold?tab=readme-ov-file#generating-msas-for-large-scale-structurecomplex-predictions) for mofer details)
 
 ```
 colabfold_search --db1 uniref30_2202_db --mmseqs /path/to/bin/mmseqs --use-env 0 --filter 0 --db-load-mode 2 input_sequences.fasta /path/to/db_folder msas
