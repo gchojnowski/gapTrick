@@ -13,7 +13,6 @@
     - [AlphaFold2](#alphafold2)
     - [AlphaFold2 NN parameters](#alphafold2-nn-parameters)
     - [gapTrick](#gaptrick)
-    //- [Installation issues](#installation-issues)
 
 - [How to use gapTrick](#how-to-use-gaptrick)
     - [Input](#input)
