@@ -170,7 +170,7 @@ gapTrick --seqin examples/piaq.fasta --template examples/piaq.pdb --jobname piaq
 
 now, whenever you rerun the job above, gapTrick will check the ``local_msas`` directory for MSAs matching your target sequences.
 
-Alternatively, you can pre-calculate target MSAs and store ``*.a3m`` files in a directory and reuse with ``--msa_dir`` keyword. A script ``colabfold_search`` distributed with [ColabFold](https://github.com/sokrypton/ColabFold?tab=readme-ov-file) is a pretty handy solution here. All gapTrick benchmarks were based on MSAs generated with the following command (check [ColabFold website](https://github.com/sokrypton/ColabFold?tab=readme-ov-file#generating-msas-for-large-scale-structurecomplex-predictions) for mofer details)
+Alternatively, you can pre-calculate target MSAs, store ``*.a3m`` files in a directory and reuse with ``--msa_dir`` keyword. A script ``colabfold_search`` distributed with [ColabFold](https://github.com/sokrypton/ColabFold?tab=readme-ov-file) is a pretty handy solution here. All gapTrick benchmarks were based on MSAs generated with the following command (check [ColabFold website](https://github.com/sokrypton/ColabFold?tab=readme-ov-file#generating-msas-for-large-scale-structurecomplex-predictions) for more details)
 
 ```
 colabfold_search --db1 uniref30_2202_db --mmseqs /path/to/bin/mmseqs --use-env 0 --filter 0 --db-load-mode 2 input_sequences.fasta /path/to/db_folder msas
