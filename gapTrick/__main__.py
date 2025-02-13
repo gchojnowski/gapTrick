@@ -752,8 +752,8 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
         logger.info(f""" ==> Found NO inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
                      """     The prediction may be NOT correct\n""")
     else:
-        logger.info(f""" ==> Found {len(interchain_contacts_list)} inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
-                     """     The prediction is very likely to be correct\n""")
+        logger.info(f""" ==> Found {len(interchain_contacts_list)} inter-chain contacts (dist<8A and pbty>0.8)\n""")
+
         for idx,_c in enumerate(interchain_contacts_list):
             logger.info(f"     {idx+1:03d} {_c}")
             if idx>8:
