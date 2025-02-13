@@ -373,7 +373,13 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
                 logger.info(f'     MMSeqs2 API status: {out["status"]}')
                 time.sleep(10)
                 out = status(out["id"])
+
             logger.info(f'     MMSeqs2 API status: {out["status"]}')
+
+            if out["status"]=="RATELIMIT": 
+                print("ERROR: MMseqs2 API request rejected (too many connections). Try again later...")
+                exit(0)
+
             download(out["id"], tar_gz_file)
 
         # parse a3m files
