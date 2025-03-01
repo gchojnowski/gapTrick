@@ -38,6 +38,9 @@ The gapTrick code depends on [AlphaFold2](https://www.nature.com/articles/s41586
 You can run gapTrick on Colab server without having to satisfy its hardware (GPU) and software dependencies on your computer. Click the link to start a new Colab session: 
 [gapTrick.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick.ipynb)
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick.ipynb)
+
+
 <br/> 
 
 # Installation
