@@ -264,6 +264,10 @@ def parse_args(expert=False):
     expert_opts.add_option("--rotrans", action="store", dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
                   help=SUPPRESS_HELP if not expert else "rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
 
+    extra_opts.add_option("--fixed_chain_ids", action="store", \
+                            dest="fixed_chain_ids", type="string", metavar="CHAR,CHAR", \
+                  help=SUPPRESS_HELP if not expert else "comma-separated template chains to be exluded from rot/trans", default=None)
+
     expert_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
                   help=SUPPRESS_HELP if not expert else "cardinalities of consecutive MSA", default=None)
 
@@ -931,7 +935,7 @@ def random_point_on_sphere():
     return np.array([r * np.cos(t), r * np.sin(t), z])
 
 
-def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=None, transmax=None):
+def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=None, transmax=None, fixed_chain_ids=None):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
     '''
@@ -965,6 +969,9 @@ def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=N
     if rotmax and transmax:
         logger.info("")
         for chain in structure:
+
+            if fixed_chain_ids and chain.id in fixed_chain_ids.split(","): continue
+
             com_vec = Vector(np.array([atom.get_coord() for atom in chain.get_atoms()]).mean(axis=0))
             axis = random_point_on_sphere()
             angle = np.random.uniform(0,1) * ( np.pi - 0.001 ) * rotmax/180
@@ -1013,7 +1020,16 @@ def chain2CIF_bio(chain, outid, outfn):
 
 # -----------------------------------------------------------------------------
 
-def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200, truncate=None, plddt_cutoff=None, rotmax=None, transmax=None):
+def template_preps_bio(template_fn_list,
+                       chain_ids,
+                       target_sequences,
+                       outpath          =   None,
+                       resi_shift       =   200,
+                       truncate         =   None,
+                       plddt_cutoff     =   None,
+                       rotmax           =   None,
+                       transmax         =   None,
+                       fixed_chain_ids  =   None):
     '''
         BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
     '''
@@ -1030,7 +1046,7 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
         save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.pdb"))
 
         # extarct protein chains and bias the template (if requested)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
+        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax, fixed_chain_ids=fixed_chain_ids)
 
         # save modified template (before merging chains)
         save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.pdb"))
@@ -1382,7 +1398,8 @@ def runme(msa_filenames,
           pbty_cutoff       =   0.8,
           plddt_cutoff      =   None,
           debug             =   False,
-          iterate           =   1):
+          iterate           =   1,
+          fixed_chain_ids   =   None):
 
 
 
@@ -1445,7 +1462,8 @@ def runme(msa_filenames,
                                                   truncate          =   truncate,
                                                   plddt_cutoff      =   plddt_cutoff,
                                                   rotmax            =   rotmax,
-                                                  transmax          =   transmax)
+                                                  transmax          =   transmax,
+                                                  fixed_chain_ids   =   fixed_chain_ids)
         template2input_mapping = None
     else:
         template_fn_list, template2input_mapping = template_preps_bio(template_fn_list,
@@ -1455,7 +1473,8 @@ def runme(msa_filenames,
                                                                       truncate          =   truncate,
                                                                       plddt_cutoff      =   plddt_cutoff,
                                                                       rotmax            =   rotmax,
-                                                                      transmax          =   transmax)
+                                                                      transmax          =   transmax,
+                                                                      fixed_chain_ids   =   fixed_chain_ids)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         template_features,model2template_mappings = generate_template_features(query_sequence   =   query_seq_combined,
@@ -1637,7 +1656,8 @@ def main():
           pbty_cutoff       =   options.pbty_cutoff,
           plddt_cutoff      =   options.plddt_cutoff,
           debug             =   options.debug,
-          iterate           =   options.iterate)
+          iterate           =   options.iterate,
+          fixed_chain_ids   =   options.fixed_chain_ids)
 
     if not options.keepalldata:
         for fname in os.listdir(Path(options.jobname, "msa")):
