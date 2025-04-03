@@ -408,7 +408,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
 # -----------------------------------------------------------------------------
 
 def save_pdb(structure, ofname):
-    pdbio = PDBIO()
+    pdbio = MMCIFIO()
     pdbio.set_structure(structure)
     with Path(ofname).open('w') as of:
         pdbio.save(of)
@@ -563,7 +563,7 @@ def predict_structure(prefix,
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
-                                    max_iterations=2000,
+                                    max_iterations=0,
                                     tolerance=2.39,
                                     stiffness=10.0,
                                     exclude_residues=[],
@@ -833,12 +833,12 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 
     if remove_alt_confs:
         with io.StringIO() as outstr:
-            pdbio = PDBIO()
+            pdbio = MMCIFIO()
             pdbio.set_structure(structure)
             pdbio.save(outstr, select=NotAlt())
             outstr.seek(0)
 
-            parser = PDBParser(QUIET=True)
+            parser = MMCIFParser(QUIET=True)
             structure = parser.get_structure(outid, outstr)[0]
             for chain in structure:
                 for resi in chain:
@@ -1043,13 +1043,13 @@ def template_preps_bio(template_fn_list,
         _ph = parse_pdb_bio(ifn, outid=outid, plddt_cutoff=plddt_cutoff, remove_alt_confs=True)
 
         # save input template
-        save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.pdb"))
+        save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.cif"))
 
         # extarct protein chains and bias the template (if requested)
         prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax, fixed_chain_ids=fixed_chain_ids)
 
         # save modified template (before merging chains)
-        save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.pdb"))
+        save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.cif"))
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
