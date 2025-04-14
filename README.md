@@ -1,8 +1,9 @@
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick.ipynb)
+
+
 ![contacts_prediction](/examples/contacts.png)
 
 # gapTrick – AlphaFold with multimeric templates
-
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick.ipynb)
 
 **gapTrick** is a tool based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging cryo-EM and MX structures and the computational identification of protein-protein interactions.
 
