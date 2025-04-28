@@ -624,7 +624,7 @@ def predict_structure(prefix,
 
 # -----------------------------------------------------------------------------                    
 
-def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
+def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
 
     datadir=Path(prefix, "input")
     figures_dir = Path(prefix, "figures")
@@ -644,7 +644,6 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
     ff.savefig(fname=os.path.join(figures_dir, f"plddt.svg"), bbox_inches = 'tight')
 
     # distogram
-    distance_cutoff = 8.0
     ff,contacts_txt = af2o.plot_distogram(datadict, distance=distance_cutoff, print_contacts=False, pbtycutoff=pbty_cutoff)
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.png"), dpi=150, bbox_inches = 'tight')
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.svg"), bbox_inches = 'tight')
@@ -672,7 +671,7 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
     d['A_atom_name']='CA'
     d['B_atom_name']='CA'
 
-    #pymol_all = [pymol_header%d]
+    if keepalldata: pymol_all = [pymol_header%d]
     pymol_int = [pymol_header%d]
     chimerax_int = []
     pymol_sb_int = [pymol_header%d]
@@ -723,14 +722,16 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
                 pymol_sb_int.append(pymol_dist_generic%d)
                 chimerax_sb_int.append(chimerax_dist_generic%d)
 
-        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
-        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
-        #pymol_all.append(pymol_dist_generic%d)
+        if keepalldata:
+            pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+            pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+            pymol_all.append(pymol_dist_generic%d)
 
         idx+=1
 
-    #with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
-    #    ofile.write("\n".join(pymol_all))
+    if keepalldata:
+        with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
+            ofile.write("\n".join(pymol_all))
 
     with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
@@ -1399,7 +1400,8 @@ def runme(msa_filenames,
           plddt_cutoff      =   None,
           debug             =   False,
           iterate           =   1,
-          fixed_chain_ids   =   None):
+          fixed_chain_ids   =   None,
+          keepalldata       =   False):
 
 
 
@@ -1501,7 +1503,7 @@ def runme(msa_filenames,
                     suffix=''
                 else:
                     suffix='_ptm'
-                  
+
                 if data_dir is None:
                     data_dir = Path(os.path.dirname(__file__), '..', 'alphafold', 'data')
 
@@ -1545,7 +1547,7 @@ def runme(msa_filenames,
                       template_fn_list          =   input_template_fn_list)
 
     if PLOTTER_AVAILABLE:
-        make_figures(jobname, pbty_cutoff=pbty_cutoff)
+        make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
 def main():
 
@@ -1657,7 +1659,8 @@ def main():
           plddt_cutoff      =   options.plddt_cutoff,
           debug             =   options.debug,
           iterate           =   options.iterate,
-          fixed_chain_ids   =   options.fixed_chain_ids)
+          fixed_chain_ids   =   options.fixed_chain_ids,
+          keepalldata       =   options.keepalldata)
 
     if not options.keepalldata:
         for fname in os.listdir(Path(options.jobname, "msa")):
