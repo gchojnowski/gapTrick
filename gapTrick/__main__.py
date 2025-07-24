@@ -469,6 +469,8 @@ def predict_structure(prefix,
     logger.info("")
 
     inputpath=Path(prefix, "input")
+    outputpath=Path(prefix, "output")
+
     seq_len = len(query_sequence)
 
     idx_res = feature_dict['residue_index']
@@ -532,7 +534,7 @@ def predict_structure(prefix,
         ptmscore.append(prediction_result["ptm"])
         model_names.append(model_name)
 
-        with Path(inputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
+        with Path(outputpath, f'unrelaxed_{model_name}.pdb').open('w') as of: of.write(unrelaxed_pdb_lines[-1])
 
         logger.info(f"     <pLDDT>={np.mean(prediction_result['plddt'][:seq_len]):6.4f} pTM={prediction_result['ptm']:6.4f}")
 
@@ -541,14 +543,17 @@ def predict_structure(prefix,
                  'plddt'                   : prediction_result['plddt'][:seq_len], \
                  'distogram'               : prediction_result['distogram']}
 
-        with Path(inputpath, f'unrelaxed_{model_name}_pae.json').open('w') as of:
+        with Path(outputpath, f'unrelaxed_{model_name}_pae.json').open('w') as of:
             of.write(json.dumps([{'predicted_aligned_error':prediction_result['predicted_aligned_error'].astype(int).tolist()}]))
 
-        with Path(inputpath, f"result_{model_name}.pkl").open('wb') as of:
+        with Path(outputpath, f"result_{model_name}.pkl").open('wb') as of:
             pickle.dump(outdict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
+
+
+    ranking_debug_dict = {'ptm':{}, 'order':[]}
 
     logger.info("")
     logger.info(f"Reranking models based on pTM score: {ptm_rank}")
@@ -579,8 +584,11 @@ def predict_structure(prefix,
             _pdb_lines = unrelaxed_pdb_lines[_idx]
 
 
+        ranking_debug_dict['order'].append(model_names[_idx])
+        ranking_debug_dict['ptm'][model_names[_idx]]=float(ptmscore[_idx])
+
         pdb_fn = f"ranked_{n}.pdb"
-        Path(inputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(inputpath, f'ranked_{n}_pae.json') )
+        Path(outputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(outputpath, f'ranked_{n}_pae.json') )
 
         logger.info(f"{pdb_fn} ({model_names[_idx]}) <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
 
@@ -595,6 +603,7 @@ def predict_structure(prefix,
         pdb_header.append( f"REMARK 0" )
 
         pdb_header = "\n".join(pdb_header)
+
         #superpose final models onto a template (first, if there is more of them...)
         if model2template_mappings:
             tpl_fn,residx_mappings = list(model2template_mappings.items())[0]
@@ -613,20 +622,24 @@ def predict_structure(prefix,
 
             pdbio = PDBIO()
             pdbio.set_structure(model_structure)
-            with Path(inputpath, pdb_fn).open('w') as of:
+            with Path(outputpath, pdb_fn).open('w') as of:
                 of.write(f"{pdb_header}\n")
                 pdbio.save(of)
 
         else:
-            with Path(inputpath, pdb_fn).open('w') as of:
+            with Path(outputpath, pdb_fn).open('w') as of:
                 of.write(f"{pdb_header}\n")
                 of.write(_pdb_lines)
+
+    # save a file with pTMs and rankings
+    with Path(outputpath, 'ranking_debug.json').open('w') as of:
+        json.dump(ranking_debug_dict, of)
 
 # -----------------------------------------------------------------------------                    
 
 def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
 
-    datadir=Path(prefix, "input")
+    datadir=Path(prefix, "output")
     figures_dir = Path(prefix, "figures")
     figures_dir.mkdir(parents=True, exist_ok=False)
 
@@ -657,9 +670,96 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
             ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
             ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
 
+# -----------------------------------------------------------------------------                    
+# lists likely contacts and generates pymol/chimera scripts
+# bypasses af2plots and has no matplolib dep
+
+def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
+
+    datadir=Path(prefix, "output")
+    datadict = {}
+
+    for fn in glob.glob("%s/result*.pkl" % datadir):
+        with open(fn, 'rb') as ifile:
+            data = pickle.load(ifile)
+        datadict[fn]=data
+
+    for rank,k in enumerate(sorted(datadict, key=lambda x:datadict[x]['ptm'], reverse=True)):
+        datadict[k]['rank']=rank+1
+
+    topmodel_fn=None
+    for _fn in datadict:
+        if datadict[_fn]['rank']==1:
+            topmodel_fn = _fn
+            break
+
+    predicted_distogram = datadict[topmodel_fn].get('distogram', None)
+    if predicted_distogram is None: return None
+
+    #probs = softmax(predicted_distogram['logits'], axis=-1)
+    x = predicted_distogram['logits']
+    x_max = np.max(x, axis=-1, keepdims=True)
+    exp_x_shifted = np.exp(x - x_max)
+    probs = exp_x_shifted / np.sum(exp_x_shifted, axis=-1, keepdims=True)
+
+    bin_edges = predicted_distogram['bin_edges']
+
+    # chainid mapping helper for AF2-muiltimer
+    asym_id = feature_dict['asym_id']
+    assembly_num_chains = feature_dict['assembly_num_chains']
+
+    # for compatibility with versions pre 0.3.8 (previously parsed single chain preds only!)
+    if assembly_num_chains is None:
+        assembly_num_chains = 1
+        asym_id = [1]*len(datadict[topmodel_fn]['plddt'])
+
+    distance_bins = [(0, bin_edges[0])]
+    distance_bins += [(bin_edges[idx], bin_edges[idx + 1]) for idx in range(len(bin_edges) - 1)]
+    distance_bins.append((bin_edges[-1], np.inf))
+    distance_bins = tuple(distance_bins)
+    print()
+    print(f"AlphaFold2 distogram distance range [{bin_edges[0]}, {bin_edges[-1]}]")
+    print()
+    # truncate distance to the available range
+    distance = np.clip(distance_cutoff, 3, 20)
+
+    bin_idx=np.max(np.where(bin_edges<distance))
+
+
+    below8pbty = np.sum(probs, axis=2, where=(np.arange(probs.shape[-1])<bin_idx))
+
+    requested_contacts=[]
+    if print_contacts:
+        print()
+        print(f"AlphaFold2-predicted contacts below {distance}A with estimated probability (*-inter chains)")
+
+    chain_ids = string.ascii_uppercase
+    chain_lens = []
+    for i in range(assembly_num_chains):
+        chain_lens.append(np.sum(np.array(asym_id)==(i+1)))
+
+    chain_lens = np.array(chain_lens)
+    resi_i,resi_j = np.where(below8pbty>pbty_cutoff)
+    for i,j in zip(resi_i, resi_j):
+
+        ci = int(asym_id[i]-1)
+        cj = int(asym_id[j]-1)
+
+        # skipp: close, diag, and symm
+        if i==j: continue
+        if np.abs(i-j)<2 and ci==cj: continue
+        if ci>cj: continue
+
+        reli = 1+i-sum(chain_lens[:ci])
+        relj = 1+j-sum(chain_lens[:cj])
+
+        requested_contacts.append(f"{reli}/{chain_ids[ci]} {relj}/{chain_ids[cj]} {below8pbty[i,j]}")
+
+        if print_contacts: print(f"{'*' if ci!=cj else ' '} {reli:-4d}/{chain_ids[ci]} {relj:-4d}/{chain_ids[cj]} {below8pbty[i,j]:5.2f}")
+
     # contacts list
     contact_template = r"^(?P<res1>\w+?)/(?P<ch1>\w+?)\s+(?P<res2>\w+?)/(?P<ch2>\w+?)\s+(?P<pbty>[\d\.]*?)$"
-    structure = parse_pdb_bio(Path(prefix, "input", "ranked_0.pdb"), outid="XYZ", remove_alt_confs=True)
+    structure = parse_pdb_bio(Path(prefix, "output", "ranked_0.pdb"), outid="XYZ", remove_alt_confs=True)
     protein = get_prot_chains_bio(structure)
     chain_seq_dict = {}
     for chain in protein:
@@ -681,7 +781,7 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
     interchain_contacts_list = []
     interchain_sb_list = []
 
-    for contact_str in contacts_txt:
+    for contact_str in requested_contacts:
         m = re.match(contact_template, contact_str)
         d['A_chain'] = ci = m.group('ch1')
         d['B_chain'] = cj = m.group('ch2')
@@ -730,25 +830,25 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
         idx+=1
 
     if keepalldata:
-        with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
+        with open(os.path.join(datadir, f"pymol_all_contacts.pml"), 'w') as ofile:
             ofile.write("\n".join(pymol_all))
 
-    with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
+    with open(os.path.join(datadir, f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
 
-    with open(os.path.join(datadir, "..", f"chimerax_interchain_contacts.cxc"), 'w') as ofile:
+    with open(os.path.join(datadir, f"chimerax_interchain_contacts.cxc"), 'w') as ofile:
         chimerax_int.append(chimerax_footer)
         ofile.write("\n".join(chimerax_int))
 
     if interchain_sb_list:
-        with open(os.path.join(datadir, "..", f"pymol_interchain_saltbridges.pml"), 'w') as ofile:
+        with open(os.path.join(datadir, f"pymol_interchain_saltbridges.pml"), 'w') as ofile:
             ofile.write("\n".join(pymol_sb_int))
 
-        with open(os.path.join(datadir, "..", f"chimerax_interchain_saltbridges.cxc"), 'w') as ofile:
+        with open(os.path.join(datadir, f"chimerax_interchain_saltbridges.cxc"), 'w') as ofile:
             chimerax_sb_int.append(chimerax_footer)
             ofile.write("\n".join(chimerax_sb_int))
 
-    with open(os.path.join(datadir, "..", f"contacts.txt"), 'w') as ofile:
+    with open(os.path.join(datadir, f"contacts.txt"), 'w') as ofile:
         ofile.write("\n".join(contacts_list))
 
     logger.info("\n\n")
@@ -1427,8 +1527,9 @@ def runme(msa_filenames,
     # do not clean jobpath - processed template will be stored there before job is started
     jobpath=Path(jobname)
     inputpath=Path(jobname, "input")
+    outputpath=Path(jobname, "output")
     msaspath=Path(jobname, "input", "msas", "A")
-    for dd in [inputpath, msaspath]:
+    for dd in [inputpath, outputpath, msaspath]:
         if dd.exists():
             shutil.rmtree(dd)
         dd.mkdir(parents=True)
@@ -1534,7 +1635,7 @@ def runme(msa_filenames,
     feature_dict["asym_id"] = \
             np.array( [int(n+1) for n, l in enumerate(tuple(map(len, query_seq_extended))) for _ in range(0, l)] )
     feature_dict['assembly_num_chains']=len(query_seq_extended)
-    with Path(inputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
+    with Path(outputpath, 'features.pkl').open('wb') as of: pickle.dump(feature_dict, of, protocol=pickle.HIGHEST_PROTOCOL)
 
     predict_structure(jobname, query_seq_combined, feature_dict,
                       Ls                        =   tuple(map(len, query_seq_extended)),
@@ -1548,6 +1649,9 @@ def runme(msa_filenames,
 
     if PLOTTER_AVAILABLE:
         make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+
+    make_contact_scripts(jobname, feature_dict, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+
 
 def main():
 
