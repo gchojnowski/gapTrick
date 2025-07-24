@@ -657,6 +657,89 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
             ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
             ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
 
+def make_contact_sctripts(prefix, feature_dict, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
+
+    datadir=Path(prefix, "input")
+    datadict = {}
+
+    for fn in glob.glob("%s/result*.pkl" % datadir):
+        with open(fn, 'rb') as ifile:
+            data = pickle.load(ifile)
+        datadict[fn]=data
+
+    for rank,k in enumerate(sorted(datadict, key=lambda x:datadict[x]['ptm'], reverse=True)):
+        datadict[k]['rank']=rank+1
+
+    topmodel_fn=None
+    for _fn in datadict:
+        if datadict[_fn]['rank']==1:
+            topmodel_fn = _fn
+            break
+
+    predicted_distogram = datadict[topmodel_fn].get('distogram', None)
+    if predicted_distogram is None: return None
+
+    #probs = softmax(predicted_distogram['logits'], axis=-1)
+    x = predicted_distogram['logits']
+    x_max = np.max(x, axis=-1, keepdims=True)
+    exp_x_shifted = np.exp(x - x_max)
+    probs = exp_x_shifted / np.sum(exp_x_shifted, axis=-1, keepdims=True)
+
+    bin_edges = predicted_distogram['bin_edges']
+
+    # chainid mapping helper for AF2-muiltimer
+    asym_id = feature_dict['asym_id']
+    assembly_num_chains = feature_dict['assembly_num_chains']
+
+    # for compatibility with versions pre 0.3.8 (previously parsed single chain preds only!)
+    if assembly_num_chains is None:
+        assembly_num_chains = 1
+        asym_id = [1]*len(datadict[topmodel_fn]['plddt'])
+
+    distance_bins = [(0, bin_edges[0])]
+    distance_bins += [(bin_edges[idx], bin_edges[idx + 1]) for idx in range(len(bin_edges) - 1)]
+    distance_bins.append((bin_edges[-1], np.inf))
+    distance_bins = tuple(distance_bins)
+    print()
+    print(f"AlphaFold2 distogram distance range [{bin_edges[0]}, {bin_edges[-1]}]")
+    print()
+    # truncate distance to the available range
+    distance = np.clip(distance_cutoff, 3, 20)
+
+    bin_idx=np.max(np.where(bin_edges<distance))
+
+
+    below8pbty = np.sum(probs, axis=2, where=(np.arange(probs.shape[-1])<bin_idx))
+
+    requested_contacts=[]
+    if print_contacts:
+        print()
+        print(f"AlphaFold2-predicted contacts below {distance}A with estimated probability (*-inter chains)")
+
+    chain_ids = string.ascii_uppercase
+    chain_lens = []
+    for i in range(assembly_num_chains):
+        chain_lens.append(np.sum(np.array(asym_id)==(i+1)))
+
+    chain_lens = np.array(chain_lens)
+    resi_i,resi_j = np.where(below8pbty>pbty_cutoff)
+    for i,j in zip(resi_i, resi_j):
+
+        ci = int(asym_id[i]-1)
+        cj = int(asym_id[j]-1)
+
+        # skipp: close, diag, and symm
+        if i==j: continue
+        if np.abs(i-j)<2 and ci==cj: continue
+        if ci>cj: continue
+
+        reli = 1+i-sum(chain_lens[:ci])
+        relj = 1+j-sum(chain_lens[:cj])
+
+        requested_contacts.append(f"{reli}/{chain_ids[ci]} {relj}/{chain_ids[cj]} {below8pbty[i,j]}")
+
+        if print_contacts: print(f"{'*' if ci!=cj else ' '} {reli:-4d}/{chain_ids[ci]} {relj:-4d}/{chain_ids[cj]} {below8pbty[i,j]:5.2f}")
+
     # contacts list
     contact_template = r"^(?P<res1>\w+?)/(?P<ch1>\w+?)\s+(?P<res2>\w+?)/(?P<ch2>\w+?)\s+(?P<pbty>[\d\.]*?)$"
     structure = parse_pdb_bio(Path(prefix, "input", "ranked_0.pdb"), outid="XYZ", remove_alt_confs=True)
@@ -681,7 +764,7 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
     interchain_contacts_list = []
     interchain_sb_list = []
 
-    for contact_str in contacts_txt:
+    for contact_str in requested_contacts:
         m = re.match(contact_template, contact_str)
         d['A_chain'] = ci = m.group('ch1')
         d['B_chain'] = cj = m.group('ch2')
@@ -1548,6 +1631,9 @@ def runme(msa_filenames,
 
     if PLOTTER_AVAILABLE:
         make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+
+    make_contact_sctripts(jobname, feature_dict, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+
 
 def main():
 
