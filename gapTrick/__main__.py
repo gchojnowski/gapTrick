@@ -872,7 +872,9 @@ def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata
                 if idx>8:
                     logger.info("    [..] full list in contacts.txt")
                     break
-
+        else:
+            logger.info("")
+            logger.info(f"""     No potential salt-bridges found""")
 # -----------------------------------------------------------------------------                    
                     
 def match_template_chains_to_target(ph, target_sequences):
