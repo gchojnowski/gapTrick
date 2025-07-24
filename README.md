@@ -1,7 +1,9 @@
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick.ipynb)
+
+
 ![contacts_prediction](/examples/contacts.png)
 
 # gapTrick – AlphaFold with multimeric templates
-
 
 **gapTrick** is a tool based on monomeric AlphaFold2 models that can identify critical residue-residue interactions in low-accuracy models of protein complexes. The approach can aid in the interpretation of challenging cryo-EM and MX structures and the computational identification of protein-protein interactions.
 
@@ -11,12 +13,13 @@
     - [Hardware requirements](#hardware-requirements)    
     - [Dependencies](#dependencies)
     - [AlphaFold2](#alphafold2)
+    - [AlphaFold2 NN parameters](#alphafold2-nn-parameters)
     - [gapTrick](#gaptrick)
-    - [Installation issues](#installation-issues)
 
 - [How to use gapTrick](#how-to-use-gaptrick)
     - [Input](#input)
     - [Running the predictions](#running-the-predictions)
+    - [Fair use of the MMseqs2 API](#fair-use-of-the-mmseqs2-api)
     - [Prediction results](#prediction-results)
     - [Troubleshooting](#troubleshooting)
 - [Using gapTrick for cryoEM model building](#using-gaptrick-for-cryoEM-model-building)
@@ -26,7 +29,7 @@
 
 # Citing this work
 
-Grzegorz Chojnowski, to be published.
+Chojnowski bioRxiv (2025) [01.31.635911](https://doi.org/10.1101/2025.01.31.635911)
 
 The gapTrick code depends on [AlphaFold2](https://www.nature.com/articles/s41586-021-03819-2) and [MMseqs2](https://doi.org/10.1093/bioinformatics/btab184), remember to cite them as well!
 
@@ -85,18 +88,29 @@ pip install --upgrade tensorflow==2.16.1
 mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
 curl -o conda/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
-<!--
-pip install tensorflow==2.16.1
--->
 
-... and download model weights (we don't need the MSA pipeline or databases here!)
+## AlphaFold2 NN parameters
 
+To finalize installatin you need to download the AlphaFold2 neural network (NN) parameters and place them in a directory that gapTrick can find (you don't need to download sequence databases)
+
+If you installed gapTrick from scratch, use the following to place the parameters where they can be easily found
 ```
 mkdir --parents conda/lib/python3.10/site-packages/alphafold/data/params
 curl -o alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
 tar --extract --verbose --file=alphafold_params_2021-07-14.tar --directory=conda/lib/python3.10/site-packages/alphafold/data/params --preserve-permissions
 rm alphafold_params_2021-07-14.tar
 ```
+
+If you use an existing installation of AlphaFold2, or prefer to place the parameters in a custom directory (e.g. ``/a/directory/with/parameters``), run the following
+
+```
+mkdir --parents /a/directory/with/parameters/params
+curl -o /a/directory/with/parameters/params/alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
+tar --extract --verbose --file=/a/directory/with/parameters/params/alphafold_params_2021-07-14.tar --directory=/a/directory/with/parameters/params --preserve-permissions
+rm /a/directory/with/parameters/params/alphafold_params_2021-07-14.tar
+```
+
+and use gapTrick with a flag ``--data_dir=/a/directory/with/parameters/``
 
 ## gapTrick
 The gapTrick itself can be installed with a command:
@@ -145,12 +159,23 @@ First, check your installation with a most basic run based on files provided in 
 ```
 gapTrick --seqin examples/piaq.fasta --template examples/piaq.pdb --jobname piaq_test --max_seq 5000 --relax
 ```
-this will automatically download MSAs from MMseqs2 API and run prediction. Remember about fair use ot the API server. To reduce the number of requests for predictions repeated for teh same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in later jobs. For example, the following will use a directory ``local_msas`` (you need to create it in advance):
+this will automatically download MSAs from MMseqs2 API and run prediction. Remember about fair use ot the API server.
+
+## Fair use of the MMseqs2 API
+
+gapTrick by default uses MMseqs2 API to generate MSAs. MMseqs2 API is a shared resource that has been generously provided by the developers and as such should be used in a fair manner (in simple words; not TOO extensively). Otherwise your IP **will be blocked** for a while. To reduce the number of requests for predictions repeated for the same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in subsequent jobs. For example, the following will use a directory ``local_msas``:
 
 ```
 gapTrick --seqin examples/piaq.fasta --template examples/piaq.pdb --jobname piaq_test --max_seq 5000 --relax --msa_dir local_msas
 ```
-now, whenever you rerun the job above gapTrick will check the ``local_msas`` directory for MSAs matching your target sequences
+
+now, whenever you rerun the job above, gapTrick will check the ``local_msas`` directory for MSAs matching your target sequences.
+
+Alternatively, you can pre-calculate target MSAs, store ``*.a3m`` files in a directory and reuse with ``--msa_dir`` keyword. A script ``colabfold_search`` distributed with [ColabFold](https://github.com/sokrypton/ColabFold?tab=readme-ov-file) is a pretty handy solution here. All gapTrick benchmarks were based on MSAs generated with the following command (check [ColabFold website](https://github.com/sokrypton/ColabFold?tab=readme-ov-file#generating-msas-for-large-scale-structurecomplex-predictions) for more details)
+
+```
+colabfold_search --db1 uniref30_2202_db --mmseqs /path/to/bin/mmseqs --use-env 0 --filter 0 --db-load-mode 2 input_sequences.fasta /path/to/db_folder msas
+```
 
 ## Prediction results
 

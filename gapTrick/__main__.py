@@ -79,8 +79,10 @@ try:
 except:
     logger.info("WARNING: cannot initiate figure plotter")
     PLOTTER_AVAILABLE = 0
-
-from gapTrick import version
+try:
+    from gapTrick import version
+except:
+    import version
 
 tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 ogt = dict([(tgo[_k], _k) for _k in tgo])
@@ -262,6 +264,10 @@ def parse_args(expert=False):
     expert_opts.add_option("--rotrans", action="store", dest="rotrans", type="string", metavar="FLOAT,FLOAT", \
                   help=SUPPRESS_HELP if not expert else "rotate/translate template chains about their COMs up to --rotran=angle,distance", default=None)
 
+    extra_opts.add_option("--fixed_chain_ids", action="store", \
+                            dest="fixed_chain_ids", type="string", metavar="CHAR,CHAR", \
+                  help=SUPPRESS_HELP if not expert else "comma-separated template chains to be exluded from rot/trans", default=None)
+
     expert_opts.add_option("--cardinality", action="store", dest="cardinality", type="string", metavar="INT,INT", \
                   help=SUPPRESS_HELP if not expert else "cardinalities of consecutive MSA", default=None)
 
@@ -371,7 +377,13 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
                 logger.info(f'     MMSeqs2 API status: {out["status"]}')
                 time.sleep(10)
                 out = status(out["id"])
+
             logger.info(f'     MMSeqs2 API status: {out["status"]}')
+
+            if out["status"]=="RATELIMIT": 
+                print("ERROR: MMseqs2 API request rejected (too many connections). Try again later...")
+                exit(0)
+
             download(out["id"], tar_gz_file)
 
         # parse a3m files
@@ -396,7 +408,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
 # -----------------------------------------------------------------------------
 
 def save_pdb(structure, ofname):
-    pdbio = PDBIO()
+    pdbio = MMCIFIO()
     pdbio.set_structure(structure)
     with Path(ofname).open('w') as of:
         pdbio.save(of)
@@ -551,7 +563,7 @@ def predict_structure(prefix,
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
-                                    max_iterations=2000,
+                                    max_iterations=0,
                                     tolerance=2.39,
                                     stiffness=10.0,
                                     exclude_residues=[],
@@ -612,7 +624,7 @@ def predict_structure(prefix,
 
 # -----------------------------------------------------------------------------                    
 
-def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
+def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
 
     datadir=Path(prefix, "input")
     figures_dir = Path(prefix, "figures")
@@ -632,7 +644,6 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
     ff.savefig(fname=os.path.join(figures_dir, f"plddt.svg"), bbox_inches = 'tight')
 
     # distogram
-    distance_cutoff = 8.0
     ff,contacts_txt = af2o.plot_distogram(datadict, distance=distance_cutoff, print_contacts=False, pbtycutoff=pbty_cutoff)
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.png"), dpi=150, bbox_inches = 'tight')
     ff.savefig(fname=os.path.join(figures_dir, f"distogram.svg"), bbox_inches = 'tight')
@@ -660,7 +671,7 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
     d['A_atom_name']='CA'
     d['B_atom_name']='CA'
 
-    #pymol_all = [pymol_header%d]
+    if keepalldata: pymol_all = [pymol_header%d]
     pymol_int = [pymol_header%d]
     chimerax_int = []
     pymol_sb_int = [pymol_header%d]
@@ -711,14 +722,16 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
                 pymol_sb_int.append(pymol_dist_generic%d)
                 chimerax_sb_int.append(chimerax_dist_generic%d)
 
-        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
-        #pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
-        #pymol_all.append(pymol_dist_generic%d)
+        if keepalldata:
+            pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
+            pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
+            pymol_all.append(pymol_dist_generic%d)
 
         idx+=1
 
-    #with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
-    #    ofile.write("\n".join(pymol_all))
+    if keepalldata:
+        with open(os.path.join(datadir, "..", f"pymol_all_contacts.pml"), 'w') as ofile:
+            ofile.write("\n".join(pymol_all))
 
     with open(os.path.join(datadir, "..", f"pymol_interchain_contacts.pml"), 'w') as ofile:
         ofile.write("\n".join(pymol_int))
@@ -744,8 +757,8 @@ def make_figures(prefix, print_contacts=False, pbty_cutoff=0.8):
         logger.info(f""" ==> Found NO inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
                      """     The prediction may be NOT correct\n""")
     else:
-        logger.info(f""" ==> Found {len(interchain_contacts_list)} inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
-                     """     The prediction is very likely to be correct\n""")
+        logger.info(f""" ==> Found {len(interchain_contacts_list)} inter-chain contacts (dist<8A and pbty>0.8)\n""")
+
         for idx,_c in enumerate(interchain_contacts_list):
             logger.info(f"     {idx+1:03d} {_c}")
             if idx>8:
@@ -821,12 +834,12 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 
     if remove_alt_confs:
         with io.StringIO() as outstr:
-            pdbio = PDBIO()
+            pdbio = MMCIFIO()
             pdbio.set_structure(structure)
             pdbio.save(outstr, select=NotAlt())
             outstr.seek(0)
 
-            parser = PDBParser(QUIET=True)
+            parser = MMCIFParser(QUIET=True)
             structure = parser.get_structure(outid, outstr)[0]
             for chain in structure:
                 for resi in chain:
@@ -923,7 +936,7 @@ def random_point_on_sphere():
     return np.array([r * np.cos(t), r * np.sin(t), z])
 
 
-def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=None, transmax=None):
+def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=None, transmax=None, fixed_chain_ids=None):
     '''
         removes non-protein chains and residues wouth CA atoms (required for superposition)
     '''
@@ -957,6 +970,9 @@ def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=N
     if rotmax and transmax:
         logger.info("")
         for chain in structure:
+
+            if fixed_chain_ids and chain.id in fixed_chain_ids.split(","): continue
+
             com_vec = Vector(np.array([atom.get_coord() for atom in chain.get_atoms()]).mean(axis=0))
             axis = random_point_on_sphere()
             angle = np.random.uniform(0,1) * ( np.pi - 0.001 ) * rotmax/180
@@ -1005,7 +1021,16 @@ def chain2CIF_bio(chain, outid, outfn):
 
 # -----------------------------------------------------------------------------
 
-def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=None, resi_shift=200, truncate=None, plddt_cutoff=None, rotmax=None, transmax=None):
+def template_preps_bio(template_fn_list,
+                       chain_ids,
+                       target_sequences,
+                       outpath          =   None,
+                       resi_shift       =   200,
+                       truncate         =   None,
+                       plddt_cutoff     =   None,
+                       rotmax           =   None,
+                       transmax         =   None,
+                       fixed_chain_ids  =   None):
     '''
         BioPython version: this will generate a merged, single-chain template in a AF2-compatible mmCIF file(s)
     '''
@@ -1019,13 +1044,13 @@ def template_preps_bio(template_fn_list, chain_ids, target_sequences, outpath=No
         _ph = parse_pdb_bio(ifn, outid=outid, plddt_cutoff=plddt_cutoff, remove_alt_confs=True)
 
         # save input template
-        save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.pdb"))
+        save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.cif"))
 
         # extarct protein chains and bias the template (if requested)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
+        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax, fixed_chain_ids=fixed_chain_ids)
 
         # save modified template (before merging chains)
-        save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.pdb"))
+        save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.cif"))
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
@@ -1374,7 +1399,9 @@ def runme(msa_filenames,
           pbty_cutoff       =   0.8,
           plddt_cutoff      =   None,
           debug             =   False,
-          iterate           =   1):
+          iterate           =   1,
+          fixed_chain_ids   =   None,
+          keepalldata       =   False):
 
 
 
@@ -1437,7 +1464,8 @@ def runme(msa_filenames,
                                                   truncate          =   truncate,
                                                   plddt_cutoff      =   plddt_cutoff,
                                                   rotmax            =   rotmax,
-                                                  transmax          =   transmax)
+                                                  transmax          =   transmax,
+                                                  fixed_chain_ids   =   fixed_chain_ids)
         template2input_mapping = None
     else:
         template_fn_list, template2input_mapping = template_preps_bio(template_fn_list,
@@ -1447,7 +1475,8 @@ def runme(msa_filenames,
                                                                       truncate          =   truncate,
                                                                       plddt_cutoff      =   plddt_cutoff,
                                                                       rotmax            =   rotmax,
-                                                                      transmax          =   transmax)
+                                                                      transmax          =   transmax,
+                                                                      fixed_chain_ids   =   fixed_chain_ids)
 
     with tempfile.TemporaryDirectory() as tmp_path:
         template_features,model2template_mappings = generate_template_features(query_sequence   =   query_seq_combined,
@@ -1474,7 +1503,7 @@ def runme(msa_filenames,
                     suffix=''
                 else:
                     suffix='_ptm'
-                  
+
                 if data_dir is None:
                     data_dir = Path(os.path.dirname(__file__), '..', 'alphafold', 'data')
 
@@ -1518,7 +1547,7 @@ def runme(msa_filenames,
                       template_fn_list          =   input_template_fn_list)
 
     if PLOTTER_AVAILABLE:
-        make_figures(jobname, pbty_cutoff=pbty_cutoff)
+        make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
 def main():
 
@@ -1629,7 +1658,9 @@ def main():
           pbty_cutoff       =   options.pbty_cutoff,
           plddt_cutoff      =   options.plddt_cutoff,
           debug             =   options.debug,
-          iterate           =   options.iterate)
+          iterate           =   options.iterate,
+          fixed_chain_ids   =   options.fixed_chain_ids,
+          keepalldata       =   options.keepalldata)
 
     if not options.keepalldata:
         for fname in os.listdir(Path(options.jobname, "msa")):
