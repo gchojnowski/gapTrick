@@ -550,6 +550,9 @@ def predict_structure(prefix,
     # rerank models based on pTM (not predicted lddt!)
     ptm_rank = np.argsort(ptmscore)[::-1]
 
+
+    ranking_debug_dict = {'ptm':{}, 'order':[]}
+
     logger.info("")
     logger.info(f"Reranking models based on pTM score: {ptm_rank}")
     for n,_idx in enumerate(ptm_rank):
@@ -579,6 +582,9 @@ def predict_structure(prefix,
             _pdb_lines = unrelaxed_pdb_lines[_idx]
 
 
+        ranking_debug_dict['order'].append(model_names[_idx])
+        ranking_debug_dict['ptm'][model_names[_idx]]=float(ptmscore[_idx])
+
         pdb_fn = f"ranked_{n}.pdb"
         Path(inputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(inputpath, f'ranked_{n}_pae.json') )
 
@@ -595,6 +601,7 @@ def predict_structure(prefix,
         pdb_header.append( f"REMARK 0" )
 
         pdb_header = "\n".join(pdb_header)
+
         #superpose final models onto a template (first, if there is more of them...)
         if model2template_mappings:
             tpl_fn,residx_mappings = list(model2template_mappings.items())[0]
@@ -621,6 +628,10 @@ def predict_structure(prefix,
             with Path(inputpath, pdb_fn).open('w') as of:
                 of.write(f"{pdb_header}\n")
                 of.write(_pdb_lines)
+
+    # save a file with pTMs and rankings
+    with Path(prefix, 'ranking_debug.json').open('w') as of:
+        json.dump(ranking_debug_dict, of)
 
 # -----------------------------------------------------------------------------                    
 
