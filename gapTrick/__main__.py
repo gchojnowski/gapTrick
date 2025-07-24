@@ -657,6 +657,10 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
             ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
             ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
 
+# -----------------------------------------------------------------------------                    
+# lists likely contacts and generates pymol/chimera scripts
+# bypasses af2plots and has no matplolib dep
+
 def make_contact_sctripts(prefix, feature_dict, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
 
     datadir=Path(prefix, "input")
