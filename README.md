@@ -187,7 +187,7 @@ After a job finishes the output directory will contain the following files and d
 - ``figures/`` - PAE, pLDDT, and distogram plots in png and svg format (created only if matplotlib is installed)
 - ``output/contacts.txt`` - list of all residue pairs predicted to be at most 8Å apart with corresponding probabilitiesn (above 0.8). Leading * marks inter-chain intercations. If you have them, the complex prediction is very likely to be correct.
 - ``output/pymol_interchain_contacts.pml`` - a pymol script for displaying inter-chain contacts. First, open ranked_0.pdb and then use File->Run Script option to run the scirpt.
-- ``output/pymol_interchain_saltbridges.pml`` - this pymol script will ald salt-bridges only to your model. These may be the most crucial intercations!
+- ``output/pymol_interchain_saltbridges.pml`` - this pymol script will add salt-bridges only to your model (if any are detected). These may be the most crucial intercations!
 - ``output/chimerax_interchain_contacts.cxc`` - a script for displaying contacts in ChimeraX. Open top prediction and run a command ``run [path to scirpt]/chimerax_interchain_contacts.cxc [model id]``
 - ``output/chimerax_interchain_saltbridges.cxc`` - a script for displaying inter-chain salt-bridges in ChimeraX. Open top prediction and run a command ``run [path to scirpt]/chimerax_interchain_saltbridges.cxc [model id]``
 
