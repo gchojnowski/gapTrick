@@ -44,4 +44,4 @@ jobs:
     - name: Test with pytest
       run: |
         python $GITHUB_WORKSPACE/gapTrick --help
-        gapTrick --help
+        gapTrick --seqin $GITHUB_WORKSPACE/examples/piaq.fasta --template $GITHUB_WORKSPACE/examples/piaq.pdb --jobname piaq_test --max_seq 10 --relax
