@@ -1,0 +1,47 @@
+name: Python Package using Conda
+
+on: [push]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.10'
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: Install dependencies
+      run: |
+        mamba install -y -c conda-forge -c bioconda \
+                          python='{python_version}' \
+                          matplotlib \
+                          kalign2=2.04 \
+                          hhsuite=3.3.0 \
+                          openmm=8.2.0 \
+                          pdbfixer
+        git clone --branch main https://github.com/deepmind/alphafold alphafold
+        pip install -r alphafold/requirements.txt
+        pip install --no-dependencies ./alphafold
+        pip install --upgrade "jax[cuda12]"==0.4.26
+        pip install --upgrade tensorflow==2.16.1
+        mkdir -p $CONDA/lib/python3.10/site-packages/alphafold/common/
+        curl -o $CONDA/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt \
+                  https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+        mkdir --parents $CONDA/lib/python3.10/site-packages/alphafold/data/params
+        curl -o alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
+        tar --extract --verbose --file=alphafold_params_2021-07-14.tar --directory=$CONDA/lib/python3.10/site-packages/alphafold/data/params --preserve-permissions
+        rm alphafold_params_2021-07-14.tar
+        pip install gapTrick
+    - name: Test with pytest
+      run: |
+        python gapTrick/gapTrick --help
+        gapTrick --help
