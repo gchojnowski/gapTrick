@@ -21,7 +21,7 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        mamba install -y -c conda-forge -c bioconda \
+        conda install -y -c conda-forge -c bioconda \
                           python='{python_version}' \
                           matplotlib \
                           kalign2=2.04 \
