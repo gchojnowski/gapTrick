@@ -40,8 +40,8 @@ jobs:
         curl -o alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
         tar --extract --verbose --file=alphafold_params_2021-07-14.tar --directory=$CONDA/lib/python${{ matrix.python-version }}/site-packages/alphafold/data/params --preserve-permissions
         rm alphafold_params_2021-07-14.tar
-        pip install gapTrick
+        cd $GITHUB_WORKSPACE; pip install .
     - name: Test with pytest
       run: |
-        python gapTrick/gapTrick --help
+        python $GITHUB_WORKSPACE/gapTrick --help
         gapTrick --help
