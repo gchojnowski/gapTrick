@@ -28,8 +28,8 @@ jobs:
                           matplotlib \
                           kalign2=2.04 \
                           hhsuite=3.3.0 \
-                          openmm=8.2.0 \
                           pdbfixer
+        #openmm=8.2.0 \
         git clone --branch main https://github.com/deepmind/alphafold alphafold
         pip install -r alphafold/requirements.txt
         pip install --no-dependencies ./alphafold
