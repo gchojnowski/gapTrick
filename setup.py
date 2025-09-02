@@ -28,4 +28,3 @@ setup(name='gapTrick',
             ],
       }
      )
-
