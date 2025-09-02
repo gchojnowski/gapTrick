@@ -31,8 +31,8 @@ jobs:
         git clone --branch main https://github.com/deepmind/alphafold alphafold
         pip install -r alphafold/requirements.txt
         pip install --no-dependencies ./alphafold
-        pip install --upgrade "jax[cuda12]"==0.4.26
-        pip install --upgrade tensorflow==2.16.1
+        #pip install --upgrade "jax[cuda12]"==0.4.26
+        #pip install --upgrade tensorflow==2.16.1
         mkdir -p $CONDA/lib/python${{ matrix.python-version }}/site-packages/alphafold/common/
         curl -o $CONDA/lib/python${{ matrix.python-version }}/site-packages/alphafold/common/stereo_chemical_props.txt \
                   https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
@@ -44,4 +44,4 @@ jobs:
     - name: Test with pytest
       run: |
         python $GITHUB_WORKSPACE/gapTrick --help
-        #JAX_PLATFORMS=cpu gapTrick --seqin $GITHUB_WORKSPACE/examples/piaq.fasta --template $GITHUB_WORKSPACE/examples/piaq.pdb --jobname piaq_test --max_seq 10 --relax
+        JAX_PLATFORMS=cpu gapTrick --seqin $GITHUB_WORKSPACE/examples/piaq.fasta --template $GITHUB_WORKSPACE/examples/piaq.pdb --jobname piaq_test --max_seq 10 --relax
