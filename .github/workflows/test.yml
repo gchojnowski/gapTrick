@@ -33,7 +33,7 @@ jobs:
         git clone --branch main https://github.com/deepmind/alphafold alphafold
         pip install -r alphafold/requirements.txt
         pip install --no-dependencies ./alphafold
-        pip install --upgrade jax==0.4.26
+        pip install --upgrade jax jaxlib
         #pip install --upgrade "jax[cuda12]"==0.4.26
         #pip install --upgrade tensorflow==2.16.1
         mkdir -p $CONDA/lib/python${{ matrix.python-version }}/site-packages/alphafold/common/
