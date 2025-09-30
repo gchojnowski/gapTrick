@@ -31,7 +31,7 @@
 
 # Citing this work
 
-Chojnowski bioRxiv (2025) [01.31.635911](https://doi.org/10.1101/2025.01.31.635911)
+Chojnowski Bioinformatics 41.3 (2025) [10.1093/bioinformatics/btaf532](https://doi.org/10.1093/bioinformatics/btaf532)
 
 The gapTrick code depends on [AlphaFold2](https://www.nature.com/articles/s41586-021-03819-2) and [MMseqs2](https://doi.org/10.1093/bioinformatics/btab184), remember to cite them as well!
 
