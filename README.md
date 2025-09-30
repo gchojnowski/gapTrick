@@ -75,7 +75,7 @@ cd gapTrick
 curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p conda
 source conda/bin/activate
-conda install -qy -c conda-forge -c bioconda python=3.10 openmm=8.0.0 matplotlib kalign2 hhsuite pdbfixer pyopenssl==22.0.0 git
+conda install -qy -c conda-forge -c bioconda python=3.11 openmm=8.0.0 matplotlib kalign2 hhsuite pdbfixer pyopenssl==22.0.0 git
 ```
 
 ## AlphaFold2
@@ -87,8 +87,8 @@ pip install -r alphafold/requirements.txt
 pip install --no-dependencies ./alphafold
 pip install --upgrade "jax[cuda12]"==0.4.26
 pip install --upgrade tensorflow==2.16.1
-mkdir -p conda/lib/python3.10/site-packages/alphafold/common/
-curl -o conda/lib/python3.10/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+mkdir -p conda/lib/python3.11/site-packages/alphafold/common/
+curl -o conda/lib/python3.11/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 ```
 
 ## AlphaFold2 NN parameters
@@ -97,9 +97,9 @@ To finalize installatin you need to download the AlphaFold2 neural network (NN) 
 
 If you installed gapTrick from scratch, use the following to place the parameters where they can be easily found
 ```
-mkdir --parents conda/lib/python3.10/site-packages/alphafold/data/params
+mkdir --parents conda/lib/python3.11/site-packages/alphafold/data/params
 curl -o alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
-tar --extract --verbose --file=alphafold_params_2021-07-14.tar --directory=conda/lib/python3.10/site-packages/alphafold/data/params --preserve-permissions
+tar --extract --verbose --file=alphafold_params_2021-07-14.tar --directory=conda/lib/python3.11/site-packages/alphafold/data/params --preserve-permissions
 rm alphafold_params_2021-07-14.tar
 ```
 
