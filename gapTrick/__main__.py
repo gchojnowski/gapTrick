@@ -666,10 +666,12 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
     if msa_dir.exists():
         a3m_filenames = glob.glob( os.path.join(msa_dir, '*.a3m') )
         if a3m_filenames:
-            ff = af2o.msa2fig(a3m_filenames=a3m_filenames)
-            ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
-            ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
-
+            try:
+                ff = af2o.msa2fig(a3m_filenames=a3m_filenames)
+                ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
+                ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
+            except:
+                print("ERROR: Failed to plot MSAs")
 # -----------------------------------------------------------------------------                    
 # lists likely contacts and generates pymol/chimera scripts
 # bypasses af2plots and has no matplolib dep
