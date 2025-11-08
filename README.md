@@ -83,6 +83,7 @@ Once you installed all dependencies install AlphaFold2 from an official reposito
 
 ```
 git clone --branch main https://github.com/deepmind/alphafold alphafold
+cd alphafold && git checkout 1b10a6058c8a4d4e1e57c6c7fe19efdf8fed0b7f && cd ..
 pip install -r alphafold/requirements.txt
 pip install --no-dependencies ./alphafold
 pip install --upgrade "jax[cuda12]"==0.4.26
