@@ -1703,7 +1703,7 @@ def main():
             # create msa_dir, if needed 
             Path(options.msa_dir).mkdir(parents=True, exist_ok=True)
 
-            for fn in glob.glob( os.path.join(options.msa_dir, '*.*') ):
+            for fn in glob.glob( os.path.join(options.msa_dir, '*.a3m') ):
                 with open(fn) as ifile:
                     _=ifile.readline()
                     existing_msas[ifile.readline().strip()]=fn
