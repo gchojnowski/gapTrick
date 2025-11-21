@@ -164,6 +164,11 @@ gapTrick --seqin examples/piaq.fasta --template examples/piaq.pdb --jobname piaq
 ```
 this will automatically download MSAs from MMseqs2 API and run prediction. Remember about fair use ot the API server.
 
+to run the exaample fully locally (using a local copy of MSA) type
+```
+gapTrick --seqin examples/piaq.fasta --template examples/piaq.pdb --jobname piaq_test --max_seq 5000 --relax --msa_dir examples
+```
+
 ## Fair use of the MMseqs2 API
 
 gapTrick by default uses MMseqs2 API to generate MSAs. MMseqs2 API is a shared resource that has been generously provided by the developers and as such should be used in a fair manner (in simple words; not TOO extensively). Otherwise your IP **will be blocked** for a while. To reduce the number of requests for predictions repeated for the same target use ``--msa_dir`` keyword. It will store MSA files in a local directory and reuse in subsequent jobs. For example, the following will use a directory ``local_msas``:
