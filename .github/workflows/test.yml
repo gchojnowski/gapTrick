@@ -30,6 +30,7 @@ jobs:
                           hhsuite=3.3.0 \
                           openmm=8.2.0 \
                           pdbfixer
+        conda clean --all
         git clone --branch main https://github.com/deepmind/alphafold alphafold
         cd alphafold && git checkout 1b10a6058c8a4d4e1e57c6c7fe19efdf8fed0b7f && cd ..
         pip install -r alphafold/requirements.txt
