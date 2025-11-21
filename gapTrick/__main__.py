@@ -304,7 +304,7 @@ def parse_args(expert=False):
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
-def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_agent=''):
+def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_agent='gaptrick'):
 
     def submit(query_sequence, mode):
         while True:
