@@ -500,6 +500,13 @@ def predict_structure(prefix,
         input_features = model_runner.process_features(feature_dict, random_seed=random_seed+imodel)
 
         prediction_result = model_runner.predict(input_features, random_seed=random_seed+imodel)
+
+        # colabfold fix
+        try:
+            mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
+        except:
+            prediction_result = prediction_result[0]
+
         mean_plddt = np.mean(prediction_result["plddt"][:seq_len])
         mean_ptm = prediction_result["ptm"]
 
