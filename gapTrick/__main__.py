@@ -575,12 +575,12 @@ def predict_structure(prefix,
             start_time = time.time()
 
             amber_relaxer = relax.AmberRelaxation(
-                                    max_iterations=0,
+                                    max_iterations=2000,
                                     tolerance=2.39,
                                     stiffness=10.0,
                                     exclude_residues=[],
                                     max_outer_iterations=3,
-                                    use_gpu=True)
+                                    use_gpu=False)
 
             _pdb_lines, _, _ = amber_relaxer.process(prot=pdb_obj)
 
