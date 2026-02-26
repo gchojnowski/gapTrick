@@ -1,4 +1,4 @@
-f[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb) [![CI](https://github.com/gchojnowski/gapTrick/actions/workflows/test.yml/badge.svg)](https://github.com/gchojnowski/gapTrick/actions)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb) [![CI](https://github.com/gchojnowski/gapTrick/actions/workflows/test.yml/badge.svg)](https://github.com/gchojnowski/gapTrick/actions)
 <!--
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 -->
