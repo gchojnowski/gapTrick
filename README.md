@@ -46,7 +46,7 @@ You can run gapTrick on Colab server without having to satisfy its hardware (GPU
 
 # Installation
 
-The code requires only a standard [AlphaFold2](https://github.com/google-deepmind/alphafold) or [ColabFold](https://github.com/sokrypton/ColabFold) installation to run. I use Colabfold to install gapTrick on Colab. AlphaFold2 may be a bit more tricky, but works too (you can check it with a dedicated notenook [gapTrick.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick.ipynb)). The gapTrick code also works smoothly on most Linux distributions.
+The code requires only a standard [AlphaFold2](https://github.com/google-deepmind/alphafold) or [ColabFold](https://github.com/sokrypton/ColabFold) installation to run. I use Colabfold to install gapTrick on Colab. AlphaFold2 may be a bit more tricky, but works too (you can check it with a dedicated notenook [gapTrick_colabfold.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb)). The gapTrick code also works smoothly on most Linux distributions.
 
 If you already have a working copy of AlphaFold2 or Colabfold go directly to [gapTrick installation](#gaptrick) instructions. You can also run gapTrick from a cloned repository.
 
