@@ -1,4 +1,4 @@
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb) [![CI](https://github.com/gchojnowski/gapTrick/actions/workflows/test.yml/badge.svg)](https://github.com/gchojnowski/gapTrick/actions)
+f[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb) [![CI](https://github.com/gchojnowski/gapTrick/actions/workflows/test.yml/badge.svg)](https://github.com/gchojnowski/gapTrick/actions)
 <!--
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 -->
@@ -40,7 +40,7 @@ The gapTrick code depends on [AlphaFold2](https://www.nature.com/articles/s41586
 # Colab notebook
 
 You can run gapTrick on Colab server without having to satisfy its hardware (GPU) and software dependencies on your computer. Click the link to start a new Colab session: 
-[gapTrick.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb)
+[gapTrick_colabfold.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb)
 
 <br/> 
 
