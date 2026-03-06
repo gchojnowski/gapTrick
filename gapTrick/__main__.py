@@ -595,7 +595,7 @@ def predict_structure(prefix,
         ranking_debug_dict['ptm'][model_names[_idx]]=float(ptmscore[_idx])
 
         pdb_fn = f"ranked_{n}.pdb"
-        mmcif_fn = f"ranked_{n}.pdb"
+        mmcif_fn = f"ranked_{n}.mmcif"
 
         Path(outputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(outputpath, f'ranked_{n}_pae.json') )
 
