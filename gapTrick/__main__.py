@@ -595,6 +595,8 @@ def predict_structure(prefix,
         ranking_debug_dict['ptm'][model_names[_idx]]=float(ptmscore[_idx])
 
         pdb_fn = f"ranked_{n}.pdb"
+        mmcif_fn = f"ranked_{n}.pdb"
+
         Path(outputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(outputpath, f'ranked_{n}_pae.json') )
 
         logger.info(f"{pdb_fn} ({model_names[_idx]}) <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
@@ -633,10 +635,18 @@ def predict_structure(prefix,
                 of.write(f"{pdb_header}\n")
                 pdbio.save(of)
 
+            with Path(outputpath, mmcif_fn).open('w') as of:
+                of.write(f"{pdb_header}\n")
+                pdbio.save(of)
+
         else:
             with Path(outputpath, pdb_fn).open('w') as of:
                 of.write(f"{pdb_header}\n")
                 of.write(_pdb_lines)
+
+            with Path(outputpath, mmcif_fn).open('w') as of:
+                of.write(f"{pdb_header}\n")
+                pdbio.save(of)
 
     # save a file with pTMs and rankings
     with Path(outputpath, 'ranking_debug.json').open('w') as of:
