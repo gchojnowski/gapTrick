@@ -629,24 +629,12 @@ def predict_structure(prefix,
             sup.set_atoms(template_CAs, model_CAs)
             sup.apply(model_structure)
 
-            pdbio = PDBIO()
-            pdbio.set_structure(model_structure)
-            with Path(outputpath, pdb_fn).open('w') as of:
-                of.write(f"{pdb_header}\n")
-                pdbio.save(of)
-
-            with Path(outputpath, mmcif_fn).open('w') as of:
-                of.write(f"{pdb_header}\n")
-                pdbio.save(of)
+            save_pdb(model_structure, os.path.join(outputpath, pdb_fn))
+            save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
 
         else:
-            with Path(outputpath, pdb_fn).open('w') as of:
-                of.write(f"{pdb_header}\n")
-                of.write(_pdb_lines)
-
-            with Path(outputpath, mmcif_fn).open('w') as of:
-                of.write(f"{pdb_header}\n")
-                pdbio.save(of)
+            save_pdb(model_structure, os.path.join(outputpath, pdb_fn))
+            save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
 
     # save a file with pTMs and rankings
     with Path(outputpath, 'ranking_debug.json').open('w') as of:
@@ -868,7 +856,7 @@ def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata
             ofile.write("\n".join(chimerax_sb_int))
 
     with open(os.path.join(datadir, f"contacts.txt"), 'w') as ofile:
-        ofile.write("residue_1 residue_2 pbty(CA-CA dist<8Å)>0.8\n")
+        ofile.write("residue_1 residue_2 pbty(|CB-CB|<8Å)>0.8\n")
         ofile.write("\n".join(contacts_list))
 
     logger.info("\n\n")
