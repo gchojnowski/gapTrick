@@ -613,14 +613,14 @@ def predict_structure(prefix,
 
         pdb_header = "\n".join(pdb_header)
 
+        with io.StringIO(_pdb_lines) as outstr:
+            parser = PDBParser(QUIET=True)
+            model_structure = parser.get_structure(id='xyz', file=outstr)[0]
+
         #superpose final models onto a template (first, if there is more of them...)
         if model2template_mappings:
             tpl_fn,residx_mappings = list(model2template_mappings.items())[0]
             template_structure = parse_pdb_bio(Path(inputpath, f"{tpl_fn}.cif"), outid=tpl_fn)
-
-            with io.StringIO(_pdb_lines) as outstr:
-                parser = PDBParser(QUIET=True)
-                model_structure = parser.get_structure(id='xyz', file=outstr)[0]
 
             template_CAs = get_CAs(template_structure, list(residx_mappings.values()))
             model_CAs = get_CAs(model_structure, list(residx_mappings.keys()))
@@ -629,12 +629,22 @@ def predict_structure(prefix,
             sup.set_atoms(template_CAs, model_CAs)
             sup.apply(model_structure)
 
-            save_pdb(model_structure, os.path.join(outputpath, pdb_fn))
-            save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
+        pdbio = PDBIO()
+        pdbio.set_structure(model_structure)
+        with Path(outputpath, pdb_fn).open('w') as of:
+            of.write(f"{pdb_header}\n")
+            pdbio.save(of)
 
-        else:
-            save_pdb(model_structure, os.path.join(outputpath, pdb_fn))
-            save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
+        save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
+
+        #else:
+        #    with Path(outputpath, pdb_fn).open('w') as of:
+        #        of.write(f"{pdb_header}\n")
+        #        of.write(_pdb_lines)
+        #
+        #    with Path(outputpath, mmcif_fn).open('w') as of:
+        #        of.write(f"{pdb_header}\n")
+        #        pdbio.save(of)
 
     # save a file with pTMs and rankings
     with Path(outputpath, 'ranking_debug.json').open('w') as of:
