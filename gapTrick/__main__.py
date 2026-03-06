@@ -595,7 +595,7 @@ def predict_structure(prefix,
         ranking_debug_dict['ptm'][model_names[_idx]]=float(ptmscore[_idx])
 
         pdb_fn = f"ranked_{n}.pdb"
-        mmcif_fn = f"ranked_{n}.mmcif"
+        mmcif_fn = f"ranked_{n}.cif"
 
         Path(outputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(outputpath, f'ranked_{n}_pae.json') )
 
@@ -868,6 +868,7 @@ def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata
             ofile.write("\n".join(chimerax_sb_int))
 
     with open(os.path.join(datadir, f"contacts.txt"), 'w') as ofile:
+        ofile.write("residue_1 residue_2 pbty(CA-CA dist<8Å)>0.8\n")
         ofile.write("\n".join(contacts_list))
 
     logger.info("\n\n")
