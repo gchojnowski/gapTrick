@@ -894,46 +894,6 @@ def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata
             logger.info("")
             logger.info(f"""     No potential salt-bridges found""")
 # -----------------------------------------------------------------------------                    
-                    
-def match_template_chains_to_target(ph, target_sequences):
-    logger.info(f" --> Greedy matching of template chains to target sequences")
-
-    chain_dict = {}
-    for chain in ph.chains():
-        is_protein=False
-        for conf in chain.conformers():
-            if conf.is_protein(min_content=0.5):
-                is_protein=True
-                break
-        if not is_protein: continue
-
-
-        chain_dict[chain.id]="".join(chain.as_sequence())
-
-
-    greedy_selection = []
-    for _idx, _target_seq in enumerate(target_sequences):
-        _tmp_si={}
-        for cid in chain_dict:
-            if cid in greedy_selection: continue
-            aligner = Align.PairwiseAligner()
-            alignments = aligner.align(chain_dict[cid], _target_seq)
-            si = alignments[0].score
-            _tmp_si[cid]=100.0*si/len(chain_seq_dict[cid])
-
-        if _tmp_si:
-            greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
-            logger.info(f"     #{_idx}: chain {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f}",\
-                           "[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]")
-
-    if not len(greedy_selection) == len(target_sequences):
-        logger.info("WARNING: template-target sequence match is incomplete!")
-
-    logger.info("")
-
-    return(greedy_selection)
-
-# -----------------------------------------------------------------------------
 
 def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 
