@@ -9,6 +9,7 @@ import glob
 import os
 import pickle
 import numpy as np
+import string
 
 # templates for a pymol script visualising predficted contacts
 pymol_dist_generic="""\
