@@ -114,7 +114,7 @@ def make_contact_scripts(prefix, feature_dict, logger, print_contacts=False, kee
     # contacts list
     contact_template = r"^(?P<res1>\w+?)/(?P<ch1>\w+?)\s+(?P<res2>\w+?)/(?P<ch2>\w+?)\s+(?P<pbty>[\d\.]*?)$"
     structure = parse_pdb_bio(Path(prefix, "output", "ranked_0.pdb"), outid="XYZ", remove_alt_confs=True)
-    protein = get_prot_chains_bio(structure)
+    protein = get_prot_chains_bio(structure, logger)
     chain_seq_dict = {}
     for chain in protein:
         chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
