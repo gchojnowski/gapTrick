@@ -950,7 +950,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         for chain in mmcif.structure:
             chain_id = chain.id
             template_sequence = "".join([ogt[_r.resname] for _r in chain.get_residues()])
-            pretty_sequence_print(name_a=f"{chain_id:8s}", seq_a=template_sequence)
+            pretty_sequence_print(name_a=f"{chain_id:8s}", seq_a=template_sequence, logger=logger)
 
             seq_name = filepath.stem.upper()+"_"+chain_id
             seq = SeqRecord(Seq(template_sequence),id=seq_name,name="",description="")
@@ -995,7 +995,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 if debug: pretty_sequence_print(name_a="target  ",
                             seq_a=query_sequence[:_h.indices_query[0]]+_h.query+query_sequence[_h.indices_query[-1]+1:],
                             name_b="template",
-                            seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
+                            seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}",
+                            logger=logger)
+
             logger.info("")
 
             # in no-merge mode accept multiple alignments, in case target is a homomultimer
@@ -1030,7 +1032,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         logger.info(f">{hit.name}")
         pretty_sequence_print(name_a="target  ", seq_a=query_sequence[:hit.indices_query[0]]+hit.query+query_sequence[hit.indices_query[-1]+1:],
-            name_b="template", seq_b=f"{'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}")
+            name_b="template", seq_b=f"{'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}",
+            logger=logger)
 
         # handles nomerge+noseq and other weird cases
         template_idxs = hit.indices_hit
@@ -1210,7 +1213,7 @@ def runme(msa_filenames,
 
     logger.info("")
     logger.info(f" --> Combined target sequence:")
-    pretty_sequence_print(name_a="        ", seq_a=query_seq_combined)
+    pretty_sequence_print(name_a="        ", seq_a=query_seq_combined, logger=logger)
     logger.info("")
 
     try:
