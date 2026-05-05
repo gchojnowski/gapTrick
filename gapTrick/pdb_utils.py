@@ -31,7 +31,7 @@ def match_template_chains_to_target_bio(structure, target_sequences, logger):
 
     chain_seq_dict = {}
     chain_ends_dict = {}
-    protein = get_prot_chains_bio(structure)
+    protein = get_prot_chains_bio(structure, logger)
     for chain in protein:
         chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
         _resis = list(chain.get_residues())

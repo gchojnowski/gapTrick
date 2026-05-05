@@ -645,7 +645,7 @@ def template_preps_bio(template_fn_list,
         save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.cif"))
 
         # extarct protein chains and bias the template (if requested)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax, fixed_chain_ids=fixed_chain_ids)
+        prot_ph = get_prot_chains_bio(_ph, logger, truncate=truncate, rotmax=rotmax, transmax=transmax, fixed_chain_ids=fixed_chain_ids)
 
         # save modified template (before merging chains)
         save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.cif"))
@@ -706,7 +706,7 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
     idx=0
     for ifn in template_fn_list:
         _ph = parse_pdb_bio(ifn, plddt_cutoff=plddt_cutoff, remove_alt_confs=True)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
+        prot_ph = get_prot_chains_bio(_ph, logger, truncate=truncate, rotmax=rotmax, transmax=transmax)
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences, logger)
