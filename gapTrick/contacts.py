@@ -11,7 +11,7 @@ import pickle
 import numpy as np
 import string
 
-from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio
+from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, ogt, tgo
 
 # templates for a pymol script visualising predficted contacts
 pymol_dist_generic="""\
