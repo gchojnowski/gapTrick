@@ -28,8 +28,8 @@ from pathlib import Path
 import pickle
 import shutil
 
-MMSEQS_API_SERVER = "https://api.colabfold.com"
-MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
+#MMSEQS_API_SERVER = "https://api.colabfold.com"
+#MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
 
 from alphafold.common import protein
 from alphafold.data import pipeline
@@ -296,18 +296,22 @@ def parse_args(expert=False):
     expert_opts.add_option("--msa", action="store", dest="msa", type="string", metavar="FILENAME,FILENAME", \
                   help=SUPPRESS_HELP if not expert else "comma-separated a3m MSAs. First sequence is a target", default=None)
 
+    expert_opts.add_option("--mmseqs_api_server", action="store", dest="mmseqs_api_server", type="string", metavar="HTTP", \
+                  help=SUPPRESS_HELP if not expert else "mmseqs2 API server address default (default: %default)", default="https://a3m.mmseqs.com")
+
+
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
-def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_agent='gaptrick'):
+def query_mmseqs2(query_sequence, msa_fname, mmseqs_api_server, use_env=False, filter=False, user_agent='gaptrick'):
 
     def submit(query_sequence, mode):
         while True:
             try:
-                res = requests.post(f'{MMSEQS_API_SERVER}/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode}, timeout=12.01, headers=headers)
+                res = requests.post(f'{mmseqs_api_server}/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode}, timeout=12.01, headers=headers)
             except requests.exceptions.Timeout:
                 logger.info("MMSeqs2 API submission timeout. Retrying...")
                 continue
@@ -322,7 +326,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
     def status(ID):
         while True:
             try:
-                res = requests.get(f'{MMSEQS_API_SERVER}/ticket/{ID}', timeout=12.01, headers=headers)
+                res = requests.get(f'{mmseqs_api_server}/ticket/{ID}', timeout=12.01, headers=headers)
             except requests.exceptions.Timeout:
                 logger.info("MMSeqs2 API status timeout. Retrying...")
                 continue
@@ -337,7 +341,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
     def download(ID, path):
         while True:
             try:
-                res = requests.get(f'{MMSEQS_API_SERVER}/result/download/{ID}', timeout=12.01, headers=headers)
+                res = requests.get(f'{mmseqs_api_server}/result/download/{ID}', timeout=12.01, headers=headers)
             except requests.exceptions.Timeout:
                 logger.info("MMSeqs2 API download timeout. Retrying...")
                 continue
@@ -1497,7 +1501,10 @@ def main():
                     else:
                         a3m_fname = os.path.join(options.jobname, "msa", f"{len(local_msa_dict):04d}.a3m")
 
-                    query_mmseqs2(record.seq, a3m_fname)
+                    query_mmseqs2(record.seq,
+                                  a3m_fname,
+                                  mmseqs_api_server=options.mmseqs_api_server)
+
                     local_msa_dict[record.seq]=a3m_fname
 
                 msas.append(a3m_fname)
