@@ -88,7 +88,7 @@ except ImportError:
 
 from gapTrick.contacts import make_contact_scripts
 from gapTrick.msa import query_mmseqs2, pretty_sequence_print
-from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt
+from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio
 
 
 #logger.info(xla_bridge.get_backend().platform)
