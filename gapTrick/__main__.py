@@ -1430,7 +1430,7 @@ def runme(msa_filenames,
     if PLOTTER_AVAILABLE:
         make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
-    make_contact_scripts(jobname, feature_dict, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+    make_contact_scripts(jobname, feature_dict, logger, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
 
 def main():

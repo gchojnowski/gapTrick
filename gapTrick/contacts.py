@@ -4,6 +4,7 @@ __author__ = "Grzegorz Chojnowski"
 __date__ = "5 May 2026"
 
 
+from pathlib import Path
 # templates for a pymol script visualising predficted contacts
 pymol_dist_generic="""\
 dist \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s and name \"%(A_atom_name)s\" and alt \'\', \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s and name \"%(B_atom_name)s\" and alt \'\'"""
@@ -20,7 +21,7 @@ chimerax_dist_generic=\
 # lists likely contacts and generates pymol/chimera scripts
 # bypasses af2plots and has no matplolib dep
 
-def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
+def make_contact_scripts(prefix, feature_dict, logger, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
 
     datadir=Path(prefix, "output")
     datadict = {}
@@ -63,9 +64,9 @@ def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata
     distance_bins += [(bin_edges[idx], bin_edges[idx + 1]) for idx in range(len(bin_edges) - 1)]
     distance_bins.append((bin_edges[-1], np.inf))
     distance_bins = tuple(distance_bins)
-    print()
-    print(f"AlphaFold2 distogram distance range [{bin_edges[0]}, {bin_edges[-1]}]")
-    print()
+    logger.info()
+    logger.info(f"AlphaFold2 distogram distance range [{bin_edges[0]}, {bin_edges[-1]}]")
+    logger.info()
     # truncate distance to the available range
     distance = np.clip(distance_cutoff, 3, 20)
 
@@ -76,8 +77,8 @@ def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata
 
     requested_contacts=[]
     if print_contacts:
-        print()
-        print(f"AlphaFold2-predicted contacts below {distance}A with estimated probability (*-inter chains)")
+        logger.info()
+        logger.info(f"AlphaFold2-predicted contacts below {distance}A with estimated probability (*-inter chains)")
 
     chain_ids = string.ascii_uppercase
     chain_lens = []
@@ -101,7 +102,7 @@ def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata
 
         requested_contacts.append(f"{reli}/{chain_ids[ci]} {relj}/{chain_ids[cj]} {below8pbty[i,j]}")
 
-        if print_contacts: print(f"{'*' if ci!=cj else ' '} {reli:-4d}/{chain_ids[ci]} {relj:-4d}/{chain_ids[cj]} {below8pbty[i,j]:5.2f}")
+        if print_contacts: logger.info(f"{'*' if ci!=cj else ' '} {reli:-4d}/{chain_ids[ci]} {relj:-4d}/{chain_ids[cj]} {below8pbty[i,j]:5.2f}")
 
     # contacts list
     contact_template = r"^(?P<res1>\w+?)/(?P<ch1>\w+?)\s+(?P<res2>\w+?)/(?P<ch2>\w+?)\s+(?P<pbty>[\d\.]*?)$"
