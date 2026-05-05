@@ -81,12 +81,13 @@ try:
     sys.path.append(os.path.join(rootpath))
     from af2plots.plotter import plotter
     PLOTTER_AVAILABLE = 1
-except:
+except ImportError:
     logger.info("WARNING: cannot initiate figure plotter")
     PLOTTER_AVAILABLE = 0
+
 try:
     from gapTrick import version
-except:
+except ImportError:
     import version
 
 
