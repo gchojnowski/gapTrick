@@ -29,6 +29,56 @@ def save_pdb(structure, ofname):
 
 # -----------------------------------------------------------------------------
 
+
+def CB_xyz(n, ca, c):
+    bondl=1.52
+    rada=1.93
+    radd=-2.14
+
+    vec_nca = (n-ca)/np.linalg.norm(n-ca)
+    vec_cca = (c-ca)/np.linalg.norm(c-ca)
+
+    normal_vec = np.cross(vec_nca, vec_cca)
+
+    m = [vec_nca, np.cross(normal_vec, vec_nca), normal_vec]
+    d = [np.cos(rada), np.sin(rada)*np.cos(radd), -np.sin(rada)*np.sin(radd)]
+    return c + sum([bondl*_m*_d for _m,_d in zip(m,d)])
+
+# -----------------------------------------------------------------------------
+
+def chain2CIF_bio(chain, outid, outfn):
+
+    poly_seq_block = []
+
+    seq = "".join( [ogt[_r.get_resname()] for _r in chain] )
+    poly_seq_block.append("#")
+    poly_seq_block.append("loop_")
+    poly_seq_block.append("_entity_poly_seq.entity_id")
+    poly_seq_block.append("_entity_poly_seq.num")
+    poly_seq_block.append("_entity_poly_seq.mon_id")
+    poly_seq_block.append("_entity_poly_seq.hetero")
+    for i, aa in enumerate(seq):
+        three_letter_aa = tgo[aa]
+        poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
+
+    with open(outfn, 'w') as of:
+        # sequence
+        print(FAKE_MMCIF_HEADER%locals(), file=of)
+        print("\n".join(poly_seq_block), file=of)
+
+        # atom block header
+        print(MMCIF_ATOM_BLOCK_HEADER, file=of)
+
+        # and atom details
+        atom_idx=1
+        for res_idx,res in enumerate(chain):
+            for atom in res:
+                print(f"   ATOM   {atom_idx:5} {atom.name:5} . {res.resname:4} {chain.id:3} {res._id[1]:5}"+\
+                        f" ? {atom.coord[0]:10.5f} {atom.coord[1]:10.5f} {atom.coord[2]:10.5f} {atom.occupancy:6.3f}"+\
+                      f" {atom.bfactor:9.5f}  {atom.element:3} ? {chain.id:2} ? {res_idx+1:5} 1", file=of)
+                atom_idx+=1
+# -----------------------------------------------------------------------------
+
 def match_template_chains_to_target_bio(structure, target_sequences, logger):
     logger.info(f" --> Greedy matching template chains to target sequences")
 
