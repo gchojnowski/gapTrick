@@ -5,6 +5,8 @@ __date__ = "5 May 2026"
 
 
 from pathlib import Path
+import glob
+
 # templates for a pymol script visualising predficted contacts
 pymol_dist_generic="""\
 dist \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s and name \"%(A_atom_name)s\" and alt \'\', \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s and name \"%(B_atom_name)s\" and alt \'\'"""
