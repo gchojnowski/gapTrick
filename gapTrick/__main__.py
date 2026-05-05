@@ -54,12 +54,8 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
-#from Bio import pairwise2
 from Bio import Align
-from Bio.PDB import PDBIO, PDBParser, Superimposer, MMCIFParser, Select
-from Bio.PDB.mmcifio import MMCIFIO
-from Bio.PDB.vectors import rotaxis2m
-from Bio.PDB.vectors import Vector
+from Bio.PDB import PDBIO, PDBParser, Superimposer, Select
 
 from dataclasses import dataclass, replace
 #from jax.lib import xla_bridge
@@ -308,13 +304,6 @@ def parse_args(expert=False):
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
-def save_pdb(structure, ofname):
-    pdbio = MMCIFIO()
-    pdbio.set_structure(structure)
-    with Path(ofname).open('w') as of:
-        pdbio.save(of)
-
-# -----------------------------------------------------------------------------
 
 def CB_xyz(n, ca, c):
     bondl=1.52

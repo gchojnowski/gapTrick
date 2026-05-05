@@ -9,7 +9,7 @@ from itertools import groupby
 from operator import itemgetter
 import numpy as np
 
-from Bio.PDB import PDBParser, Select
+from Bio.PDB import PDBParser, Select, MMCIFParser
 from Bio.PDB.mmcifio import MMCIFIO
 from Bio.PDB.vectors import rotaxis2m
 from Bio.PDB.vectors import Vector
