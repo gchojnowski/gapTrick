@@ -88,10 +88,8 @@ except ImportError:
 
 from gapTrick.contacts import make_contact_scripts
 from gapTrick.msa import query_mmseqs2, pretty_sequence_print
-from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb
+from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt
 
-tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
-ogt = dict([(tgo[_k], _k) for _k in tgo])
 
 #logger.info(xla_bridge.get_backend().platform)
 
@@ -706,7 +704,7 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
     idx=0
     for ifn in template_fn_list:
         _ph = parse_pdb_bio(ifn, plddt_cutoff=plddt_cutoff, remove_alt_confs=True)
-        prot_ph = get_prot_chains_bio(_ph, logger, truncate=truncate, rotmax=rotmax, transmax=transmax)
+        prot_ph = logger, get_prot_chains_bio(_ph, logger, truncate=truncate, rotmax=rotmax, transmax=transmax)
 
         if chain_ids is None:
             selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences, logger)
