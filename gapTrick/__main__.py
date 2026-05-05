@@ -54,7 +54,6 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
-from Bio import Align
 from Bio.PDB import PDBIO, PDBParser, Superimposer, Select
 
 from dataclasses import dataclass, replace

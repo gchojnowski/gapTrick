@@ -10,6 +10,7 @@ from itertools import groupby
 from operator import itemgetter
 import numpy as np
 
+from Bio import Align
 from Bio.PDB import PDBParser, Select, MMCIFParser
 from Bio.PDB.mmcifio import MMCIFIO
 from Bio.PDB.vectors import rotaxis2m
