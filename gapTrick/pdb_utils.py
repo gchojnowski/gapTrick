@@ -17,6 +17,14 @@ from Bio.PDB.vectors import Vector
 
 # -----------------------------------------------------------------------------
 
+def save_pdb(structure, ofname):
+    pdbio = MMCIFIO()
+    pdbio.set_structure(structure)
+    with Path(ofname).open('w') as of:
+        pdbio.save(of)
+
+# -----------------------------------------------------------------------------
+
 def match_template_chains_to_target_bio(structure, target_sequences, logger):
     logger.info(f" --> Greedy matching template chains to target sequences")
 
