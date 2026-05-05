@@ -384,7 +384,7 @@ def query_mmseqs2(query_sequence, msa_fname, mmseqs_api_server, use_env=False, f
             logger.info(f'     MMSeqs2 API status: {out["status"]}')
 
             if out["status"]=="RATELIMIT": 
-                print("ERROR: MMseqs2 API request rejected (too many connections). Try again later...")
+                logger.error("ERROR: MMseqs2 API request rejected (too many connections). Try again later...")
                 exit(1)
 
             download(out["id"], tar_gz_file)
@@ -689,7 +689,7 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
                 ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
                 ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
             except:
-                print("ERROR: Failed to plot MSAs")
+                logger.error("ERROR: Failed to plot MSAs")
 
 
 # -----------------------------------------------------------------------------                    
@@ -1448,16 +1448,16 @@ def main():
 
 
     if options.jobname is None:
-        print( header_msg )
-        print('Define jobname - output directory with --jobname')
+        logger.info( header_msg )
+        logger.info('Define jobname - output directory with --jobname')
         exit(0)
 
     jobpath=Path(options.jobname)
     try:
         jobpath.mkdir(parents=True, exist_ok=False)
     except:
-        print( header_msg )
-        print(f"ERROR: target directory already exists '{jobpath}'")
+        logger.info( header_msg )
+        logger.info(f"ERROR: target directory already exists '{jobpath}'")
         return 1
 
     logging.basicConfig(level=logging.INFO, format="%(message)s",\
