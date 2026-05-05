@@ -6,6 +6,9 @@ __date__ = "5 May 2026"
 
 from pathlib import Path
 import glob
+import os
+import pickle
+import numpy as np
 
 # templates for a pymol script visualising predficted contacts
 pymol_dist_generic="""\
