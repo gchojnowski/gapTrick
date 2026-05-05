@@ -2,10 +2,30 @@
 __author__ = "Grzegorz Chojnowski"
 __date__ = "5 May 2026"
 
-
+import os
+import time
+import tempfile
 import requests
 import tarfile
 import json
+
+
+# -----------------------------------------------------------------------------
+
+def pretty_sequence_print(name_a, seq_a, logger, name_b=None, seq_b=None, block_width=80):
+
+    #if seq_b: assert len(seq_a) == len(seq_b)
+
+    length = len(seq_a)
+    n_blocks = length//block_width
+
+    for ii in range(n_blocks+1):
+        logger.info(f"{name_a} {seq_a[ii*block_width:(ii+1)*block_width]}")
+        if seq_b:
+            logger.info(f"{name_b} {seq_b[ii*block_width:(ii+1)*block_width]}")
+            logger.info("")
+
+# -----------------------------------------------------------------------------
 
 def query_mmseqs2(query_sequence, msa_fname, mmseqs_api_server, logger, use_env=False, filter=False, user_agent='gaptrick'):
 

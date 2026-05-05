@@ -20,8 +20,7 @@ import json
 from itertools import groupby
 from operator import itemgetter
 
-import requests
-import tarfile
+
 from datetime import datetime
 
 from pathlib import Path
@@ -92,7 +91,7 @@ except ImportError:
 
 
 from gapTrick.contacts import make_contact_scripts
-from gapTrick.msa import query_mmseqs2
+from gapTrick.msa import query_mmseqs2, pretty_sequence_print
 
 tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 ogt = dict([(tgo[_k], _k) for _k in tgo])
@@ -912,21 +911,6 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
             idx+=1
 
     return converted_template_fns
-
-# -----------------------------------------------------------------------------
-
-def pretty_sequence_print(name_a, seq_a, name_b=None, seq_b=None, block_width=80):
-
-    #if seq_b: assert len(seq_a) == len(seq_b)
-
-    length = len(seq_a)
-    n_blocks = length//block_width
-
-    for ii in range(n_blocks+1):
-        logger.info(f"{name_a} {seq_a[ii*block_width:(ii+1)*block_width]}")
-        if seq_b:
-            logger.info(f"{name_b} {seq_b[ii*block_width:(ii+1)*block_width]}")
-            logger.info("")
 
 # -----------------------------------------------------------------------------
 
