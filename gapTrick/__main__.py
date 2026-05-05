@@ -382,7 +382,7 @@ def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_a
 
             if out["status"]=="RATELIMIT": 
                 print("ERROR: MMseqs2 API request rejected (too many connections). Try again later...")
-                exit(0)
+                exit(1)
 
             download(out["id"], tar_gz_file)
 
