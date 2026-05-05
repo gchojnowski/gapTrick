@@ -84,7 +84,7 @@ def query_mmseqs2(query_sequence, msa_fname, mmseqs_api_server, logger, use_env=
         mode = "env-nofilter" if use_env else "nofilter"
 
     logger.info(f" --> MMSeqs2 API query:")
-    pretty_sequence_print(name_a="        ", seq_a=query_sequence)
+    pretty_sequence_print(name_a="        ", seq_a=query_sequence, logger=logger)
     logger.info(f"     MMSeqs2 API output file: {msa_fname}")
 
     if os.path.isfile(msa_fname):
