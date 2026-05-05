@@ -69,9 +69,8 @@ def make_contact_scripts(prefix, feature_dict, logger, print_contacts=False, kee
     distance_bins += [(bin_edges[idx], bin_edges[idx + 1]) for idx in range(len(bin_edges) - 1)]
     distance_bins.append((bin_edges[-1], np.inf))
     distance_bins = tuple(distance_bins)
-    logger.info()
-    logger.info(f"AlphaFold2 distogram distance range [{bin_edges[0]}, {bin_edges[-1]}]")
-    logger.info()
+    #logger.info(f"AlphaFold2 distogram distance range [{bin_edges[0]}, {bin_edges[-1]}]")
+
     # truncate distance to the available range
     distance = np.clip(distance_cutoff, 3, 20)
 
