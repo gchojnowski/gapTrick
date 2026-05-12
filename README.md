@@ -14,7 +14,7 @@
 - [Installation](#installation)
     - [Hardware requirements](#hardware-requirements)    
     - [Dependencies](#dependencies)
-    - [AlphaFold2](#alphafold2)
+    - [ColabFold](#colabFold)
     - [AlphaFold2 NN parameters](#alphafold2-nn-parameters)
     - [gapTrick](#gaptrick)
 
@@ -46,9 +46,9 @@ You can run gapTrick on Colab server without having to satisfy its hardware (GPU
 
 # Installation
 
-The code requires only a standard [AlphaFold2](https://github.com/google-deepmind/alphafold) or [ColabFold](https://github.com/sokrypton/ColabFold) installation to run. I use Colabfold to install gapTrick on Colab. AlphaFold2 may be a bit more tricky, but works too (you can check it with a dedicated notenook [gapTrick_colabfold.ipynb](https://colab.research.google.com/github/gchojnowski/gapTrick/blob/main/gapTrick_colabfold.ipynb)). The gapTrick code also works smoothly on most Linux distributions.
+The code requires only a standard [AlphaFold2](https://github.com/google-deepmind/alphafold) or [ColabFold](https://github.com/sokrypton/ColabFold) installation to run. I use gapTrick with Colabfold. AlphaFold2 may be a bit more tricky to install, but works too.
 
-If you already have a working copy of AlphaFold2 or Colabfold go directly to [gapTrick installation](#gaptrick) instructions. You can also run gapTrick from a cloned repository.
+If you already have a working copy of AlphaFold2 or Colabfold go directly to [gapTrick installation](#gaptrick) instructions. You can also run gapTrick from a cloned repository. Otherwise, follow the steos below.
 
 ## Hardware requirements
 
@@ -75,36 +75,18 @@ cd gapTrick
 curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
 bash Miniforge3-Linux-x86_64.sh -b -p conda
 source conda/bin/activate
-conda install -qy -c conda-forge -c bioconda python=3.11 openmm=8.0.0 matplotlib kalign2 hhsuite pdbfixer pyopenssl==22.0.0 git
 ```
 
-## AlphaFold2
-Once you installed all dependencies install AlphaFold2 from an official repository
+## ColabFold
 
 ```
-git clone --branch main https://github.com/deepmind/alphafold alphafold
-cd alphafold && git checkout 1b10a6058c8a4d4e1e57c6c7fe19efdf8fed0b7f && cd ..
-pip install -r alphafold/requirements.txt
-pip install --no-dependencies ./alphafold
-pip install --upgrade "jax[cuda12]"==0.4.26
-pip install --upgrade tensorflow==2.16.1
-mkdir -p conda/lib/python3.11/site-packages/alphafold/common/
-curl -o conda/lib/python3.11/site-packages/alphafold/common/stereo_chemical_props.txt https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+conda install -c conda-forge -c bioconda python=3.13 kalign2=2.04 hhsuite=3.3.0 pip git
+pip install colabfold[alphafold,openmm] jax[cuda] openmm[cuda12]
 ```
 
 ## AlphaFold2 NN parameters
 
-To finalize installatin you need to download the AlphaFold2 neural network (NN) parameters and place them in a directory that gapTrick can find (you don't need to download sequence databases)
-
-If you installed gapTrick from scratch, use the following to place the parameters where they can be easily found
-```
-mkdir --parents conda/lib/python3.11/site-packages/alphafold/data/params
-curl -o alphafold_params_2021-07-14.tar https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
-tar --extract --verbose --file=alphafold_params_2021-07-14.tar --directory=conda/lib/python3.11/site-packages/alphafold/data/params --preserve-permissions
-rm alphafold_params_2021-07-14.tar
-```
-
-If you use an existing installation of AlphaFold2, or prefer to place the parameters in a custom directory (e.g. ``/a/directory/with/parameters``), run the following
+To finalize the installation you need to download the AlphaFold2 neural network (NN) parameters and place them in a directory that gapTrick can find (you don't need to download sequence databases). If you use an existing installation of AlphaFold2 or ColabFold, and you know where the parameters are installed don your system (a ``params`` dir with files ``params_model_[1-5]_ptm.npz``) use gapTrick with a flag ``--data_dir=/a/directory/with/parameters/``. Otherwise, run the following
 
 ```
 mkdir --parents /a/directory/with/parameters/params
@@ -112,8 +94,6 @@ curl -o /a/directory/with/parameters/params/alphafold_params_2021-07-14.tar http
 tar --extract --verbose --file=/a/directory/with/parameters/params/alphafold_params_2021-07-14.tar --directory=/a/directory/with/parameters/params --preserve-permissions
 rm /a/directory/with/parameters/params/alphafold_params_2021-07-14.tar
 ```
-
-and use gapTrick with a flag ``--data_dir=/a/directory/with/parameters/``
 
 ## gapTrick
 The gapTrick itself can be installed with a command:
