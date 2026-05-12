@@ -16,6 +16,79 @@ from Bio.PDB.mmcifio import MMCIFIO
 from Bio.PDB.vectors import rotaxis2m
 from Bio.PDB.vectors import Vector
 
+
+FAKE_MMCIF_HEADER=\
+"""data_%(outid)s
+#
+_entry.id   %(outid)s
+_struct_asym.id          A
+_struct_asym.entity_id   0
+#
+_entity_poly.entity_id        0
+_entity_poly.type             polypeptide(L)
+_entity_poly.pdbx_strand_id   A
+#
+loop_
+_pdbx_audit_revision_history.ordinal
+_pdbx_audit_revision_history.data_content_type
+_pdbx_audit_revision_history.major_revision
+_pdbx_audit_revision_history.minor_revision
+_pdbx_audit_revision_history.revision_date
+1 'Structure model' 1 0 1878-05-14
+#
+_entity.id     0
+_entity.type   polymer
+#
+loop_
+_chem_comp.id
+_chem_comp.type
+_chem_comp.name
+ALA 'L-peptide linking' ALANINE
+ARG 'L-peptide linking' ARGININE
+ASN 'L-peptide linking' ASPARAGINE
+ASP 'L-peptide linking' 'ASPARTIC ACID'
+CYS 'L-peptide linking' CYSTEINE
+GLN 'L-peptide linking' GLUTAMINE
+GLU 'L-peptide linking' 'GLUTAMIC ACID'
+HIS 'L-peptide linking' HISTIDINE
+ILE 'L-peptide linking' ISOLEUCINE
+LEU 'L-peptide linking' LEUCINE
+LYS 'L-peptide linking' LYSINE
+MET 'L-peptide linking' METHIONINE
+PHE 'L-peptide linking' PHENYLALANINE
+PRO 'L-peptide linking' PROLINE
+SER 'L-peptide linking' SERINE
+THR 'L-peptide linking' THREONINE
+TRP 'L-peptide linking' TRYPTOPHAN
+TYR 'L-peptide linking' TYROSINE
+VAL 'L-peptide linking' VALINE
+GLY 'L-peptide linking' GLYCINE
+#"""
+
+
+MMCIF_ATOM_BLOCK_HEADER=\
+"""loop_
+   _atom_site.group_PDB
+   _atom_site.id
+   _atom_site.label_atom_id
+   _atom_site.label_alt_id
+   _atom_site.label_comp_id
+   _atom_site.auth_asym_id
+   _atom_site.auth_seq_id
+   _atom_site.pdbx_PDB_ins_code
+   _atom_site.Cartn_x
+   _atom_site.Cartn_y
+   _atom_site.Cartn_z
+   _atom_site.occupancy
+   _atom_site.B_iso_or_equiv
+   _atom_site.type_symbol
+   _atom_site.pdbx_formal_charge
+   _atom_site.label_asym_id
+   _atom_site.label_entity_id
+   _atom_site.label_seq_id
+   _atom_site.pdbx_PDB_model_num"""
+
+
 tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
 ogt = dict([(tgo[_k], _k) for _k in tgo])
 
