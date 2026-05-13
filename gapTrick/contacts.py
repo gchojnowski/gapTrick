@@ -14,6 +14,34 @@ import string
 
 from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, ogt, tgo
 
+# templates and dicts for restrain generator
+## all 1-3 atom pairs incl side chains
+sc_restraints="""ARG:N-CG,N-CD,N-NE,N-CZ,CA-CD,CA-NE,CA-CZ,CB-NE,CB-CZ
+ASN:N-CG,N-OD1,N-ND2,CA-OD1,CA-ND2
+ASP:N-CG,N-OD1,N-OD2,CA-OD1,CA-OD2
+CYS:N-SG
+GLN:N-CG,N-CD,N-OE1,N-NE2,CA-CD,CA-OE1,CA-NE2,CB-OE1,CB-NE2
+GLU:N-CG,N-CD,N-OE1,N-OE2,CA-CD,CA-OE1,CA-OE2,CB-OE1,CB-OE2
+HIS:N-CG,N-ND1,N-CD2,N-CE1,N-NE2,CA-ND1,CA-CD2,CA-CE1,CA-NE2,CB-CE1,CB-NE2
+ILE:N-CG1,N-CG2,N-CD1,CA-CD1
+LEU:N-CG,N-CD1,N-CD2,CA-CD1,CA-CD2
+LYS:N-CG,N-CD,N-CE,N-NZ,CA-CD,CA-CE,CA-NZ,CB-CE,CB-NZ
+MET:N-CG,N-SD,N-CE,CA-SD,CA-CE,CB-CE
+PHE:N-CG,N-CD1,N-CD2,N-CE1,N-CE2,N-CZ,CA-CD1,CA-CD2,CA-CE1,CA-CE2,CA-CZ,CB-CE1,CB-CE2,CB-CZ
+SER:N-OG
+THR:N-OG1,N-CG2
+TRP:N-CG,N-CD1,N-CD2,N-NE1,N-CE2,N-CE3,N-CZ2,N-CZ3,CA-CD1,CA-CD2,CA-NE1,CA-CE2,CA-CE3,CA-CZ2,CA-CZ3,CB-NE1,CB-CE2,CB-CE3,CB-CZ2,CB-CZ3
+TYR:N-CG,N-CD1,N-CD2,N-CE1,N-CE2,N-CZ,CA-CD1,CA-CD2,CA-CE1,CA-CE2,CA-CZ,CB-CE1,CB-CE2,CB-CZ
+VAL:N-CG1,N-CG2"""
+
+sc_restraints=dict([(_aa.split(":")[0], [_.split('-') for _ in _aa.split(":")[1].split(',')]) for _aa in sc_restraints.splitlines()])
+
+## generic refmac/coot distance restrain template
+refmac_dist_generic="""\
+exte dist first chain %(A_chain)s resi %(A_resid)s ins %(A_inscode)s atom %(A_atom_name)s second chain %(B_chain)s resi %(B_resid)s ins %(B_inscode)s atom %(B_atom_name)s value %(mean)f sigma %(sigma)f type 1"""
+
+
+
 # templates for a pymol script visualising predficted contacts
 pymol_dist_generic="""\
 dist \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s and name \"%(A_atom_name)s\" and alt \'\', \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s and name \"%(B_atom_name)s\" and alt \'\'"""
@@ -79,8 +107,6 @@ def make_contact_scripts(prefix, feature_dict, logger, print_contacts=False, kee
     distance = np.clip(distance_cutoff, 3, 20)
 
     bin_idx=np.max(np.where(bin_edges<distance))
-
-
     below8pbty = np.sum(probs, axis=2, where=(np.arange(probs.shape[-1])<bin_idx))
 
     requested_contacts=[]

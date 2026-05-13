@@ -86,6 +86,7 @@ except ImportError:
 
 
 from gapTrick.contacts import make_contact_scripts
+from gapTrick.restraints import make_restraint_scripts
 from gapTrick.msa import query_mmseqs2, pretty_sequence_print
 from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio
 
@@ -1002,6 +1003,7 @@ def runme(msa_filenames,
         make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
     make_contact_scripts(jobname, feature_dict, logger, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+    make_restraint_scripts(jobname, feature_dict, logger)
 
 
 def main():
