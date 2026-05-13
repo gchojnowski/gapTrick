@@ -183,7 +183,10 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
 
         #print(i+1, input_chain, input_resid, input_residue.get_resname(), model_chain, model_resid, model_residue.get_resname() )
 
-        assert model_residue.get_resname() == input_residue.get_resname()
+        #assert model_residue.get_resname() == input_residue.get_resname()
+        if not model_residue.get_resname() == input_residue.get_resname():
+            logger.warning(f"{input_chain}/{input_resid} {model_residue.get_resname()} != {input_residue.get_resname()}")
+            continue
 
         for _aa in sc_restraints.get(model_residue.get_resname(), []):
 
