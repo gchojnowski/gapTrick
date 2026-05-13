@@ -170,16 +170,14 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
         except:
             continue
 
+        input_residue = input_dict[input_chain][input_resid]
+        input_atom_dict = dict([(_.get_name(), _.get_coord()) for _ in input_residue.get_atoms()])
+        inscode = input_residue.get_id()[2]
+
         d={}
         d['A_resid'] = d['B_resid'] = input_resid
-        d['A_inscode'] = d['B_inscode'] = '.'
+        d['A_inscode'] = d['B_inscode'] = '.' if inscode==' ' else inscode
         d['A_chain'] = d['B_chain'] = input_chain
-
-
-        input_residue = input_dict[input_chain][input_resid]
-
-        input_atom_dict = dict([(_.get_name(), _.get_coord()) for _ in input_residue.get_atoms()])
-
 
         #print(i+1, input_chain, input_resid, input_residue.get_resname(), model_chain, model_resid, model_residue.get_resname() )
 
@@ -240,11 +238,17 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
         try:
             A_resid_tpl = template_resi_list[residx_mappings_m2t[str(i)]].get_id()[1]
             A_input_chain, A_input_resid = residx_mappings_t2i[str(A_resid_tpl)]
+            A_input_residue = input_dict[A_input_chain][A_input_resid]
             B_resid_tpl = template_resi_list[residx_mappings_m2t[str(j)]].get_id()[1]
             B_input_chain, B_input_resid = residx_mappings_t2i[str(B_resid_tpl)]
+            B_input_residue = input_dict[B_input_chain][B_input_resid]
         except:
             continue
 
+        B_inscode = B_input_residue.get_id()[2]
+        d['B_inscode'] = '.' if B_inscode==' ' else B_inscode
+        A_inscode = A_input_residue.get_id()[2]
+        d['A_inscode'] = '.' if A_inscode==' ' else A_inscode
 
         d['A_resid'] = A_input_resid
         d['A_chain'] = A_input_chain
