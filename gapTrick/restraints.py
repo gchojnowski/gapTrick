@@ -83,7 +83,6 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
     structure = parse_pdb_bio(Path(datadir, "input", "0000.cif"), outid="XYZ", remove_alt_confs=True)
     model_tpl = get_prot_chains_bio(structure, logger)
 
-    print(chain_seq_dict)
     predicted_distogram = datadict[topmodel_fn].get('distogram', None)
 
     #probs = softmax(predicted_distogram['logits'], axis=-1)
@@ -116,7 +115,6 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
     chain_lens = np.array(chain_lens)
 
 
-    print()
     restraints_model=[]
     restraints_input=[]
 
@@ -198,6 +196,9 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
             d['sigma'] = 0.5
             restraints_input.append(refmac_dist_generic%d)
 
+    no_sc_restraints_input = len(restraints_input)
+    no_sc_restraints_model = len(restraints_model)
+
 
     # generate long-range BB restraints for residue pairs that are likely to be at the distance_cutoff from each other
     for idx, (i,j) in enumerate(zip(*np.where(below8pbty>0.79))):
@@ -231,7 +232,7 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
         d['sigma'] = sd
 
         restraints_model.append(refmac_dist_generic%d)
-        print(f"{'*' if ci!=cj else ' '} {resi:-4d}/{chain_ids[ci]}/{resni} {resj:-4d}/{chain_ids[cj]}/{resnj} {mean:5.2f} {sd:5.2f} i={i} j={j}")
+        #print(f"{'*' if ci!=cj else ' '} {resi:-4d}/{chain_ids[ci]}/{resni} {resj:-4d}/{chain_ids[cj]}/{resnj} {mean:5.2f} {sd:5.2f} i={i} j={j}")
 
         try:
             A_resid_tpl = template_resi_list[residx_mappings_m2t[str(i)]].get_id()[1]
@@ -248,6 +249,11 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
         d['B_chain'] = B_input_chain
         restraints_input.append(refmac_dist_generic%d)
 
+
+    logger.info("\n\n")
+    logger.info(f"Generated {no_sc_restraints_input}/{len(restraints_input)-no_sc_restraints_input} sc/mc distance restraints for the input model")
+    logger.info(f"Generated {no_sc_restraints_model}/{len(restraints_model)-no_sc_restraints_model} sc/mc distance restraints for the predicted model")
+    logger.info("\n\n")
 
     with open(Path(datadir, "output", "model_refmac_restraints.txt"), "w") as ofile:
         ofile.write("\n".join(restraints_model))
