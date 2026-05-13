@@ -1006,6 +1006,9 @@ def runme(msa_filenames,
 
 def main():
 
+    logging.basicConfig(level=logging.INFO, format="%(message)s",\
+            handlers=[logging.StreamHandler(sys.stdout)])
+
     header_msg = "\n".join(["", f"## gapTrick version {version.__version__}", ""," ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])), ""])
 
     start_time = datetime.now()
