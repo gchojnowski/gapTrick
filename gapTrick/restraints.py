@@ -37,7 +37,7 @@ sc_restraints=dict([(_aa.split(":")[0], [_.split('-') for _ in _aa.split(":")[1]
 
 ## generic refmac/coot distance restrain template
 refmac_dist_generic="""\
-exte dist first chain %(A_chain)s resi %(A_resid)s ins %(A_inscode)s atom %(A_atom_name)s second chain %(B_chain)s resi %(B_resid)s ins %(B_inscode)s atom %(B_atom_name)s value %(mean)f sigma %(sigma)f type 1"""
+exte dist first chain %(A_chain)s resi %(A_resid)s ins %(A_inscode)s atom %(A_atom_name)s second chain %(B_chain)s resi %(B_resid)s ins %(B_inscode)s atom %(B_atom_name)s value %(mean)f sigma %(sigma)f type 2"""
 
 
 
