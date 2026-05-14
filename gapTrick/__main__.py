@@ -213,6 +213,9 @@ def parse_args(expert=False):
     expert_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
                   help=SUPPRESS_HELP if not expert else "Mask template sequence (replace residue ids with gaps and add missing CBs)")
 
+    expert_opts.add_option("--restraints", action="store_true", dest="restraints", default=False, \
+                  help=SUPPRESS_HELP if not expert else "Generate distance-restraints for refmac/coot refinement")
+
     expert_opts.add_option("--msa", action="store", dest="msa", type="string", metavar="FILENAME,FILENAME", \
                   help=SUPPRESS_HELP if not expert else "comma-separated a3m MSAs. First sequence is a target", default=None)
 
@@ -853,8 +856,8 @@ def runme(msa_filenames,
           debug             =   False,
           iterate           =   1,
           fixed_chain_ids   =   None,
-          keepalldata       =   False):
-
+          keepalldata       =   False,
+          restraints        =   False):
 
 
 
@@ -1003,7 +1006,7 @@ def runme(msa_filenames,
         make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
     make_contact_scripts(jobname, feature_dict, logger, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
-    make_restraint_scripts(jobname, feature_dict, logger)
+    if restraints: make_restraint_scripts(jobname, feature_dict, logger)
 
 
 def main():
@@ -1124,7 +1127,8 @@ def main():
           debug             =   options.debug,
           iterate           =   options.iterate,
           fixed_chain_ids   =   options.fixed_chain_ids,
-          keepalldata       =   options.keepalldata)
+          keepalldata       =   options.keepalldata,
+          restraints        =   options.restraints)
 
     if not options.keepalldata:
         for fname in os.listdir(Path(options.jobname, "msa")):
