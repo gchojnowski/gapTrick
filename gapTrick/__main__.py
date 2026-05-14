@@ -1,3 +1,8 @@
+
+__author__ = "Grzegorz Chojnowski"
+__date__ = "5 May 2026"
+
+
 import os, sys, re, io
 import subprocess
 
@@ -15,16 +20,15 @@ import json
 from itertools import groupby
 from operator import itemgetter
 
-import requests
-import tarfile
+
 from datetime import datetime
 
 from pathlib import Path
 import pickle
 import shutil
 
-MMSEQS_API_SERVER = "https://api.colabfold.com"
-MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
+#MMSEQS_API_SERVER = "https://api.colabfold.com"
+#MMSEQS_API_SERVER = "https://a3m.mmseqs.com"
 
 from alphafold.common import protein
 from alphafold.data import pipeline
@@ -50,12 +54,7 @@ from alphafold.data.templates import (_get_pdb_id_and_chain,
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
-#from Bio import pairwise2
-from Bio import Align
-from Bio.PDB import PDBIO, PDBParser, Superimposer, MMCIFParser, Select
-from Bio.PDB.mmcifio import MMCIFIO
-from Bio.PDB.vectors import rotaxis2m
-from Bio.PDB.vectors import Vector
+from Bio.PDB import PDBIO, PDBParser, Superimposer, Select
 
 from dataclasses import dataclass, replace
 #from jax.lib import xla_bridge
@@ -76,101 +75,20 @@ try:
     sys.path.append(os.path.join(rootpath))
     from af2plots.plotter import plotter
     PLOTTER_AVAILABLE = 1
-except:
+except ImportError:
     logger.info("WARNING: cannot initiate figure plotter")
     PLOTTER_AVAILABLE = 0
+
 try:
     from gapTrick import version
-except:
+except ImportError:
     import version
 
-tgo = {'A': 'ALA', 'C': 'CYS', 'D': 'ASP', 'E': 'GLU', 'F': 'PHE', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'K': 'LYS', 'L': 'LEU', 'M': 'MET', 'N': 'ASN', 'O': 'PYL', 'P': 'PRO', 'Q': 'GLN', 'R': 'ARG', 'S': 'SER', 'T': 'THR', 'U': 'SEC', 'V': 'VAL', 'W': 'TRP', 'Y': 'TYR', 'X': 'UNK'}
-ogt = dict([(tgo[_k], _k) for _k in tgo])
 
-#logger.info(xla_bridge.get_backend().platform)
-
-# templates for a pymol script visualising predficted contacts
-pymol_dist_generic="""\
-dist \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s and name \"%(A_atom_name)s\" and alt \'\', \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s and name \"%(B_atom_name)s\" and alt \'\'"""
-
-pymol_header=f"load %(modelid)s.pdb\nshow_as cartoon, %(modelid)s\nset label_size, 0\nutil.cbc %(modelid)s"
-
-chimerax_footer="distance style radius 0.15\ndistance style color red\ndistance style dashes 0\ncolor bychain"
-chimerax_dist_generic=\
-        "\n".join(["distance #$1/%(A_chain)s:%(A_resid)s@%(A_atom_name)s #$1/%(B_chain)s:%(B_resid)s@%(B_atom_name)s",
-                   "show #$1/%(A_chain)s:%(A_resid)s bonds",
-                   "show #$1/%(B_chain)s:%(B_resid)s bonds"])
-
-FAKE_MMCIF_HEADER=\
-"""data_%(outid)s
-#
-_entry.id   %(outid)s
-_struct_asym.id          A
-_struct_asym.entity_id   0
-#
-_entity_poly.entity_id        0
-_entity_poly.type             polypeptide(L)
-_entity_poly.pdbx_strand_id   A
-#
-loop_
-_pdbx_audit_revision_history.ordinal
-_pdbx_audit_revision_history.data_content_type
-_pdbx_audit_revision_history.major_revision
-_pdbx_audit_revision_history.minor_revision
-_pdbx_audit_revision_history.revision_date
-1 'Structure model' 1 0 1878-05-14
-#
-_entity.id     0
-_entity.type   polymer
-#
-loop_
-_chem_comp.id
-_chem_comp.type
-_chem_comp.name
-ALA 'L-peptide linking' ALANINE
-ARG 'L-peptide linking' ARGININE
-ASN 'L-peptide linking' ASPARAGINE
-ASP 'L-peptide linking' 'ASPARTIC ACID'
-CYS 'L-peptide linking' CYSTEINE
-GLN 'L-peptide linking' GLUTAMINE
-GLU 'L-peptide linking' 'GLUTAMIC ACID'
-HIS 'L-peptide linking' HISTIDINE
-ILE 'L-peptide linking' ISOLEUCINE
-LEU 'L-peptide linking' LEUCINE
-LYS 'L-peptide linking' LYSINE
-MET 'L-peptide linking' METHIONINE
-PHE 'L-peptide linking' PHENYLALANINE
-PRO 'L-peptide linking' PROLINE
-SER 'L-peptide linking' SERINE
-THR 'L-peptide linking' THREONINE
-TRP 'L-peptide linking' TRYPTOPHAN
-TYR 'L-peptide linking' TYROSINE
-VAL 'L-peptide linking' VALINE
-GLY 'L-peptide linking' GLYCINE
-#"""
-
-
-MMCIF_ATOM_BLOCK_HEADER=\
-"""loop_
-   _atom_site.group_PDB
-   _atom_site.id
-   _atom_site.label_atom_id
-   _atom_site.label_alt_id
-   _atom_site.label_comp_id
-   _atom_site.auth_asym_id
-   _atom_site.auth_seq_id
-   _atom_site.pdbx_PDB_ins_code
-   _atom_site.Cartn_x
-   _atom_site.Cartn_y
-   _atom_site.Cartn_z
-   _atom_site.occupancy
-   _atom_site.B_iso_or_equiv
-   _atom_site.type_symbol
-   _atom_site.pdbx_formal_charge
-   _atom_site.label_asym_id
-   _atom_site.label_entity_id
-   _atom_site.label_seq_id
-   _atom_site.pdbx_PDB_model_num"""
+from gapTrick.contacts import make_contact_scripts
+from gapTrick.restraints import make_restraint_scripts
+from gapTrick.msa import query_mmseqs2, pretty_sequence_print
+from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio
 
 
 hhdb_build_template="""
@@ -295,141 +213,21 @@ def parse_args(expert=False):
     expert_opts.add_option("--noseq", action="store_true", dest="noseq", default=False, \
                   help=SUPPRESS_HELP if not expert else "Mask template sequence (replace residue ids with gaps and add missing CBs)")
 
+    expert_opts.add_option("--restraints", action="store_true", dest="restraints", default=False, \
+                  help=SUPPRESS_HELP if not expert else "Generate distance-restraints for refmac/coot refinement")
+
     expert_opts.add_option("--msa", action="store", dest="msa", type="string", metavar="FILENAME,FILENAME", \
                   help=SUPPRESS_HELP if not expert else "comma-separated a3m MSAs. First sequence is a target", default=None)
+
+    expert_opts.add_option("--mmseqs_api_server", action="store", dest="mmseqs_api_server", type="string", metavar="HTTP", \
+                  help=SUPPRESS_HELP if not expert else "mmseqs2 API server address default (default: %default)", default="https://a3m.mmseqs.com")
+
 
     (options, _args)  = parser.parse_args()
     return (parser, options)
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-
-def query_mmseqs2(query_sequence, msa_fname, use_env=False, filter=False, user_agent='gaptrick'):
-
-    def submit(query_sequence, mode):
-        while True:
-            try:
-                res = requests.post(f'{MMSEQS_API_SERVER}/ticket/msa', data={'q':f">1\n{query_sequence}", 'mode': mode}, timeout=12.01, headers=headers)
-            except requests.exceptions.Timeout:
-                logger.info("MMSeqs2 API submission timeout. Retrying...")
-                continue
-            except Exception as e:
-                logger.info(f"MMSeqs2 API submission error: {e}")
-                time.sleep(5)
-                continue
-            break
-
-        return res.json()
-
-    def status(ID):
-        while True:
-            try:
-                res = requests.get(f'{MMSEQS_API_SERVER}/ticket/{ID}', timeout=12.01, headers=headers)
-            except requests.exceptions.Timeout:
-                logger.info("MMSeqs2 API status timeout. Retrying...")
-                continue
-            except Exception as e:
-                logger.info(f"MMSeqs2 API status error: {e}")
-                time.sleep(5)
-                continue
-            break
-
-        return res.json()
-
-    def download(ID, path):
-        while True:
-            try:
-                res = requests.get(f'{MMSEQS_API_SERVER}/result/download/{ID}', timeout=12.01, headers=headers)
-            except requests.exceptions.Timeout:
-                logger.info("MMSeqs2 API download timeout. Retrying...")
-                continue
-            except Exception as e:
-                logger.info(f"MMSeqs2 API download error: {e}")
-                time.sleep(5)
-                continue
-            break
-
-        with open(path,"wb") as out: out.write(res.content)
-
-    # ------------
-
-    headers = {'User-Agent':user_agent}
-
-    if filter:
-        mode = "env" if use_env else "all"
-    else:
-        mode = "env-nofilter" if use_env else "nofilter"
-
-    logger.info(f" --> MMSeqs2 API query:")
-    pretty_sequence_print(name_a="        ", seq_a=query_sequence)
-    logger.info(f"     MMSeqs2 API output file: {msa_fname}")
-
-    if os.path.isfile(msa_fname):
-        logger.info(f"Output file {msa_fname} already exists!")
-        logger.info("")
-        return 0
-
-    with tempfile.TemporaryDirectory() as tmp_path:
-        tar_gz_file = os.path.join(tmp_path, 'out.tar.gz')
-        if not os.path.isfile(tar_gz_file):
-            out = submit(query_sequence, mode)
-            while out["status"] in ["UNKNOWN","RUNNING","PENDING"]:
-                logger.info(f'     MMSeqs2 API status: {out["status"]}')
-                time.sleep(10)
-                out = status(out["id"])
-
-            logger.info(f'     MMSeqs2 API status: {out["status"]}')
-
-            if out["status"]=="RATELIMIT": 
-                print("ERROR: MMseqs2 API request rejected (too many connections). Try again later...")
-                exit(0)
-
-            download(out["id"], tar_gz_file)
-
-        # parse a3m files
-        with tarfile.open(tar_gz_file) as tar_gz: tar_gz.extractall(tmp_path)
-
-        a3m_files = [os.path.join(tmp_path, "uniref.a3m")]
-        if use_env: a3m_files.append( os.path.join(tmp_path, "bfd.mgnify30.metaeuk30.smag30.a3m") )
-
-        with open(msa_fname,"w") as a3m_out:
-            for a3m_file in a3m_files:
-                for line in open(a3m_file,"r"):
-                    line = line.replace("\x00","")
-                    if len(line) > 0:
-                        a3m_out.write(line)
-
-    logger.info(f"     Successfully created {msa_fname}")
-    logger.info("")
-
-
-    return 0
-
-# -----------------------------------------------------------------------------
-
-def save_pdb(structure, ofname):
-    pdbio = MMCIFIO()
-    pdbio.set_structure(structure)
-    with Path(ofname).open('w') as of:
-        pdbio.save(of)
-
-# -----------------------------------------------------------------------------
-
-def CB_xyz(n, ca, c):
-    bondl=1.52
-    rada=1.93
-    radd=-2.14
-
-    vec_nca = (n-ca)/np.linalg.norm(n-ca)
-    vec_cca = (c-ca)/np.linalg.norm(c-ca)
-
-    normal_vec = np.cross(vec_nca, vec_cca)
-
-    m = [vec_nca, np.cross(normal_vec, vec_nca), normal_vec]
-    d = [np.cos(rada), np.sin(rada)*np.cos(radd), -np.sin(rada)*np.sin(radd)]
-    return c + sum([bondl*_m*_d for _m,_d in zip(m,d)])
-
-
 # -----------------------------------------------------------------------------
 
 def get_CAs(structure, sel_residx=None):
@@ -686,418 +484,7 @@ def make_figures(prefix, print_contacts=False, keepalldata=False, pbty_cutoff=0.
                 ff.savefig(fname=os.path.join(figures_dir, f"msa.png"), dpi=150, bbox_inches = 'tight')
                 ff.savefig(fname=os.path.join(figures_dir, f"msa.svg"), bbox_inches = 'tight')
             except:
-                print("ERROR: Failed to plot MSAs")
-# -----------------------------------------------------------------------------                    
-# lists likely contacts and generates pymol/chimera scripts
-# bypasses af2plots and has no matplolib dep
-
-def make_contact_scripts(prefix, feature_dict, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
-
-    datadir=Path(prefix, "output")
-    datadict = {}
-
-    for fn in glob.glob("%s/result*.pkl" % datadir):
-        with open(fn, 'rb') as ifile:
-            data = pickle.load(ifile)
-        datadict[fn]=data
-
-    for rank,k in enumerate(sorted(datadict, key=lambda x:datadict[x]['ptm'], reverse=True)):
-        datadict[k]['rank']=rank+1
-
-    topmodel_fn=None
-    for _fn in datadict:
-        if datadict[_fn]['rank']==1:
-            topmodel_fn = _fn
-            break
-
-    predicted_distogram = datadict[topmodel_fn].get('distogram', None)
-    if predicted_distogram is None: return None
-
-    #probs = softmax(predicted_distogram['logits'], axis=-1)
-    x = predicted_distogram['logits']
-    x_max = np.max(x, axis=-1, keepdims=True)
-    exp_x_shifted = np.exp(x - x_max)
-    probs = exp_x_shifted / np.sum(exp_x_shifted, axis=-1, keepdims=True)
-
-    bin_edges = predicted_distogram['bin_edges']
-
-    # chainid mapping helper for AF2-muiltimer
-    asym_id = feature_dict['asym_id']
-    assembly_num_chains = feature_dict['assembly_num_chains']
-
-    # for compatibility with versions pre 0.3.8 (previously parsed single chain preds only!)
-    if assembly_num_chains is None:
-        assembly_num_chains = 1
-        asym_id = [1]*len(datadict[topmodel_fn]['plddt'])
-
-    distance_bins = [(0, bin_edges[0])]
-    distance_bins += [(bin_edges[idx], bin_edges[idx + 1]) for idx in range(len(bin_edges) - 1)]
-    distance_bins.append((bin_edges[-1], np.inf))
-    distance_bins = tuple(distance_bins)
-    print()
-    print(f"AlphaFold2 distogram distance range [{bin_edges[0]}, {bin_edges[-1]}]")
-    print()
-    # truncate distance to the available range
-    distance = np.clip(distance_cutoff, 3, 20)
-
-    bin_idx=np.max(np.where(bin_edges<distance))
-
-
-    below8pbty = np.sum(probs, axis=2, where=(np.arange(probs.shape[-1])<bin_idx))
-
-    requested_contacts=[]
-    if print_contacts:
-        print()
-        print(f"AlphaFold2-predicted contacts below {distance}A with estimated probability (*-inter chains)")
-
-    chain_ids = string.ascii_uppercase
-    chain_lens = []
-    for i in range(assembly_num_chains):
-        chain_lens.append(np.sum(np.array(asym_id)==(i+1)))
-
-    chain_lens = np.array(chain_lens)
-    resi_i,resi_j = np.where(below8pbty>pbty_cutoff)
-    for i,j in zip(resi_i, resi_j):
-
-        ci = int(asym_id[i]-1)
-        cj = int(asym_id[j]-1)
-
-        # skipp: close, diag, and symm
-        if i==j: continue
-        if np.abs(i-j)<2 and ci==cj: continue
-        if ci>cj: continue
-
-        reli = 1+i-sum(chain_lens[:ci])
-        relj = 1+j-sum(chain_lens[:cj])
-
-        requested_contacts.append(f"{reli}/{chain_ids[ci]} {relj}/{chain_ids[cj]} {below8pbty[i,j]}")
-
-        if print_contacts: print(f"{'*' if ci!=cj else ' '} {reli:-4d}/{chain_ids[ci]} {relj:-4d}/{chain_ids[cj]} {below8pbty[i,j]:5.2f}")
-
-    # contacts list
-    contact_template = r"^(?P<res1>\w+?)/(?P<ch1>\w+?)\s+(?P<res2>\w+?)/(?P<ch2>\w+?)\s+(?P<pbty>[\d\.]*?)$"
-    structure = parse_pdb_bio(Path(prefix, "output", "ranked_0.pdb"), outid="XYZ", remove_alt_confs=True)
-    protein = get_prot_chains_bio(structure)
-    chain_seq_dict = {}
-    for chain in protein:
-        chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
-
-    idx=0
-    d={}
-    d['modelid']="ranked_0"
-    d['A_atom_name']='CA'
-    d['B_atom_name']='CA'
-
-    if keepalldata: pymol_all = [pymol_header%d]
-    pymol_int = [pymol_header%d]
-    chimerax_int = []
-    pymol_sb_int = [pymol_header%d]
-    chimerax_sb_int = []
-
-    contacts_list = []
-    interchain_contacts_list = []
-    interchain_sb_list = []
-
-    for contact_str in requested_contacts:
-        m = re.match(contact_template, contact_str)
-        d['A_chain'] = ci = m.group('ch1')
-        d['B_chain'] = cj = m.group('ch2')
-        d['A_resid'] = resi = m.group('res1')
-        d['B_resid'] = resj = m.group('res2')
-
-        resni = tgo[chain_seq_dict[ci][int(resi)-1]].upper()
-        resnj = tgo[chain_seq_dict[cj][int(resj)-1]].upper()
-
-        if resni=='GLY':
-            d['A_atom_name']='CA'
-        else:
-            d['A_atom_name']='CB'
-
-        if resnj=='GLY':
-            d['B_atom_name']='CA'
-        else:
-            d['B_atom_name']='CB'
-
-
-        _cstr = f"""{'*' if ci!=cj else ' '} {resni}/{ci}/{resi:4s} {resnj}/{cj}/{resj:4s} {float(m.group('pbty')):.2f}"""
-
-        if print_contacts: logger.info(_cstr)
-        contacts_list.append(_cstr)
-
-        if ci!=cj:
-            pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
-            pymol_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
-            pymol_int.append(pymol_dist_generic%d)
-
-            chimerax_int.append(chimerax_dist_generic%d)
-            interchain_contacts_list.append(_cstr[2:])
-
-            if (resnj in ['ASP', 'GLU'] and resni in ['LYS', 'ARG']) or (resni in ['ASP', 'GLU'] and resnj in ['LYS', 'ARG']):
-                interchain_sb_list.append(_cstr[2:])
-                pymol_sb_int.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
-                pymol_sb_int.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
-                pymol_sb_int.append(pymol_dist_generic%d)
-                chimerax_sb_int.append(chimerax_dist_generic%d)
-
-        if keepalldata:
-            pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(A_chain)s\" and resi %(A_resid)s"%d)
-            pymol_all.append("show sticks, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s\ncolor atomic, \"%(modelid)s\" and chain \"%(B_chain)s\" and resi %(B_resid)s"%d)
-            pymol_all.append(pymol_dist_generic%d)
-
-        idx+=1
-
-    if keepalldata:
-        with open(os.path.join(datadir, f"pymol_all_contacts.pml"), 'w') as ofile:
-            ofile.write("\n".join(pymol_all))
-
-    with open(os.path.join(datadir, f"pymol_interchain_contacts.pml"), 'w') as ofile:
-        ofile.write("\n".join(pymol_int))
-
-    with open(os.path.join(datadir, f"chimerax_interchain_contacts.cxc"), 'w') as ofile:
-        chimerax_int.append(chimerax_footer)
-        ofile.write("\n".join(chimerax_int))
-
-    if interchain_sb_list:
-        with open(os.path.join(datadir, f"pymol_interchain_saltbridges.pml"), 'w') as ofile:
-            ofile.write("\n".join(pymol_sb_int))
-
-        with open(os.path.join(datadir, f"chimerax_interchain_saltbridges.cxc"), 'w') as ofile:
-            chimerax_sb_int.append(chimerax_footer)
-            ofile.write("\n".join(chimerax_sb_int))
-
-    with open(os.path.join(datadir, f"contacts.txt"), 'w') as ofile:
-        ofile.write("residue_1 residue_2 pbty(|CB-CB|<8Å)>0.8\n")
-        ofile.write("\n".join(contacts_list))
-
-    logger.info("\n\n")
-
-    if not interchain_contacts_list:
-        logger.info(f""" ==> Found NO inter-chain contacts (dist<8A and pbty>0.8)\n"""+\
-                     """     The prediction may be NOT correct\n""")
-    else:
-        logger.info(f""" ==> Found {len(interchain_contacts_list)} inter-chain contacts (dist<8A and pbty>0.8)\n""")
-
-        for idx,_c in enumerate(interchain_contacts_list):
-            logger.info(f"     {idx+1:03d} {_c}")
-            if idx>8:
-                logger.info("    [..] full list in contacts.txt")
-                break
-        if interchain_sb_list:
-            logger.info("")
-            logger.info(f"""     Among these {len(interchain_sb_list)} may form salt-bridges""")
-            for idx,_c in enumerate(interchain_sb_list):
-                logger.info(f"     {idx+1:03d} {_c}")
-                if idx>8:
-                    logger.info("    [..] full list in contacts.txt")
-                    break
-        else:
-            logger.info("")
-            logger.info(f"""     No potential salt-bridges found""")
-# -----------------------------------------------------------------------------                    
-
-def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
-
-    class NotAlt(Select):
-        def accept_atom(self, atom):
-            if plddt_cutoff: 
-                return (not atom.is_disordered() or atom.get_altloc() == "A") and atom.bfactor > plddt_cutoff
-            else:
-                return not atom.is_disordered() or atom.get_altloc() == "A"
-
-    try:
-        parser = PDBParser(QUIET=True)
-        structure = parser.get_structure(outid, ifn)[0]
-
-    except:
-        parser = MMCIFParser(QUIET=True)
-        structure = parser.get_structure(outid, ifn)[0]
-
-    if remove_alt_confs:
-        with io.StringIO() as outstr:
-            pdbio = MMCIFIO()
-            pdbio.set_structure(structure)
-            pdbio.save(outstr, select=NotAlt())
-            outstr.seek(0)
-
-            parser = MMCIFParser(QUIET=True)
-            structure = parser.get_structure(outid, outstr)[0]
-            for chain in structure:
-                for resi in chain:
-                    for atom in resi:
-                        atom.set_altloc(" ")
-
-    return structure
-
-# -----------------------------------------------------------------------------
-
-def match_template_chains_to_target_bio(structure, target_sequences):
-    logger.info(f" --> Greedy matching template chains to target sequences")
-
-    chain_seq_dict = {}
-    chain_ends_dict = {}
-    protein = get_prot_chains_bio(structure)
-    for chain in protein:
-        chain_seq_dict[chain.id]="".join([ogt[_r.get_resname()] for _r in chain.get_unpacked_list()])
-        _resis = list(chain.get_residues())
-        chain_ends_dict[chain.id]= (np.array(_resis[0]['CA']), np.array(_resis[-1]['CA']))
-
-    greedy_selection = []
-    for _idx, _target_seq in enumerate(target_sequences):
-        _tmp_si={}
-        for cid in chain_seq_dict:
-            if cid in greedy_selection: continue
-            aligner = Align.PairwiseAligner()
-            alignments = aligner.align(chain_seq_dict[cid], _target_seq)
-            si = alignments[0].score
-            _tmp_si[cid]=si#100.0*si#/min(len(chain_seq_dict[cid]),len(_target_seq))
-
-        if _tmp_si:
-            greedy_selection.append( sorted(_tmp_si.items(), key=lambda x: x[1])[-1][0] )
-            other_si = "".join(["[", ",".join([f"{k}:{v:.1f}" for k,v in _tmp_si.items()]), "]"])
-            logger.info(f"     #{_idx}: {greedy_selection[-1]} with SI={_tmp_si[greedy_selection[-1]]:.1f} {other_si}")
-
-    if not len(greedy_selection) == len(target_sequences):
-        logger.info("WARNING: template-target sequence match is incomplete!")
-
-    #for c1, c2 in zip(greedy_selection[:-1], greedy_selection[1:]):
-    #    print(c1, c2, np.linalg.norm(chain_ends_dict[c2][0]-chain_ends_dict[c1][1]))
-
-    logger.info("")
-
-    return(greedy_selection)
-
-
-# -----------------------------------------------------------------------------
-
-def get_resi_chunks(chain):
-    """
-        find residue ranges of continous perotein chunks in a chain
-        (ignores 1-resi gaps due to SeMet)
-    """
-
-    resi_chunks = []
-
-    resids=[_r.id[1] for _r in chain]
-    for k, g in groupby(enumerate(set(resids)), lambda idx : idx[0] - idx[1]):
-        chunk =list(map(itemgetter(1), g))
-        if not resi_chunks:
-            resi_chunks.append( [chunk[0], chunk[-1]] )
-        else:
-            # ignore single-resi gaps - removed SeMet
-            if chunk[0]-resi_chunks[-1][-1]==2:
-                resi_chunks[-1] = (resi_chunks[-1][0], chunk[-1])
-            else:
-                resi_chunks.append( [chunk[0], chunk[-1]] )
-
-    return resi_chunks
-
-
-def select_resi2keep(chunks, truncate=0.3):
-    """
-        generates list of residues to keep after removing a fraction truncate from each chain
-    """
-
-    _chunk2keep = []
-
-    for _frag in chunks:
-        chunk2cut = int(truncate*(_frag[-1]-_frag[0]))
-        if np.random.uniform(0,1)>0.5:
-            _chunk2keep.extend(range(_frag[0], _frag[-1]-chunk2cut))
-        else:
-            _chunk2keep.extend(range(_frag[0]+chunk2cut, _frag[-1]))
-
-    return _chunk2keep 
-
-
-def random_point_on_sphere():
-    z = np.random.uniform(-1,1)
-    t = 2.0*np.pi * np.random.uniform(0,1);
-    r = np.sqrt(1.0-z*z);
-    return np.array([r * np.cos(t), r * np.sin(t), z])
-
-
-def get_prot_chains_bio(structure, min_prot_content=0.1, truncate=None, rotmax=None, transmax=None, fixed_chain_ids=None):
-    '''
-        removes non-protein chains and residues wouth CA atoms (required for superposition)
-    '''
-    for chain in list(structure):
-        chain_len_before = len(chain)
-        for res in list(chain):
-            # a residue must be an amino-acid and contain CA atom
-            if not (res.get_resname() in ogt.keys() and 'CA' in [_.name.strip() for _ in res]):
-                chain.detach_child(res.id)
-        if (chain_len_before-len(chain))/chain_len_before>(1.0-min_prot_content):
-            logger.info(f'WARNING: removed non-protein template chain {chain.id}')
-            chain.parent.detach_child(chain.id)
-
-    assert len(structure), f"Template structure must contain at least one protein chain (>{100*min_prot_content:.1f}% amino acid residues)"
-
-    if truncate:
-        logger.info(f"\nWARNING: Removed {100*truncate:.0f}% residues from template!\n")
-        resi2keep = {}
-        for chain in structure:
-            _ch = get_resi_chunks(chain)
-            _a = resi2keep.setdefault(chain.id, [])
-            _a.extend( select_resi2keep(_ch, truncate=truncate) )
-
-        for chain in list(structure):
-            chain_len_before = len(chain)
-            for res in list(chain):
-                if not res.id[1] in resi2keep[chain.id]:
-                    chain.detach_child(res.id)
-
-
-    if rotmax and transmax:
-        logger.info("")
-        for chain in structure:
-
-            if fixed_chain_ids and chain.id in fixed_chain_ids.split(","): continue
-
-            com_vec = Vector(np.array([atom.get_coord() for atom in chain.get_atoms()]).mean(axis=0))
-            axis = random_point_on_sphere()
-            angle = np.random.uniform(0,1) * ( np.pi - 0.001 ) * rotmax/180
-            trans = Vector(np.array(random_point_on_sphere())*np.random.uniform(0,1)*transmax)
-            rot = rotaxis2m(angle, Vector(axis))
-            logger.info(f"WARNING: Chain {chain.id} rotated/translated by {180*angle/np.pi:4.2f} deg and {trans.norm():4.2f} A")
-            for atom in chain.get_atoms():
-                atom.set_coord( (Vector(atom.coord)-com_vec).left_multiply(rot) + trans + com_vec )
-        logger.info("")
-
-    return structure
-
-# -----------------------------------------------------------------------------
-
-def chain2CIF_bio(chain, outid, outfn):
-
-    poly_seq_block = []
-
-    seq = "".join( [ogt[_r.get_resname()] for _r in chain] )
-    poly_seq_block.append("#")
-    poly_seq_block.append("loop_")
-    poly_seq_block.append("_entity_poly_seq.entity_id")
-    poly_seq_block.append("_entity_poly_seq.num")
-    poly_seq_block.append("_entity_poly_seq.mon_id")
-    poly_seq_block.append("_entity_poly_seq.hetero")
-    for i, aa in enumerate(seq):
-        three_letter_aa = tgo[aa]
-        poly_seq_block.append(f"0\t{i + 1}\t{three_letter_aa}\tn")
-
-    with open(outfn, 'w') as of:
-        # sequence
-        print(FAKE_MMCIF_HEADER%locals(), file=of)
-        print("\n".join(poly_seq_block), file=of)
-
-        # atom block header
-        print(MMCIF_ATOM_BLOCK_HEADER, file=of)
-
-        # and atom details
-        atom_idx=1
-        for res_idx,res in enumerate(chain):
-            for atom in res:
-                print(f"   ATOM   {atom_idx:5} {atom.name:5} . {res.resname:4} {chain.id:3} {res._id[1]:5}"+\
-                        f" ? {atom.coord[0]:10.5f} {atom.coord[1]:10.5f} {atom.coord[2]:10.5f} {atom.occupancy:6.3f}"+\
-                      f" {atom.bfactor:9.5f}  {atom.element:3} ? {chain.id:2} ? {res_idx+1:5} 1", file=of)
-                atom_idx+=1
+                logger.error("ERROR: Failed to plot MSAs")
 
 # -----------------------------------------------------------------------------
 
@@ -1127,13 +514,13 @@ def template_preps_bio(template_fn_list,
         save_pdb(_ph, os.path.join(outpath, f"{outid}_inp.cif"))
 
         # extarct protein chains and bias the template (if requested)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax, fixed_chain_ids=fixed_chain_ids)
+        prot_ph = get_prot_chains_bio(_ph, logger, truncate=truncate, rotmax=rotmax, transmax=transmax, fixed_chain_ids=fixed_chain_ids)
 
         # save modified template (before merging chains)
         save_pdb(prot_ph, os.path.join(outpath, f"{outid}_mod.cif"))
 
         if chain_ids is None:
-            selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
+            selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences, logger)
         else:
             selected_chids = chain_ids.split(',')
 
@@ -1188,10 +575,10 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
     idx=0
     for ifn in template_fn_list:
         _ph = parse_pdb_bio(ifn, plddt_cutoff=plddt_cutoff, remove_alt_confs=True)
-        prot_ph = get_prot_chains_bio(_ph, truncate=truncate, rotmax=rotmax, transmax=transmax)
+        prot_ph = logger, get_prot_chains_bio(_ph, logger, truncate=truncate, rotmax=rotmax, transmax=transmax)
 
         if chain_ids is None:
-            selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences)
+            selected_chids = match_template_chains_to_target_bio(prot_ph, target_sequences, logger)
         else:
             selected_chids = chain_ids.split(',')
 
@@ -1214,21 +601,6 @@ def template_preps_nomerge_bio(template_fn_list, chain_ids, target_sequences, ou
             idx+=1
 
     return converted_template_fns
-
-# -----------------------------------------------------------------------------
-
-def pretty_sequence_print(name_a, seq_a, name_b=None, seq_b=None, block_width=80):
-
-    #if seq_b: assert len(seq_a) == len(seq_b)
-
-    length = len(seq_a)
-    n_blocks = length//block_width
-
-    for ii in range(n_blocks+1):
-        logger.info(f"{name_a} {seq_a[ii*block_width:(ii+1)*block_width]}")
-        if seq_b:
-            logger.info(f"{name_b} {seq_b[ii*block_width:(ii+1)*block_width]}")
-            logger.info("")
 
 # -----------------------------------------------------------------------------
 
@@ -1268,7 +640,7 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
         for chain in mmcif.structure:
             chain_id = chain.id
             template_sequence = "".join([ogt[_r.resname] for _r in chain.get_residues()])
-            pretty_sequence_print(name_a=f"{chain_id:8s}", seq_a=template_sequence)
+            pretty_sequence_print(name_a=f"{chain_id:8s}", seq_a=template_sequence, logger=logger)
 
             seq_name = filepath.stem.upper()+"_"+chain_id
             seq = SeqRecord(Seq(template_sequence),id=seq_name,name="",description="")
@@ -1313,7 +685,9 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
                 if debug: pretty_sequence_print(name_a="target  ",
                             seq_a=query_sequence[:_h.indices_query[0]]+_h.query+query_sequence[_h.indices_query[-1]+1:],
                             name_b="template",
-                            seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}")
+                            seq_b=f"{'-'*_h.indices_query[0]}{_h.hit_sequence}{'-'*(len(query_sequence)-_h.indices_query[-1]-1)}",
+                            logger=logger)
+
             logger.info("")
 
             # in no-merge mode accept multiple alignments, in case target is a homomultimer
@@ -1348,7 +722,8 @@ def generate_template_features(query_sequence, db_path, template_fn_list, nomerg
 
         logger.info(f">{hit.name}")
         pretty_sequence_print(name_a="target  ", seq_a=query_sequence[:hit.indices_query[0]]+hit.query+query_sequence[hit.indices_query[-1]+1:],
-            name_b="template", seq_b=f"{'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}")
+            name_b="template", seq_b=f"{'-'*hit.indices_query[0]}{hit.hit_sequence}{'-'*(len(query_sequence)-hit.indices_query[-1]-1)}",
+            logger=logger)
 
         # handles nomerge+noseq and other weird cases
         template_idxs = hit.indices_hit
@@ -1481,8 +856,8 @@ def runme(msa_filenames,
           debug             =   False,
           iterate           =   1,
           fixed_chain_ids   =   None,
-          keepalldata       =   False):
-
+          keepalldata       =   False,
+          restraints        =   False):
 
 
 
@@ -1528,7 +903,7 @@ def runme(msa_filenames,
 
     logger.info("")
     logger.info(f" --> Combined target sequence:")
-    pretty_sequence_print(name_a="        ", seq_a=query_seq_combined)
+    pretty_sequence_print(name_a="        ", seq_a=query_seq_combined, logger=logger)
     logger.info("")
 
     try:
@@ -1630,10 +1005,14 @@ def runme(msa_filenames,
     if PLOTTER_AVAILABLE:
         make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
-    make_contact_scripts(jobname, feature_dict, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+    make_contact_scripts(jobname, feature_dict, logger, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
+    if restraints: make_restraint_scripts(jobname, feature_dict, logger)
 
 
 def main():
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s",\
+            handlers=[logging.StreamHandler(sys.stdout)])
 
     header_msg = "\n".join(["", f"## gapTrick version {version.__version__}", ""," ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])), ""])
 
@@ -1648,16 +1027,16 @@ def main():
 
 
     if options.jobname is None:
-        print( header_msg )
-        print('Define jobname - output directory with --jobname')
+        logger.info( header_msg )
+        logger.info('Define jobname - output directory with --jobname')
         exit(0)
 
     jobpath=Path(options.jobname)
     try:
         jobpath.mkdir(parents=True, exist_ok=False)
     except:
-        print( header_msg )
-        print(f"ERROR: target directory already exists '{jobpath}'")
+        logger.info( header_msg )
+        logger.info(f"ERROR: target directory already exists '{jobpath}'")
         return 1
 
     logging.basicConfig(level=logging.INFO, format="%(message)s",\
@@ -1702,7 +1081,11 @@ def main():
                     else:
                         a3m_fname = os.path.join(options.jobname, "msa", f"{len(local_msa_dict):04d}.a3m")
 
-                    query_mmseqs2(record.seq, a3m_fname)
+                    query_mmseqs2(record.seq,
+                                  a3m_fname,
+                                  mmseqs_api_server=options.mmseqs_api_server,
+                                  logger=logger)
+
                     local_msa_dict[record.seq]=a3m_fname
 
                 msas.append(a3m_fname)
@@ -1744,7 +1127,8 @@ def main():
           debug             =   options.debug,
           iterate           =   options.iterate,
           fixed_chain_ids   =   options.fixed_chain_ids,
-          keepalldata       =   options.keepalldata)
+          keepalldata       =   options.keepalldata,
+          restraints        =   options.restraints)
 
     if not options.keepalldata:
         for fname in os.listdir(Path(options.jobname, "msa")):
