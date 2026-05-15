@@ -15,7 +15,7 @@ from Bio.PDB import PDBParser, Select, MMCIFParser
 from Bio.PDB.mmcifio import MMCIFIO
 from Bio.PDB.vectors import rotaxis2m
 from Bio.PDB.vectors import Vector
-
+from Bio.PDB.MMCIF2Dict import MMCIF2Dict
 
 FAKE_MMCIF_HEADER=\
 """data_%(outid)s
@@ -293,7 +293,7 @@ def get_prot_chains_bio(structure, logger, min_prot_content=0.1, truncate=None, 
 
 # -----------------------------------------------------------------------------                    
 
-def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
+def _obsolete_parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 
     class NotAlt(Select):
         def accept_atom(self, atom):
@@ -326,3 +326,80 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False):
 
     return structure
 
+
+
+
+def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, cryst1=False):
+
+    class NotAlt(Select):
+        def accept_atom(self, atom):
+            if plddt_cutoff: 
+                return (not atom.is_disordered() or atom.get_altloc() == "A") and atom.bfactor > plddt_cutoff
+            else:
+                return not atom.is_disordered() or atom.get_altloc() == "A"
+    cryst1 = None
+    try:
+        parser = PDBParser(QUIET=True)
+        structure = parser.get_structure(outid, ifn)[0]
+        with open(ifn, 'r') as ifile:
+            for line in ifile:
+                m = re.match(
+                        r"^CRYST1\s+"
+                        r"(?P<a>[0-9.]+)\s+"
+                        r"(?P<b>[0-9.]+)\s+"
+                        r"(?P<c>[0-9.]+)\s+"
+                        r"(?P<alpha>[0-9.]+)\s+"
+                        r"(?P<beta>[0-9.]+)\s+"
+                        r"(?P<gamma>[0-9.]+)\s+"
+                        r"(?P<spacegroup>.+?)(?:\s+(?P<z>\d+))?\s*$", line)
+                    
+                if m:
+                    cryst1 = {
+                        "a": float(m.group("a")),
+                        "b": float(m.group("b")),
+                        "c": float(m.group("c")),
+                        "alpha": float(m.group("alpha")),
+                        "beta": float(m.group("beta")),
+                        "gamma": float(m.group("gamma")),
+                        "spacegroup": m.group("spacegroup").strip(),
+                        "z": int(m.group("z")) if m.group("z") else None,
+                    }
+                    break
+                    
+                if line.startswith("ATOM"): break
+                
+    except:
+
+        parser = MMCIFParser(QUIET=True)
+        structure = parser.get_structure(outid, ifn)[0]
+        try:
+            cryst1={
+                "a":parser._mmcif_dict["_cell.length_a"][0],
+                "b":parser._mmcif_dict["_cell.length_a"][0],
+                "c":parser._mmcif_dict["_cell.length_a"][0],
+                "alpha":parser._mmcif_dict["_cell.angle_alpha"][0],
+                "beta":parser._mmcif_dict["_cell.angle_beta"][0],
+                "gamma":parser._mmcif_dict["_cell.angle_gamma"][0],
+                "spacegroup":parser._mmcif_dict["_symmetry.space_group_name_H-M"][0],
+                "z":parser._mmcif_dict["_cell.Z_PDB"][0]
+                }
+        except:
+            cryst1=None
+
+    if remove_alt_confs:
+        with io.StringIO() as outstr:
+            pdbio = MMCIFIO()
+            pdbio.set_structure(structure)
+            pdbio.save(outstr, select=NotAlt())
+            outstr.seek(0)
+
+            parser = MMCIFParser(QUIET=True)
+            structure = parser.get_structure(outid, outstr)[0]
+            for chain in structure:
+                for resi in chain:
+                    for atom in resi:
+                        atom.set_altloc(" ")
+    if cryst1:
+        return structure, cryst1
+    
+    return structure
