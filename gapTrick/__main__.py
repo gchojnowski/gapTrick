@@ -62,6 +62,10 @@ from dataclasses import dataclass, replace
 from optparse import OptionParser, OptionGroup, SUPPRESS_HELP
 import random
 
+
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
+
 import logging
 import logging.config
 logging.config.dictConfig({'version': 1,'disable_existing_loggers': True,})
@@ -395,7 +399,7 @@ def predict_structure(prefix,
         # add UC info only if - input has UC info and there is only one template on input
         cryst1_dict = None
         if len(template_fn_list)==1:
-            structure, cryst1_dict = parse_pdb_bio(template_fn_list[0], cryst1=True)
+            structure, cryst1_dict = parse_pdb_bio(template_fn_list[0], return_uc=True)
 
 
         pdb_fn = f"ranked_{n}.pdb"

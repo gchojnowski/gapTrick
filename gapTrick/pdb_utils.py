@@ -383,7 +383,7 @@ def _obsolete_parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_conf
 
 
 
-def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, cryst1=False):
+def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, return_uc=False):
 
     class NotAlt(Select):
         def accept_atom(self, atom):
@@ -406,7 +406,7 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, c
                         r"(?P<beta>[0-9.]+)\s+"
                         r"(?P<gamma>[0-9.]+)\s+"
                         r"(?P<spacegroup>.+?)(?:\s+(?P<z>\d+))?\s*$", line)
-                    
+
                 if m:
                     cryst1 = {
                         "a": float(m.group("a")),
@@ -419,21 +419,21 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, c
                         "z": int(m.group("z")) if m.group("z") else None,
                     }
                     break
-                    
+
                 if line.startswith("ATOM"): break
-                
+
     except:
 
         parser = MMCIFParser(QUIET=True)
         structure = parser.get_structure(outid, ifn)[0]
         try:
             cryst1={
-                "a":parser._mmcif_dict["_cell.length_a"][0],
-                "b":parser._mmcif_dict["_cell.length_a"][0],
-                "c":parser._mmcif_dict["_cell.length_a"][0],
-                "alpha":parser._mmcif_dict["_cell.angle_alpha"][0],
-                "beta":parser._mmcif_dict["_cell.angle_beta"][0],
-                "gamma":parser._mmcif_dict["_cell.angle_gamma"][0],
+                "a":float(parser._mmcif_dict["_cell.length_a"][0]),
+                "b":float(parser._mmcif_dict["_cell.length_a"][0]),
+                "c":float(parser._mmcif_dict["_cell.length_a"][0]),
+                "alpha":float(parser._mmcif_dict["_cell.angle_alpha"][0]),
+                "beta":float(parser._mmcif_dict["_cell.angle_beta"][0]),
+                "gamma":float(parser._mmcif_dict["_cell.angle_gamma"][0]),
                 "spacegroup":parser._mmcif_dict["_symmetry.space_group_name_H-M"][0],
                 "z":parser._mmcif_dict["_cell.Z_PDB"][0]
                 }
@@ -453,12 +453,12 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, c
                 for resi in chain:
                     for atom in resi:
                         atom.set_altloc(" ")
-    if cryst1:
+    if return_uc:
         return structure, cryst1
-    
+
     return structure
 
-    def format_cryst1(uc: dict) -> str:
+def format_cryst1(uc: dict) -> str:
     """
     Format a PDB CRYST1 record from a unit-cell dictionary.
 
@@ -472,13 +472,8 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, c
     z = uc.get("z", 1)
 
     return (
-        f"CRYST1"
-        f"{uc['a']:9.3f}"
-        f"{uc['b']:9.3f}"
-        f"{uc['c']:9.3f}"
-        f"{uc['alpha']:7.2f}"
-        f"{uc['beta']:7.2f}"
-        f"{uc['gamma']:7.2f} "
+        f"CRYST1{uc['a']:9.3f}{uc['b']:9.3f}{uc['c']:9.3f}"
+        f"{uc['alpha']:7.2f}{uc['beta']:7.2f}{uc['gamma']:7.2f} "
         f"{spacegroup:<11}"
         f"{z:4d}"
     )
