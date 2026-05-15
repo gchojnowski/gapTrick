@@ -403,3 +403,28 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, c
         return structure, cryst1
     
     return structure
+
+    def format_cryst1(uc: dict) -> str:
+    """
+    Format a PDB CRYST1 record from a unit-cell dictionary.
+
+    Expected keys:
+        a, b, c, alpha, beta, gamma
+    Optional keys:
+        spacegroup, z
+    """
+
+    spacegroup = uc.get("spacegroup", "P 1")
+    z = uc.get("z", 1)
+
+    return (
+        f"CRYST1"
+        f"{uc['a']:9.3f}"
+        f"{uc['b']:9.3f}"
+        f"{uc['c']:9.3f}"
+        f"{uc['alpha']:7.2f}"
+        f"{uc['beta']:7.2f}"
+        f"{uc['gamma']:7.2f} "
+        f"{spacegroup:<11}"
+        f"{z:4d}"
+    )
