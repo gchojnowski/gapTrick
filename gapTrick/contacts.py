@@ -202,7 +202,7 @@ def make_contact_scripts(prefix, feature_dict, logger, print_contacts=False, kee
             ofile.write("\n".join(chimerax_sb_int))
 
     with open(os.path.join(datadir, f"contacts.txt"), 'w') as ofile:
-        ofile.write("residue_1 residue_2 pbty(|CB-CB|<8Å)>0.8\n")
+        ofile.write("residue_1 residue_2 pbty(|CB-CB|<8A)>0.8\n")
         ofile.write("\n".join(contacts_list))
 
     logger.info("\n\n")
