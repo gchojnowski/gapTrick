@@ -230,7 +230,7 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
         d['B_chain'] = chain_ids[cj]
         d['B_atom_name']='CA' if resnj=="GLY" else "CB"
         d['mean'] = mean
-        d['sigma'] = max(sd, 0.1)
+        d['sigma'] = sd#max(sd, 0.1)
 
         restraints_model.append(refmac_dist_generic%d)
         #print(f"{'*' if ci!=cj else ' '} {resi:-4d}/{chain_ids[ci]}/{resni} {resj:-4d}/{chain_ids[cj]}/{resnj} {mean:5.2f} {sd:5.2f} i={i} j={j}")
