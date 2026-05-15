@@ -1016,9 +1016,6 @@ def runme(msa_filenames,
 
 def main():
 
-    logging.basicConfig(level=logging.INFO, format="%(message)s",\
-            handlers=[logging.StreamHandler(sys.stdout)])
-
     header_msg = "\n".join(["", f"## gapTrick version {version.__version__}", ""," ==> Command line: gapTrick %s" % (" ".join(sys.argv[1:])), ""])
 
     start_time = datetime.now()
@@ -1032,16 +1029,16 @@ def main():
 
 
     if options.jobname is None:
-        logger.info( header_msg )
-        logger.info('Define jobname - output directory with --jobname')
+        print( header_msg )
+        print('Define jobname - output directory with --jobname')
         exit(0)
 
     jobpath=Path(options.jobname)
     try:
         jobpath.mkdir(parents=True, exist_ok=False)
     except:
-        logger.info( header_msg )
-        logger.info(f"ERROR: target directory already exists '{jobpath}'")
+        print( header_msg )
+        print(f"ERROR: target directory already exists '{jobpath}'")
         return 1
 
     logging.basicConfig(level=logging.INFO, format="%(message)s",\
