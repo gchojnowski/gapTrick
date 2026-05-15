@@ -416,7 +416,7 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, r
                         "beta": float(m.group("beta")),
                         "gamma": float(m.group("gamma")),
                         "spacegroup": m.group("spacegroup").strip(),
-                        "z": int(m.group("z")) if m.group("z") else None,
+                        "z": int(m.group("z")) if m.group("z") else 1,
                     }
                     break
 
@@ -435,8 +435,11 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, r
                 "beta":float(parser._mmcif_dict["_cell.angle_beta"][0]),
                 "gamma":float(parser._mmcif_dict["_cell.angle_gamma"][0]),
                 "spacegroup":parser._mmcif_dict["_symmetry.space_group_name_H-M"][0],
-                "z":parser._mmcif_dict["_cell.Z_PDB"][0]
                 }
+            if "_cell.Z_PDB" in parser._mmcif_dict:
+                cryst1["z"] = int(parser._mmcif_dict["_cell.Z_PDB"][0])
+            else:
+                cryst1["z"] = 1
         except:
             cryst1=None
 

@@ -92,7 +92,7 @@ except ImportError:
 from gapTrick.contacts import make_contact_scripts
 from gapTrick.restraints import make_restraint_scripts
 from gapTrick.msa import query_mmseqs2, pretty_sequence_print
-from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio, format_cryst1
+from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio, format_cryst1, save_mmcif_with_unit_cell
 
 
 hhdb_build_template="""
