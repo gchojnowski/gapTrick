@@ -155,7 +155,7 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
             d['B_atom_name']=_aa[1]
 
             d['mean'] = np.linalg.norm(model_atom_dict[_aa[0]] - model_atom_dict[_aa[1]])
-            d['sigma'] = 0.5
+            d['sigma'] = 0.1
             restraints_model.append(refmac_dist_generic%d)
 
         # now, generate sc restraints for input structure
