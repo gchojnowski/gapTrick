@@ -9,6 +9,7 @@ from pathlib import Path
 from itertools import groupby
 from operator import itemgetter
 import numpy as np
+import tempfile
 
 from Bio import Align
 from Bio.PDB import PDBParser, Select, MMCIFParser
@@ -94,12 +95,65 @@ ogt = dict([(tgo[_k], _k) for _k in tgo])
 
 # -----------------------------------------------------------------------------
 
-def save_pdb(structure, ofname):
+def save_pdb(structure, ofname, cryst1=None):
     pdbio = MMCIFIO()
     pdbio.set_structure(structure)
     with Path(ofname).open('w') as of:
         pdbio.save(of)
 
+def save_mmcif_with_unit_cell(structure, out_cif, uc: dict):
+    """
+    Save a Biopython Structure as mmCIF and inject unit-cell / space-group info.
+
+    uc example:
+    {
+        "a": 54.3,
+        "b": 66.55,
+        "c": 61.35,
+        "alpha": 90.0,
+        "beta": 103.4,
+        "gamma": 90.0,
+        "spacegroup": "P 1 21 1",
+        "z": 2,
+    }
+    """
+
+    # First write normal mmCIF from Structure
+    io = MMCIFIO()
+    io.set_structure(structure)
+
+    with tempfile.NamedTemporaryFile(suffix=".cif", delete=False) as tmp:
+        tmp_name = tmp.name
+
+    try:
+        io.save(tmp_name)
+
+        # Read back as mmCIF dictionary
+        cif_dict = MMCIF2Dict(tmp_name)
+
+        # Inject / update crystallographic fields
+        cif_dict["_cell.length_a"] = [f"{uc['a']:.3f}"]
+        cif_dict["_cell.length_b"] = [f"{uc['b']:.3f}"]
+        cif_dict["_cell.length_c"] = [f"{uc['c']:.3f}"]
+        cif_dict["_cell.angle_alpha"] = [f"{uc['alpha']:.2f}"]
+        cif_dict["_cell.angle_beta"] = [f"{uc['beta']:.2f}"]
+        cif_dict["_cell.angle_gamma"] = [f"{uc['gamma']:.2f}"]
+
+        if "spacegroup" in uc and uc["spacegroup"] is not None:
+            cif_dict["_symmetry.space_group_name_H-M"] = [uc["spacegroup"]]
+            cif_dict["_space_group.name_H-M_alt"] = [uc["spacegroup"]]
+
+        if "z" in uc and uc["z"] is not None:
+            cif_dict["_cell.Z_PDB"] = [str(int(uc["z"]))]
+
+        # Save updated dictionary
+        io2 = MMCIFIO()
+        io2.set_dict(cif_dict)
+        io2.save(out_cif)
+
+    finally:
+        Path(tmp_name).unlink(missing_ok=True)
+        
 # -----------------------------------------------------------------------------
 
 

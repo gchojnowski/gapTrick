@@ -88,7 +88,7 @@ except ImportError:
 from gapTrick.contacts import make_contact_scripts
 from gapTrick.restraints import make_restraint_scripts
 from gapTrick.msa import query_mmseqs2, pretty_sequence_print
-from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio
+from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio, format_cryst1
 
 
 hhdb_build_template="""
@@ -392,6 +392,12 @@ def predict_structure(prefix,
         ranking_debug_dict['order'].append(model_names[_idx])
         ranking_debug_dict['ptm'][model_names[_idx]]=float(ptmscore[_idx])
 
+        # add UC info only if - input has UC info and there is only one template on input
+        cryst1_dict = None
+        if len(template_fn_list)==1:
+            structure, cryst1_dict = parse_pdb_bio(template_fn_list[0], cryst1=True)
+
+
         pdb_fn = f"ranked_{n}.pdb"
         mmcif_fn = f"ranked_{n}.cif"
 
@@ -408,6 +414,7 @@ def predict_structure(prefix,
         pdb_header.append( f"REMARK 0 pTM {ptmscore[_idx]:6.4f}" )
         if do_relax and n<1: pdb_header.append("REMARK 0 ENERGY MINIMIZED WITH AMBER")
         pdb_header.append( f"REMARK 0" )
+        if cryst1_dict: pdb_header.append( format_cryst1(cryst1_dict) )
 
         pdb_header = "\n".join(pdb_header)
 
@@ -433,16 +440,10 @@ def predict_structure(prefix,
             of.write(f"{pdb_header}\n")
             pdbio.save(of)
 
-        save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
-
-        #else:
-        #    with Path(outputpath, pdb_fn).open('w') as of:
-        #        of.write(f"{pdb_header}\n")
-        #        of.write(_pdb_lines)
-        #
-        #    with Path(outputpath, mmcif_fn).open('w') as of:
-        #        of.write(f"{pdb_header}\n")
-        #        pdbio.save(of)
+        if cryst1_dict:
+            save_mmcif_with_unit_cell(model_structure, os.path.join(outputpath, mmcif_fn), uc=cryst1_dict)
+        else:
+            save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
 
     # save a file with pTMs and rankings
     with Path(outputpath, 'ranking_debug.json').open('w') as of:
