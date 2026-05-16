@@ -429,8 +429,8 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, r
         try:
             cryst1={
                 "a":float(parser._mmcif_dict["_cell.length_a"][0]),
-                "b":float(parser._mmcif_dict["_cell.length_a"][0]),
-                "c":float(parser._mmcif_dict["_cell.length_a"][0]),
+                "b":float(parser._mmcif_dict["_cell.length_b"][0]),
+                "c":float(parser._mmcif_dict["_cell.length_c"][0]),
                 "alpha":float(parser._mmcif_dict["_cell.angle_alpha"][0]),
                 "beta":float(parser._mmcif_dict["_cell.angle_beta"][0]),
                 "gamma":float(parser._mmcif_dict["_cell.angle_gamma"][0]),
