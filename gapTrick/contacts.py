@@ -30,7 +30,14 @@ chimerax_dist_generic=\
 # lists likely contacts and generates pymol/chimera scripts
 # bypasses af2plots and has no matplolib dep
 
-def make_contact_scripts(prefix, feature_dict, logger, print_contacts=False, keepalldata=False, pbty_cutoff=0.8, distance_cutoff=8.0):
+def make_contact_scripts(prefix,
+                         feature_dict,
+                         logger,
+                         print_contacts     =   False,
+                         keepalldata        =   False,
+                         pbty_cutoff        =   0.8,
+                         distance_cutoff    =   8.0,
+                         plddtmin           =   None):
 
     datadir=Path(prefix, "output")
     datadict = {}
@@ -141,8 +148,12 @@ def make_contact_scripts(prefix, feature_dict, logger, print_contacts=False, kee
         d['A_resid'] = resi = m.group('res1')
         d['B_resid'] = resj = m.group('res2')
 
-        resni = tgo[chain_seq_dict[ci][int(resi)-1]].upper()
-        resnj = tgo[chain_seq_dict[cj][int(resj)-1]].upper()
+        try:
+            resni = tgo[chain_seq_dict[ci][int(resi)-1]].upper()
+            resnj = tgo[chain_seq_dict[cj][int(resj)-1]].upper()
+        except:
+            continue
+
 
         if resni=='GLY':
             d['A_atom_name']='CA'

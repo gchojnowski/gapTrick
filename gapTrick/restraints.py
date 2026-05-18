@@ -41,7 +41,11 @@ exte dist first chain %(A_chain)s resi %(A_resid)s ins %(A_inscode)s atom %(A_at
 
 
 
-def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
+def make_restraint_scripts(prefix,
+                           feature_dict,
+                           logger,
+                           distance_cutoff=8.0,
+                           plddtmin=None):
 
     datadir=Path(prefix)
     datadict = {}
@@ -143,6 +147,12 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
         model_resid = 1+i-sum(chain_lens[:ci])
 
         model_residue = model_dict[model_chain][model_resid]
+        if not plddtmin is None:
+            atoms = list(model_residue.get_atoms())
+            avg_b = sum(atom.get_bfactor() for atom in atoms) / len(atoms)
+
+            if avg_b<plddtmin: continue
+
         model_atom_dict = dict([(_.get_name(), _.get_coord()) for _ in model_residue.get_atoms()])
 
         d={}
@@ -213,6 +223,19 @@ def make_restraint_scripts(prefix, feature_dict, logger, distance_cutoff=8.0):
 
         resi = 1+i-sum(chain_lens[:ci])
         resj = 1+j-sum(chain_lens[:cj])
+
+        # low-plddt ones will be removed
+        if not plddtmin is None:
+            model_residue_i = model_dict[chain_ids[ci]][resi]
+            model_residue_j = model_dict[chain_ids[cj]][resj]
+            atoms = list(model_residue_i.get_atoms())
+            avg_b = sum(atom.get_bfactor() for atom in atoms) / len(atoms)
+            if avg_b<plddtmin: continue
+
+            atoms = list(model_residue_j.get_atoms())
+            avg_b = sum(atom.get_bfactor() for atom in atoms) / len(atoms)
+            if avg_b<plddtmin: continue
+
         resni = tgo[chain_seq_dict[chain_ids[ci]][int(resi)-1]].upper()
         resnj = tgo[chain_seq_dict[chain_ids[cj]][int(resj)-1]].upper()
 

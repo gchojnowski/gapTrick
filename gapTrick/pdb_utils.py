@@ -153,9 +153,35 @@ def save_mmcif_with_unit_cell(structure, out_cif, uc: dict):
 
     finally:
         Path(tmp_name).unlink(missing_ok=True)
-        
+
 # -----------------------------------------------------------------------------
 
+def remove_residues_bfactor_below(structure, bmin):
+    """
+    Remove residues whose average atom B-factor is below bmin.
+    Modifies structure in place.
+    """
+
+    for chain in structure:
+        residues_to_remove = []
+
+        for residue in chain:
+            atoms = list(residue.get_atoms())
+
+            if not atoms:
+                continue
+
+            avg_b = sum(atom.get_bfactor() for atom in atoms) / len(atoms)
+
+            if avg_b < bmin:
+                residues_to_remove.append(residue.id)
+
+        for residue_id in residues_to_remove:
+            chain.detach_child(residue_id)
+
+    return structure
+
+# -----------------------------------------------------------------------------
 
 def CB_xyz(n, ca, c):
     bondl=1.52
