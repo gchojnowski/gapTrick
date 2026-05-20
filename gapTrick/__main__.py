@@ -92,7 +92,7 @@ except ImportError:
 from gapTrick.contacts import make_contact_scripts
 from gapTrick.restraints import make_restraint_scripts
 from gapTrick.msa import query_mmseqs2, pretty_sequence_print
-from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio, format_cryst1, save_mmcif_with_unit_cell
+from gapTrick.pdb_utils import parse_pdb_bio, get_prot_chains_bio, save_pdb, tgo, ogt, match_template_chains_to_target_bio, CB_xyz, chain2CIF_bio, format_cryst1, save_mmcif_with_unit_cell, remove_residues_bfactor_below
 
 
 hhdb_build_template="""
@@ -226,6 +226,10 @@ def parse_args(expert=False):
     expert_opts.add_option("--mmseqs_api_server", action="store", dest="mmseqs_api_server", type="string", metavar="HTTP", \
                   help=SUPPRESS_HELP if not expert else "mmseqs2 API server address default (default: %default)", default="https://a3m.mmseqs.com")
 
+    expert_opts.add_option("--plddtmin", action="store", dest="plddtmin", type="float", metavar="FLOAT", \
+                  help=SUPPRESS_HELP if not expert else "Remove residues with lower plddtd from output [default %default]",
+                  default=None)
+
 
     (options, _args)  = parser.parse_args()
     return (parser, options)
@@ -261,7 +265,8 @@ def predict_structure(prefix,
                       model2template_mappings   =   None,
                       random_seed               =   None,
                       gap_size                  =   200,
-                      template_fn_list          =   []):
+                      template_fn_list          =   [],
+                      plddtmin                  =   None):
 
     if random_seed is None:
         random_seed = np.random.randint(sys.maxsize//5)
@@ -405,6 +410,10 @@ def predict_structure(prefix,
         pdb_fn = f"ranked_{n}.pdb"
         mmcif_fn = f"ranked_{n}.cif"
 
+
+        pdb_hifi_fn = f"ranked_{n}_hifi.pdb"
+        mmcif_hifi_fn = f"ranked_{n}_hifi.cif"
+
         Path(outputpath, f'unrelaxed_{model_names[_idx]}_pae.json').rename( Path(outputpath, f'ranked_{n}_pae.json') )
 
         logger.info(f"{pdb_fn} ({model_names[_idx]}) <pLDDT>={np.mean(plddts[_idx]):6.4f} pTM={ptmscore[_idx]:6.4f}")
@@ -448,6 +457,22 @@ def predict_structure(prefix,
             save_mmcif_with_unit_cell(model_structure, os.path.join(outputpath, mmcif_fn), uc=cryst1_dict)
         else:
             save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
+
+        if not plddtmin is None:
+            remove_residues_bfactor_below(model_structure, plddtmin)
+
+            pdbio = PDBIO()
+            pdbio.set_structure(model_structure)
+            with Path(outputpath, pdb_hifi_fn).open('w') as of:
+                of.write(f"{pdb_header}\n")
+                pdbio.save(of)
+
+            if cryst1_dict:
+                save_mmcif_with_unit_cell(model_structure, os.path.join(outputpath, mmcif_hifi_fn), uc=cryst1_dict)
+            else:
+                save_pdb(model_structure, os.path.join(outputpath, mmcif_fn))
+
+
 
     # save a file with pTMs and rankings
     with Path(outputpath, 'ranking_debug.json').open('w') as of:
@@ -862,7 +887,8 @@ def runme(msa_filenames,
           iterate           =   1,
           fixed_chain_ids   =   None,
           keepalldata       =   False,
-          restraints        =   False):
+          restraints        =   False,
+          plddtmin          =   None):
 
 
 
@@ -1005,13 +1031,14 @@ def runme(msa_filenames,
                       do_relax                  =   do_relax,
                       model2template_mappings   =   model2template_mappings,
                       random_seed               =   random_seed,
-                      template_fn_list          =   input_template_fn_list)
+                      template_fn_list          =   input_template_fn_list,
+                      plddtmin                  =   plddtmin)
 
     if PLOTTER_AVAILABLE:
         make_figures(jobname, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
 
-    make_contact_scripts(jobname, feature_dict, logger, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff)
-    if restraints: make_restraint_scripts(jobname, feature_dict, logger)
+    make_contact_scripts(jobname, feature_dict, logger, keepalldata=keepalldata, pbty_cutoff=pbty_cutoff, plddtmin=plddtmin)
+    if restraints: make_restraint_scripts(jobname, feature_dict, logger, plddtmin=plddtmin)
 
 
 def main():
@@ -1130,7 +1157,8 @@ def main():
           iterate           =   options.iterate,
           fixed_chain_ids   =   options.fixed_chain_ids,
           keepalldata       =   options.keepalldata,
-          restraints        =   options.restraints)
+          restraints        =   options.restraints,
+          plddtmin          =   options.plddtmin)
 
     if not options.keepalldata:
         for fname in os.listdir(Path(options.jobname, "msa")):
