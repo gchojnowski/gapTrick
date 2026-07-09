@@ -9,6 +9,7 @@ from pathlib import Path
 import glob
 import os
 import pickle
+import json
 import numpy as np
 import string
 
@@ -99,6 +100,16 @@ def make_contact_scripts(prefix,
         chain_lens.append(np.sum(np.array(asym_id)==(i+1)))
 
     chain_lens = np.array(chain_lens)
+
+    with Path(datadir, "ranking_debug.json").open('r') as ifile:
+        ranks = json.load(ifile)
+
+    # save flattened distogram
+    output_dict = {'below8pbty':below8pbty, 'chain_lens':chain_lens, 'asym_id':asym_id, 'chain_ids':chain_ids, 'ranks':ranks}
+    with Path(datadir, "flat_distogram.pkl").open("wb") as f:
+        pickle.dump(output_dict, f)
+
+
     resi_i,resi_j = np.where(below8pbty>pbty_cutoff)
     for i,j in zip(resi_i, resi_j):
 
