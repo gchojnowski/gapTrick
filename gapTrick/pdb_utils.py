@@ -434,16 +434,32 @@ def parse_pdb_bio(ifn, outid="xyz", plddt_cutoff=None, remove_alt_confs=False, r
                         r"(?P<spacegroup>.+?)(?:\s+(?P<z>\d+))?\s*$", line)
 
                 if m:
-                    cryst1 = {
-                        "a": float(m.group("a")),
-                        "b": float(m.group("b")),
-                        "c": float(m.group("c")),
-                        "alpha": float(m.group("alpha")),
-                        "beta": float(m.group("beta")),
-                        "gamma": float(m.group("gamma")),
-                        "spacegroup": m.group("spacegroup").strip(),
-                        "z": int(m.group("z")) if m.group("z") else 1,
-                    }
+                    try:
+                        padded = line.rstrip().ljust(70)
+                        z_str = padded[66:70].strip()
+                        cryst1 = {
+                                "a": float(padded[6:15]),
+                                "b": float(padded[15:24]),
+                                "c": float(padded[24:33]),
+                                "alpha": float(padded[33:40]),
+                                "beta": float(padded[40:47]),
+                                "gamma": float(padded[47:54]),
+                                "spacegroup": padded[55:66].strip(),
+                                "z": int(z_str) if z_str else 1,
+                        }
+                        break
+                    except (ValueError, IndexError):
+                        # Fallback: whitespace-tokenized parsing for malformed/non-standard files
+                           cryst1 = {
+                                "a": float(m.group("a")),
+                                "b": float(m.group("b")),
+                                "c": float(m.group("c")),
+                                "alpha": float(m.group("alpha")),
+                                "beta": float(m.group("beta")),
+                                "gamma": float(m.group("gamma")),
+                                "spacegroup": m.group("spacegroup").strip(),
+                                "z": int(m.group("z")) if m.group("z") else 1,
+                            }
                     break
 
                 if line.startswith("ATOM"): break
